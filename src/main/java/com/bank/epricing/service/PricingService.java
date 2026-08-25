@@ -14,6 +14,7 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,39 +25,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  PricingService.java — Business Logic Orchestrator                      ║
- * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  WHY THIS CLASS EXISTS:                                                  ║
- * ║  The Service layer sits between Controller and Repository.              ║
- * ║  It contains all BUSINESS LOGIC and ORCHESTRATION:                     ║
- * ║    1. Calls PricingCalculator for the math                             ║
- * ║    2. Calls PricingRepository to persist data                          ║
- * ║    3. Records metrics via PricingMetrics                               ║
- * ║    4. Writes structured logs via StructuredLogger                      ║
- * ║    5. Creates custom OTel spans for granular tracing                   ║
- * ║    6. Calls PricingAuditService to create audit records               ║
- * ║                                                                          ║
- * ║  OBSERVABILITY IS WOVEN THROUGH THIS CLASS:                            ║
- * ║  Every significant operation records:                                   ║
- * ║    - A metric (for Prometheus/Grafana)                                 ║
- * ║    - A log (for Loki/Grafana)                                          ║
- * ║    - A span (for Tempo/Grafana)                                         ║
- * ║  All three are linked by the same traceId.                             ║
- * ╚══════════════════════════════════════════════════════════════════════════╝
- */
-@Service  // Marks this as a Spring-managed Service bean
+@Service
 public class PricingService {
 
     private static final Logger log = LoggerFactory.getLogger(PricingService.class);
-
-    // All dependencies are final and injected via constructor (best practice).
-    // WHY CONSTRUCTOR INJECTION (not @Autowired field injection):
-    //   1. Makes dependencies explicit and visible
-    //   2. Allows easy unit testing (pass mocks via constructor)
-    //   3. Ensures the bean cannot be instantiated without its dependencies
-    //   4. Field injection with @Autowired requires reflection and hides dependencies
 
     private final PricingRepository pricingRepository;
     private final PricingCalculator pricingCalculator;
@@ -64,6 +36,10 @@ public class PricingService {
     private final PricingAuditService auditService;
     private final StructuredLogger structuredLogger;
     private final Tracer tracer;
+
+    /** How long (days) a quoted rate is valid — configurable via epricing.rate-valid-days */
+    @Value("${epricing.rate-valid-days:7}")
+    private int rateValidDays;
 
     public PricingService(PricingRepository pricingRepository,
                           PricingCalculator pricingCalculator,
@@ -80,57 +56,29 @@ public class PricingService {
     }
 
     /**
-     * ═══════════════════════════════════════════════════════════════════
-     * CALCULATE PRICING — The main business operation
-     * ═══════════════════════════════════════════════════════════════════
-     *
-     * @Transactional: Wraps this method in a database transaction.
-     * If ANY exception is thrown, ALL database changes are rolled back.
-     * This ensures atomicity: either everything succeeds or nothing is saved.
-     *
-     * readOnly=false (default): This transaction may write to the database.
-     *
-     * In banking, transactionality is critical:
-     * "If pricing calculation succeeded but audit log failed → rollback both"
-     * This prevents partial state (pricing without audit trail).
+     * Main pricing calculation flow.
+     * @Transactional ensures pricing record + audit record are committed together.
+     * If audit fails, the whole transaction rolls back — no orphaned pricing records.
      */
     @Transactional
     public PricingResponseDto calculatePricing(PricingRequestDto requestDto, String requestIp) {
 
         long overallStartTime = System.currentTimeMillis();
 
-        // ─── OBSERVABILITY: Record incoming request ────────────────────────
         pricingMetrics.recordPricingRequestReceived();
         pricingMetrics.incrementActiveRequests();
         pricingMetrics.recordProductTypeRequest(requestDto.getProductType());
         pricingMetrics.recordLoanAmount(requestDto.getLoanAmount().doubleValue());
 
-        // Start timing the end-to-end operation
         Timer.Sample endToEndSample = pricingMetrics.startCalculationTimer();
 
-        // ─── OBSERVABILITY: Create custom OTel span ────────────────────────
-        // The outer span (for the HTTP request) is auto-created by
-        // opentelemetry-spring-webmvc-6.0.
-        // Here we create a CHILD SPAN specifically for the pricing business logic.
-        // This gives finer granularity in the trace waterfall diagram.
-        //
-        // In Grafana Tempo, you'll see:
-        //   └─ GET /api/v1/pricing (150ms) ← auto-created by OTel Spring MVC
-        //      └─ calculatePricing (140ms)  ← THIS span (business logic)
-        //         └─ validateEligibility (5ms)
-        //         └─ computeRate (10ms)
-        //         └─ persistPricingRequest (120ms) ← DB operation
+        // Parent span for the business logic — sits under the auto-created HTTP span in Tempo
         Span pricingSpan = tracer.spanBuilder("calculatePricing")
             .setAttribute("customer.id", requestDto.getCustomerId())
             .setAttribute("product.type", requestDto.getProductType())
             .setAttribute("loan.amount", requestDto.getLoanAmount().toPlainString())
             .startSpan();
 
-        // try-with-resources pattern for OTel scopes:
-        // Scope.makeCurrent() makes this span the "current" span for this thread.
-        // When the try block exits, the scope is automatically closed and the
-        // previous span becomes current again.
-        // This is critical for correct parent-child span relationships.
         try (Scope scope = pricingSpan.makeCurrent()) {
 
             structuredLogger.logPricingStarted(
@@ -139,8 +87,7 @@ public class PricingService {
                 requestDto.getLoanAmount()
             );
 
-            // ─── STEP 1: Validate eligibility ──────────────────────────────
-            // Creates a child span: "validateEligibility"
+            // Step 1: eligibility validation
             Span validationSpan = tracer.spanBuilder("validateEligibility")
                 .setAttribute("credit.score", requestDto.getCreditScore() != null
                     ? requestDto.getCreditScore().toString() : "not_provided")
@@ -155,7 +102,6 @@ public class PricingService {
                 validationSpan.addEvent("Eligibility validation passed");
             } catch (PricingException.InsufficientCreditScoreException |
                      PricingException.LoanAmountExceedsEligibilityException e) {
-                // Business rejection — record in metrics and audit, then rethrow
                 validationSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
                 pricingMetrics.decrementActiveRequests();
                 pricingMetrics.recordPricingRejection();
@@ -165,12 +111,12 @@ public class PricingService {
                 );
                 auditService.recordRejection(requestDto, e.getMessage(), e.getErrorCode(), requestIp,
                     Span.current().getSpanContext().getTraceId());
-                throw e; // Rethrow so GlobalExceptionHandler formats the response
+                throw e;
             } finally {
                 validationSpan.end();
             }
 
-            // ─── STEP 2: Calculate interest rate ──────────────────────────
+            // Step 2: interest rate calculation
             Timer.Sample calcSample = pricingMetrics.startCalculationTimer();
             Span calcSpan = tracer.spanBuilder("computeInterestRate").startSpan();
             BigDecimal interestRate;
@@ -187,23 +133,20 @@ public class PricingService {
                 pricingMetrics.stopCalculationTimer(calcSample);
             }
 
-            // ─── STEP 3: Calculate EMI ─────────────────────────────────────
+            // Step 3: EMI and derived values
             BigDecimal emi = pricingCalculator.calculateEmi(
                 requestDto.getLoanAmount(),
                 interestRate,
                 requestDto.getLoanTenureMonths()
             );
-
-            // ─── STEP 4: Calculate derived values ─────────────────────────
             BigDecimal totalPayable = emi.multiply(BigDecimal.valueOf(requestDto.getLoanTenureMonths()));
             BigDecimal totalInterest = totalPayable.subtract(requestDto.getLoanAmount());
             String riskCategory = pricingCalculator.determineRiskCategory(requestDto.getCreditScore());
 
-            // ─── STEP 5: Persist to database ──────────────────────────────
+            // Step 4: persist to DB
             String traceId = pricingSpan.getSpanContext().getTraceId();
             long dbStartTime = System.currentTimeMillis();
 
-            // Repository Layer Span
             Span dbSpan = tracer.spanBuilder("PricingRepository.save")
                 .setAttribute("db.operation", "INSERT")
                 .setAttribute("db.table", "pricing_requests")
@@ -246,17 +189,16 @@ public class PricingService {
                 dbSpan.end();
             }
 
-            // ─── STEP 6: Create audit record ──────────────────────────────
+            // Step 5: audit trail (runs in same transaction — must not fail silently)
             auditService.recordSuccess(savedRequest, requestIp, traceId);
 
-            // ─── STEP 7: Record success metrics ───────────────────────────
+            // Step 6: finalize metrics and span attributes
             long totalDuration = System.currentTimeMillis() - overallStartTime;
             savedRequest.setProcessingTimeMs(totalDuration);
             pricingMetrics.recordPricingSuccess();
             pricingMetrics.decrementActiveRequests();
             pricingMetrics.recordEndToEndDuration(endToEndSample);
 
-            // Add result attributes to the span
             pricingSpan.setAttribute("result.rate", interestRate.toPlainString());
             pricingSpan.setAttribute("result.emi", emi.toPlainString());
             pricingSpan.setAttribute("result.risk_category", riskCategory);
@@ -267,7 +209,6 @@ public class PricingService {
                 interestRate, emi, totalDuration
             );
 
-            // ─── STEP 8: Build and return response ────────────────────────
             return PricingResponseDto.builder()
                 .requestId(savedRequest.getId())
                 .customerId(savedRequest.getCustomerId())
@@ -287,7 +228,7 @@ public class PricingService {
                 .processingTimeMs(totalDuration)
                 .calculatedAt(LocalDateTime.now())
                 .riskCategory(riskCategory)
-                .rateValidUntil(LocalDateTime.now().plusDays(30))
+                .rateValidUntil(LocalDateTime.now().plusDays(rateValidDays))
                 .build();
 
         } catch (PricingException e) {
@@ -306,9 +247,7 @@ public class PricingService {
                 requestDto.getCustomerId(), requestDto.getProductType(),
                 e.getMessage(), e
             );
-            // CRITICAL GAP FIX: Persist a FAILED record to DB in a NEW transaction
-            // so Grafana's L1 Jobs Table shows the error without anyone logging into DB.
-            // Uses REQUIRES_NEW propagation so this commit is independent of the rolled-back main tx.
+            // Persist FAILED record in a new transaction so the L1 dashboard shows the error
             String failureDetail = (e.getMessage() != null && !e.getMessage().isBlank())
                 ? e.getMessage()
                 : e.getClass().getSimpleName();
@@ -318,13 +257,12 @@ public class PricingService {
                 "Unexpected error during pricing", e
             );
         } finally {
-            // ALWAYS end the span — even if an exception was thrown
             pricingSpan.end();
         }
     }
 
     /**
-     * Retrieve all pricing requests for a customer (or recent history if customerId is blank).
+     * Returns pricing history for a customer, or last 10 records if customerId is blank.
      */
     @Transactional(readOnly = true)
     public List<PricingResponseDto> getPricingHistory(String customerId) {
@@ -351,7 +289,7 @@ public class PricingService {
     }
 
     /**
-     * Retrieve paginated pricing requests for a customer.
+     * Returns paginated pricing history for a customer.
      */
     @Transactional(readOnly = true)
     public Page<PricingResponseDto> getPricingHistory(String customerId, Pageable pageable) {
@@ -362,7 +300,7 @@ public class PricingService {
     }
 
     /**
-     * Get a pricing request by its ID.
+     * Returns a single pricing record by DB ID.
      */
     @Transactional(readOnly = true)
     public PricingResponseDto getPricingById(Long id) {
@@ -382,9 +320,6 @@ public class PricingService {
         }
     }
 
-    /**
-     * Maps entity to response DTO — keeps controller and repository decoupled.
-     */
     private PricingResponseDto mapToResponseDto(PricingRequest entity) {
         BigDecimal loanAmount = entity.getLoanAmount() != null ? entity.getLoanAmount() : BigDecimal.ZERO;
         BigDecimal emi = entity.getEmiAmount() != null ? entity.getEmiAmount() : BigDecimal.ZERO;
@@ -421,7 +356,9 @@ public class PricingService {
             .calculatedAt(entity.getCreatedAt())
             .traceId(entity.getTraceId())
             .riskCategory(riskCategory)
-            .rateValidUntil(entity.getCreatedAt() != null ? entity.getCreatedAt().plusDays(30) : LocalDateTime.now().plusDays(30))
+            .rateValidUntil(entity.getCreatedAt() != null
+                ? entity.getCreatedAt().plusDays(rateValidDays)
+                : LocalDateTime.now().plusDays(rateValidDays))
             .build();
     }
 }

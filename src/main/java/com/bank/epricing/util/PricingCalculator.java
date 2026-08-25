@@ -11,28 +11,16 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 
 /**
- * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  PricingCalculator.java — Pure Business Logic (No Side Effects)         ║
- * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  WHY A SEPARATE UTILITY CLASS:                                           ║
- * ║  Pricing calculation logic is PURE MATH — it takes inputs and returns  ║
- * ║  outputs with zero side effects (no DB calls, no HTTP calls, no logs).  ║
- * ║  Keeping it separate from the service enables:                          ║
- * ║    1. Unit testing with no mocks (just call the method with numbers)   ║
- * ║    2. Reuse across multiple services                                     ║
- * ║    3. Clear separation: "This class does math. Nothing else."           ║
- * ║                                                                          ║
- * ║  This is the "Single Responsibility Principle" — one class, one job.   ║
- * ╚══════════════════════════════════════════════════════════════════════════╝
+ * Pure calculation logic for interest rates and EMIs.
+ * No side effects — no DB calls, no HTTP, no metrics.
+ * Kept separate so it can be unit-tested without any mocks.
  */
 @Component
 public class PricingCalculator {
 
     private static final Logger log = LoggerFactory.getLogger(PricingCalculator.class);
 
-    // ═══════════════════════════════════════════════════════════════
-    // CONSTANTS — base rates and risk multipliers
-    // Configurable base rate and risk multipliers (loaded from application.yml with safe fallbacks)
+    // Base rates and multipliers — configurable via application.yml
     @Value("${epricing.pricing.base-rate:8.50}")
     private BigDecimal baseRate = new BigDecimal("8.50");
 
@@ -51,34 +39,21 @@ public class PricingCalculator {
     @Value("${epricing.pricing.risk-multiplier.education-loan:1.05}")
     private BigDecimal educationLoanMultiplier = new BigDecimal("1.05");
 
-    // Credit score adjustments:
-    // Excellent (800+): -1.00% (reward good credit)
-    // Good (750-799):   -0.50%
-    // Average (700-749): +0.00% (baseline)
-    // Below Average (650-699): +0.50%
-    // Poor (<650): +1.50% (high risk premium)
+    // Credit score adjustments (basis points on the rate)
     private static final BigDecimal CREDIT_SCORE_EXCELLENT_ADJUSTMENT = new BigDecimal("-1.00");
     private static final BigDecimal CREDIT_SCORE_GOOD_ADJUSTMENT = new BigDecimal("-0.50");
     private static final BigDecimal CREDIT_SCORE_AVERAGE_ADJUSTMENT = BigDecimal.ZERO;
     private static final BigDecimal CREDIT_SCORE_BELOW_AVERAGE_ADJUSTMENT = new BigDecimal("0.50");
     private static final BigDecimal CREDIT_SCORE_POOR_ADJUSTMENT = new BigDecimal("1.50");
 
-    // Minimum credit score for any loan (RBI guideline)
+    // RBI minimum credit score for retail loans
     public static final int MINIMUM_CREDIT_SCORE = 650;
 
     /**
-     * Calculates the interest rate for a loan.
+     * Calculates the annual interest rate for a loan.
      *
-     * FORMULA:
-     * Rate = BASE_RATE × PRODUCT_MULTIPLIER + CREDIT_SCORE_ADJUSTMENT
-     *
-     * Capped between 7.00% (floor) and 24.00% (ceiling).
-     * RBI mandates the ceiling for retail loans.
-     *
-     * @param productType  Type of loan product
-     * @param creditScore  Customer's CIBIL/Experian score (null = use average)
-     * @param loanAmount   Principal loan amount (used for amount-based adjustments)
-     * @return Calculated interest rate (% per annum), rounded to 2 decimal places
+     * Formula: Rate = BASE_RATE × PRODUCT_MULTIPLIER + CREDIT_SCORE_ADJUSTMENT
+     * Capped between 7.00% (floor) and 24.00% (ceiling) per RBI guidelines.
      */
     public BigDecimal calculateInterestRate(
         String productType,
@@ -88,38 +63,25 @@ public class PricingCalculator {
         log.debug("Calculating interest rate | productType={} | creditScore={} | amount={}",
             productType, creditScore, loanAmount);
 
-        // Step 1: Get product multiplier
         BigDecimal productMultiplier = getProductMultiplier(productType);
-
-        // Step 2: Calculate base product rate
-        // baseRate × multiplier → e.g., 8.50 × 1.50 = 12.75% for PERSONAL_LOAN
         BigDecimal productRate = baseRate.multiply(productMultiplier)
             .setScale(2, RoundingMode.HALF_UP);
 
-        // Step 3: Apply credit score adjustment
         BigDecimal creditAdjustment = getCreditScoreAdjustment(
-            creditScore != null ? creditScore : 700  // default to "Average" if not provided
+            creditScore != null ? creditScore : 700
         );
 
-        // Step 4: Final rate = product rate + credit adjustment
         BigDecimal finalRate = productRate.add(creditAdjustment);
 
-        // Step 5: Apply large loan discount (economy of scale).
-        // Loans > ₹50 lakh (5,000,000) get -0.25% because they're more profitable overall.
+        // Loans > ₹50 lakh get a small discount (economy of scale)
         if (loanAmount != null && loanAmount.compareTo(new BigDecimal("5000000")) > 0) {
             finalRate = finalRate.subtract(new BigDecimal("0.25"));
         }
 
-        // Step 6: Cap within regulatory bounds
         BigDecimal floor = new BigDecimal("7.00");
         BigDecimal ceiling = new BigDecimal("24.00");
-
-        if (finalRate.compareTo(floor) < 0) {
-            finalRate = floor;
-        }
-        if (finalRate.compareTo(ceiling) > 0) {
-            finalRate = ceiling;
-        }
+        if (finalRate.compareTo(floor) < 0) finalRate = floor;
+        if (finalRate.compareTo(ceiling) > 0) finalRate = ceiling;
 
         BigDecimal result = finalRate.setScale(2, RoundingMode.HALF_UP);
         log.debug("Interest rate calculated | rate={}", result);
@@ -127,53 +89,28 @@ public class PricingCalculator {
     }
 
     /**
-     * Calculates the Equated Monthly Installment (EMI).
+     * Calculates the Equated Monthly Installment (EMI) using standard reducing-balance formula:
      *
-     * EMI FORMULA (standard reducing balance):
-     * EMI = P × r × (1+r)^n / [(1+r)^n - 1]
+     *   EMI = P × r × (1+r)^n / [(1+r)^n - 1]
      *
-     * Where:
-     *   P = Principal (loan amount)
-     *   r = Monthly interest rate = annual rate / 12 / 100
-     *   n = Number of months (tenure)
-     *
-     * Example:
-     *   P = ₹10,00,000 | r = 8.75%/12/100 = 0.00729 | n = 120
-     *   EMI = 10,00,000 × 0.00729 × (1.00729)^120 / [(1.00729)^120 - 1]
-     *       = ₹12,577 per month
-     *
-     * WHY BigDecimal and not double:
-     *   EMI calculations in banking must be EXACT.
-     *   Over 30 years, a 1-paisa rounding error per month = ₹3.60 total error.
-     *   At millions of customers, this becomes significant.
-     *   BigDecimal with HALF_UP rounding matches RBI-approved calculation standards.
+     * where P = principal, r = monthly rate (annual% / 12 / 100), n = tenure in months.
+     * BigDecimal used throughout to avoid floating-point drift on large loan amounts.
      */
     public BigDecimal calculateEmi(BigDecimal principalAmount, BigDecimal annualRatePercent, int tenureMonths) {
 
-        // Convert annual rate % to monthly decimal: 8.75% → 8.75/12/100 = 0.007292
         BigDecimal monthlyRate = annualRatePercent
-            .divide(BigDecimal.valueOf(12), 10, RoundingMode.HALF_UP)  // /12
-            .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP); // /100
+            .divide(BigDecimal.valueOf(12), 10, RoundingMode.HALF_UP)
+            .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
 
-        // If rate is 0 (hypothetically), EMI is simply P/n (no interest)
         if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
             return principalAmount.divide(BigDecimal.valueOf(tenureMonths), 2, RoundingMode.HALF_UP);
         }
 
-        // (1 + r)^n — compound interest factor
-        // MathContext.DECIMAL128 provides 34 digits of precision — more than enough for banking
         BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
         BigDecimal compoundFactor = onePlusR.pow(tenureMonths, MathContext.DECIMAL128);
 
-        // Numerator: P × r × (1+r)^n
-        BigDecimal numerator = principalAmount
-            .multiply(monthlyRate)
-            .multiply(compoundFactor);
-
-        // Denominator: (1+r)^n - 1
+        BigDecimal numerator = principalAmount.multiply(monthlyRate).multiply(compoundFactor);
         BigDecimal denominator = compoundFactor.subtract(BigDecimal.ONE);
-
-        // EMI = Numerator / Denominator
         BigDecimal emi = numerator.divide(denominator, 2, RoundingMode.HALF_UP);
 
         log.debug("EMI calculated | principal={} | rate={} | tenure={} | emi={}",
@@ -183,8 +120,7 @@ public class PricingCalculator {
     }
 
     /**
-     * Determines risk category based on credit score.
-     * Used in PricingResponseDto to explain the rate to the customer.
+     * Maps credit score to a risk bucket label used in the response DTO.
      */
     public String determineRiskCategory(Integer creditScore) {
         if (creditScore == null) return "MEDIUM";
@@ -196,25 +132,23 @@ public class PricingCalculator {
     }
 
     /**
-     * Validates whether a customer is eligible for a loan.
-     * Throws a specific exception if not eligible (caught by GlobalExceptionHandler).
+     * Validates loan eligibility. Throws a typed PricingException if not eligible.
+     * Checks: minimum CIBIL score and FOIR (Fixed Obligation to Income Ratio).
      */
     public void validateEligibility(String customerId, Integer creditScore, BigDecimal loanAmount, BigDecimal annualIncome) {
-        // Minimum credit score check
         if (creditScore != null && creditScore < MINIMUM_CREDIT_SCORE) {
             throw new PricingException.InsufficientCreditScoreException(
                 customerId, creditScore, MINIMUM_CREDIT_SCORE
             );
         }
 
-        // FOIR check: EMI should not exceed 50% of monthly income
-        // (FOIR = Fixed Obligation to Income Ratio — RBI guideline)
+        // FOIR check: estimated EMI obligation should not exceed 50% of monthly income
         if (annualIncome != null && loanAmount != null) {
             BigDecimal monthlyIncome = annualIncome.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
             BigDecimal maxEligibleLoan = monthlyIncome
-                .multiply(new BigDecimal("0.50"))  // 50% FOIR
-                .multiply(BigDecimal.valueOf(120)) // assuming 10 year max term for eligibility
-                .multiply(new BigDecimal("0.85")); // 85% of calculated max (safety margin)
+                .multiply(new BigDecimal("0.50"))
+                .multiply(BigDecimal.valueOf(120))
+                .multiply(new BigDecimal("0.85"));
 
             if (loanAmount.compareTo(maxEligibleLoan) > 0) {
                 throw new PricingException.LoanAmountExceedsEligibilityException(
@@ -226,7 +160,7 @@ public class PricingCalculator {
         }
     }
 
-    // ─── PRIVATE HELPERS ──────────────────────────────────────────────────
+    // --- private helpers ---
 
     private BigDecimal getProductMultiplier(String productType) {
         return switch (productType.toUpperCase()) {

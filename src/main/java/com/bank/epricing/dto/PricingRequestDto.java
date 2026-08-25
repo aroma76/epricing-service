@@ -43,6 +43,7 @@ public class PricingRequestDto {
     @JsonProperty("credit_score")
     private Integer creditScore;
 
+    @NotNull(message = "Annual income is required for eligibility assessment")
     @DecimalMin(value = "100000.00", message = "Minimum annual income is ₹1,00,000")
     @JsonProperty("annual_income")
     private BigDecimal annualIncome;

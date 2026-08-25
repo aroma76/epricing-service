@@ -38,24 +38,24 @@ public class StructuredLogger {
      * Logs when a pricing request starts processing.
      * Sets MDC fields that will appear in all subsequent log lines
      * within this request's processing chain.
+     *
+     * PII COMPLIANCE: customerId is masked in logs. Exact loan amount is
+     * replaced with a bracket label (e.g. "10L-50L") to prevent financial
+     * PII from being stored in plaintext in Loki.
      */
     public void logPricingStarted(String customerId, String productType, BigDecimal amount) {
-        // Add business context to MDC so ALL subsequent logs in this thread
-        // automatically include customerId and productCode
-        MDC.put(MDCFilter.CUSTOMER_ID, customerId);
+        MDC.put(MDCFilter.CUSTOMER_ID, maskCustomerId(customerId));
         MDC.put(MDCFilter.PRODUCT_CODE, productType);
         MDC.put(MDCFilter.OPERATION_TYPE, "PRICING_CALCULATION");
 
-        // structured log: every field is a separate named parameter
-        // logstash-logback-encoder converts this to JSON with each {} placeholder as a field
-        log.info("Pricing calculation started | event_type={} | customerId={} | productType={} | amount={}",
-            "PRICING_STARTED", customerId, productType, amount
+        log.info("Pricing calculation started | event_type={} | customerId={} | productType={} | amountBracket={}",
+            "PRICING_STARTED", maskCustomerId(customerId), productType, amountBracket(amount)
         );
     }
 
     /**
      * Logs a successful pricing calculation with full result details.
-     * This event is queryable in Grafana: "Show me all HOME_LOAN approvals today"
+     * Exact rate and EMI are logged as they are not PII; customerId is masked.
      */
     public void logPricingCompleted(
         String customerId,
@@ -64,13 +64,12 @@ public class StructuredLogger {
         BigDecimal emi,
         long processingTimeMs
     ) {
-        // Include the OTel trace ID explicitly for manual cross-referencing
         String traceId = Span.current().getSpanContext().getTraceId();
 
         log.info(
             "Pricing calculation completed | event_type={} | customerId={} | " +
-            "productType={} | rate={}% | emi={} | durationMs={} | traceId={}",
-            "PRICING_COMPLETED", customerId, productType, rate, emi, processingTimeMs, traceId
+            "productType={} | rate={}% | durationMs={} | traceId={}",
+            "PRICING_COMPLETED", maskCustomerId(customerId), productType, rate, processingTimeMs, traceId
         );
     }
 
@@ -78,12 +77,13 @@ public class StructuredLogger {
      * Logs a business-rule rejection (low credit score, exceeds eligibility, etc.)
      * WARN level: Not a technical error, but a business event worth tracking.
      * Grafana alert: "If rejection rate > 20% → alert risk team"
+     * PII: customerId masked; reason may contain eligibility details but not exact income.
      */
     public void logPricingRejected(String customerId, String productType, String reason, String errorCode) {
         log.warn(
             "Pricing request rejected | event_type={} | customerId={} | productType={} | " +
-            "reason={} | errorCode={}",
-            "PRICING_REJECTED", customerId, productType, reason, errorCode
+            "errorCode={}",
+            "PRICING_REJECTED", maskCustomerId(customerId), productType, errorCode
         );
     }
 
@@ -94,14 +94,13 @@ public class StructuredLogger {
      *   2. Increment error rate metrics in Grafana
      *   3. Create RED spans in Grafana Tempo
      *
-     * The throwable parameter causes logback to include the full stack trace
-     * in the JSON log output.
+     * PII: customerId is masked. errorMessage must NOT contain raw financial figures.
      */
     public void logPricingError(String customerId, String productType, String errorMessage, Throwable cause) {
         log.error(
             "Pricing calculation failed | event_type={} | customerId={} | productType={} | error={}",
-            "PRICING_ERROR", customerId, productType, errorMessage,
-            cause  // Logback appends full stack trace in JSON log
+            "PRICING_ERROR", maskCustomerId(customerId), productType, errorMessage,
+            cause
         );
     }
 
@@ -169,5 +168,37 @@ public class StructuredLogger {
                 "DB_OPERATION", operation, entity, durationMs, success
             );
         }
+    }
+
+    // ─── PII MASKING HELPERS ───────────────────────────────────────────────
+
+    /**
+     * Masks a customer ID for log output.
+     * Shows the first 4 chars + masked middle + last 4 chars.
+     * Example: "CUST001234" → "CUST****1234"
+     * Retains enough information to correlate logs with an audit record
+     * without exposing the full identifier in Loki plaintext.
+     */
+    private String maskCustomerId(String customerId) {
+        if (customerId == null || customerId.length() <= 4) return "****";
+        return customerId.substring(0, 4) + "****" + customerId.substring(customerId.length() - 4);
+    }
+
+    /**
+     * Converts an exact loan amount to a coarse bracket label.
+     * Prevents exact financial amounts from being indexed in Loki.
+     * Examples:
+     *   ₹50,000     → "<1L"
+     *   ₹5,00,000   → "1L-10L"
+     *   ₹50,00,000  → "10L-1Cr"
+     *   ₹2,00,00,000 → ">1Cr"
+     */
+    private String amountBracket(BigDecimal amount) {
+        if (amount == null) return "unknown";
+        long val = amount.longValue();
+        if (val < 100_000)    return "<1L";
+        if (val < 1_000_000)  return "1L-10L";
+        if (val < 10_000_000) return "10L-1Cr";
+        return ">1Cr";
     }
 }

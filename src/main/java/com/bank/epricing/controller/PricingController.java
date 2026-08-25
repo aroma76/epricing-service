@@ -16,28 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  PricingController.java — REST API Endpoints                            ║
- * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  WHY THIS CLASS EXISTS:                                                  ║
- * ║  The Controller is the entry point for all HTTP requests.              ║
- * ║  It is intentionally THIN — it only:                                   ║
- * ║    1. Receives HTTP requests                                            ║
- * ║    2. Validates input (via @Valid)                                      ║
- * ║    3. Delegates to PricingService for business logic                   ║
- * ║    4. Returns HTTP responses                                             ║
- * ║                                                                          ║
- * ║  NO BUSINESS LOGIC IN CONTROLLERS.                                      ║
- * ║  No database calls. No calculations. No metrics recording.             ║
- * ║  Everything lives in the Service layer.                                 ║
- * ║                                                                          ║
- * ║  OBSERVABILITY:                                                          ║
- * ║  Spring Boot + OTel automatically instruments every method in          ║
- * ║  @RestController classes. Each HTTP request gets:                       ║
- * ║    - A parent span in Grafana Tempo                                     ║
- * ║    - http.server.requests metrics in Prometheus                         ║
- * ║    - MDC context enriched by MDCFilter for logs                        ║
- * ╚══════════════════════════════════════════════════════════════════════════╝
+ * REST controller for ePricing endpoints.
+ * Intentionally thin — delegates all business logic to PricingService.
  */
 @RestController
 @RequestMapping("/pricing")
@@ -52,23 +32,9 @@ public class PricingController {
     }
 
     /**
-     * GET /api/v1/pricing
-     *
-     * Returns a list of all pricing requests for a given customer.
-     *
-     * @RequestParam: Reads query parameter from URL.
-     *   Example: GET /api/v1/pricing?customerId=CUST001234
-     *
-     * @RequestParam(required=false): Parameter is optional.
-     *   If not provided, returns recent pricing (capped at 10 for demo).
-     *
-     * ResponseEntity<List<PricingResponseDto>>:
-     *   ResponseEntity gives full control over HTTP response:
-     *     - Status code
-     *     - Headers
-     *     - Body
-     *   Without ResponseEntity: Spring returns 200 automatically.
-     *   With ResponseEntity: You control every aspect of the response.
+     * GET /pricing?customerId=CUST001234
+     * Returns pricing history for a customer. If customerId is omitted, returns last 10 records.
+     * Supports optional pagination via ?page=0&size=20 when customerId is provided.
      */
     @GetMapping
     public ResponseEntity<?> getPricingHistory(
@@ -90,65 +56,61 @@ public class PricingController {
     }
 
     /**
-     * POST /api/v1/pricing
-     *
-     * Submits a new pricing calculation request.
-     *
-     * @Valid: Triggers Bean Validation on the request body.
-     *   If validation fails (e.g., null customerId, amount out of range),
-     *   Spring throws MethodArgumentNotValidException BEFORE this method runs.
-     *   GlobalExceptionHandler catches it and returns a 400 with field errors.
-     *
-     * @RequestBody: Deserializes JSON request body to PricingRequestDto.
-     *   Jackson reads the JSON and maps fields. If JSON is malformed,
-     *   Spring throws HttpMessageNotReadableException → 400 Bad Request.
-     *
-     * HttpServletRequest httpRequest: Used to extract the client's IP address
-     *   for the audit log (who made this request?).
-     *
-     * HTTP 201 CREATED: The correct status for a resource creation operation.
-     *   HTTP 200 OK: Generic success (should not be used for creation).
-     *   HTTP 201 CREATED: "A resource was created." Semantically correct for POST.
+     * POST /pricing
+     * Submits a new pricing calculation. Returns 201 with the calculated rate, EMI, and traceId.
      */
     @PostMapping
     public ResponseEntity<PricingResponseDto> calculatePricing(
         @Valid @RequestBody PricingRequestDto requestDto,
         HttpServletRequest httpRequest
     ) {
-        log.info("POST /pricing | customerId={} | productType={} | amount={}",
-            requestDto.getCustomerId(),
-            requestDto.getProductType(),
-            requestDto.getLoanAmount()
+        log.info("POST /pricing | customerId={} | productType={}",
+            maskCustomerId(requestDto.getCustomerId()),
+            requestDto.getProductType()
         );
 
-        String clientIp = httpRequest.getRemoteAddr();
+        String clientIp = extractClientIp(httpRequest);
         PricingResponseDto response = pricingService.calculatePricing(requestDto, clientIp);
 
         log.info("Pricing calculation complete | customerId={} | rate={}% | traceId={}",
-            requestDto.getCustomerId(),
+            maskCustomerId(requestDto.getCustomerId()),
             response.getInterestRatePA(),
             response.getTraceId()
         );
 
-        // ResponseEntity.status(201).body(response) — explicit 201 CREATED
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
-     * GET /api/v1/pricing/{id}
-     *
-     * Retrieves a specific pricing calculation by ID.
-     *
-     * @PathVariable: Extracts the {id} segment from the URL.
-     *   Example: GET /api/v1/pricing/42 → id = 42
-     *
-     * If the ID doesn't exist, PricingService throws PricingRequestNotFoundException
-     * → GlobalExceptionHandler returns 404.
+     * GET /pricing/{id}
+     * Returns a specific pricing record by its database ID.
      */
     @GetMapping("/{id}")
     public ResponseEntity<PricingResponseDto> getPricingById(@PathVariable Long id) {
         log.info("GET /pricing/{}", id);
         PricingResponseDto response = pricingService.getPricingById(id);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Extracts the real client IP, accounting for reverse proxies.
+     * X-Forwarded-For contains the original client IP when traffic passes through a load balancer.
+     */
+    private String extractClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isBlank()) {
+            return xRealIp;
+        }
+        return request.getRemoteAddr();
+    }
+
+    /** Masks customer ID for log output. e.g. "CUST001234" → "CUST****1234" */
+    private String maskCustomerId(String customerId) {
+        if (customerId == null || customerId.length() <= 4) return "****";
+        return customerId.substring(0, 4) + "****" + customerId.substring(customerId.length() - 4);
     }
 }

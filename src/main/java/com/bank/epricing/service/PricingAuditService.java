@@ -46,17 +46,12 @@ public class PricingAuditService {
     /**
      * Records a successful pricing calculation.
      *
-     * @Transactional(propagation = REQUIRES_NEW):
-     * Creates a NEW transaction, separate from the caller's transaction.
-     *
-     * WHY: If PricingService's transaction rolls back (some error after pricing),
-     * we still want the audit record to be saved. The audit of "what was attempted"
-     * is valuable even when the attempt failed.
-     *
-     * Without REQUIRES_NEW: If PricingService rolls back → audit also rolls back
-     * With REQUIRES_NEW: Audit has its own transaction → survives caller rollback
+     * COMPLIANCE: This method is SYNCHRONOUS (no @Async).
+     * Audit records for successful transactions are regulatory records and must
+     * be committed atomically with the pricing request, not fire-and-forget.
+     * @Transactional(REQUIRES_NEW) creates an independent transaction that
+     * commits even if the caller's transaction is rolled back.
      */
-    @Async("epricingAsyncExecutor")  // Runs on the async thread pool defined in WebConfig
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordSuccess(PricingRequest savedRequest, String requestIp, String traceId) {
         try {
@@ -65,12 +60,10 @@ public class PricingAuditService {
                 .customerId(savedRequest.getCustomerId())
                 .action("PRICING_CALCULATED")
                 .description(String.format(
-                    "Interest rate %.2f%% p.a. calculated for %s loan of ₹%s. " +
-                    "EMI: ₹%s/month. Risk: %s",
+                    "Interest rate %.2f%% p.a. calculated for %s loan. " +
+                    "Risk category: %s",
                     savedRequest.getCalculatedRate(),
                     savedRequest.getProductType(),
-                    savedRequest.getLoanAmount().toPlainString(),
-                    savedRequest.getEmiAmount() != null ? savedRequest.getEmiAmount().toPlainString() : "N/A",
                     "CALCULATED"
                 ))
                 .performedBy("system:pricing-engine")
@@ -93,8 +86,11 @@ public class PricingAuditService {
 
     /**
      * Records a business rejection event with both the human-readable error message and the error code.
+     *
+     * COMPLIANCE: This method is SYNCHRONOUS (no @Async).
+     * Business rejections are regulatory records (FOIR rejection, credit score rejection).
+     * They must be committed in the same request cycle, not fire-and-forget.
      */
-    @Async("epricingAsyncExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void recordRejection(PricingRequestDto requestDto, String errorMessage, String errorCode, String requestIp, String traceId) {
         try {
@@ -102,14 +98,14 @@ public class PricingAuditService {
                 ? errorMessage
                 : (errorCode != null ? errorCode : "Business eligibility rejection");
 
+            // PII masking: do not include exact loan amount or income in the description.
+            // Structured metadata field holds errorCode for querying without exposing PII.
             PricingAuditLog auditLog = PricingAuditLog.builder()
                 .customerId(requestDto.getCustomerId())
                 .action("PRICING_REJECTED")
                 .description(String.format(
-                    "Pricing rejected for %s %s loan of ₹%s. Reason: %s",
-                    requestDto.getCustomerId(),
+                    "Pricing rejected for %s loan application. Reason: %s",
                     requestDto.getProductType(),
-                    requestDto.getLoanAmount().toPlainString(),
                     displayReason
                 ))
                 .performedBy("system:pricing-engine")
@@ -117,10 +113,9 @@ public class PricingAuditService {
                 .requestIp(requestIp)
                 .traceId(traceId)
                 .metadata(String.format(
-                    "{\"errorCode\":\"%s\",\"creditScore\":%s,\"loanAmount\":\"%s\"}",
+                    "{\"errorCode\":\"%s\",\"creditScore\":%s}",
                     errorCode,
-                    requestDto.getCreditScore(),
-                    requestDto.getLoanAmount().toPlainString()
+                    requestDto.getCreditScore()
                 ))
                 .build();
 

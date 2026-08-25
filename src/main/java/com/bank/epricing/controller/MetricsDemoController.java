@@ -14,19 +14,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 /**
- * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  MetricsDemoController.java — Observability Learning Endpoints          ║
- * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  WHY THIS CONTROLLER EXISTS:                                             ║
- * ║  This is a LEARNING AND DEMO endpoint. It lets you:                    ║
- * ║    1. Trigger different scenarios (success, slow, error)               ║
- * ║    2. See immediate impact on Prometheus/Grafana                        ║
- * ║    3. Understand how metrics are recorded                               ║
- * ║                                                                          ║
- * ║  @Profile("!prod"): This controller is DISABLED in production.         ║
- * ║  The /simulate-error endpoint deliberately increments error metrics     ║
- * ║  which would poison production Prometheus alerting.                     ║
- * ╚══════════════════════════════════════════════════════════════════════════╝
+ * Dev/staging-only endpoints for triggering observability scenarios (slow requests, errors, load bursts).
+ * Disabled in prod via @Profile("!prod") — these increment demo-namespaced counters only,
+ * so they don't pollute real alert thresholds.
  */
 @Profile("!prod")
 @RestController
@@ -41,11 +31,7 @@ public class MetricsDemoController {
         this.meterRegistry = meterRegistry;
     }
 
-    /**
-     * GET /api/v1/metrics-demo
-     * Returns a summary of current custom metrics and their values.
-     * Helps you understand what metrics are being collected.
-     */
+    /** GET /metrics-demo — lists available metrics and their Prometheus names */
     @GetMapping
     public ResponseEntity<Map<String, Object>> getMetricsSummary() {
         log.info("Metrics demo endpoint called | traceId={}", Span.current().getSpanContext().getTraceId());
@@ -56,7 +42,6 @@ public class MetricsDemoController {
         summary.put("traceId", Span.current().getSpanContext().getTraceId());
         summary.put("spanId", Span.current().getSpanContext().getSpanId());
 
-        // Show some metric values
         Map<String, Object> metrics = new LinkedHashMap<>();
         metrics.put("actuator_prometheus_url", "http://localhost:8081/actuator/prometheus");
         metrics.put("key_metrics", List.of(
@@ -84,19 +69,14 @@ public class MetricsDemoController {
         return ResponseEntity.ok(summary);
     }
 
-    /**
-     * GET /api/v1/metrics-demo/simulate-slow
-     * Simulates a slow operation to demonstrate latency metrics and alerts.
-     * After calling this, check Grafana for p95 latency spike.
-     */
+    /** GET /metrics-demo/simulate-slow — adds a random 800-1500ms delay to spike p95 latency in Grafana */
     @GetMapping("/simulate-slow")
     public ResponseEntity<Map<String, Object>> simulateSlow() throws InterruptedException {
-        long delay = 800 + (long)(Math.random() * 700); // 800ms-1500ms
+        long delay = 800 + (long)(Math.random() * 700);
 
         log.warn("Simulating slow operation | delay={}ms | traceId={}",
             delay, Span.current().getSpanContext().getTraceId());
 
-        // Mark span with slow operation attribute
         Span.current().setAttribute("simulation.type", "slow_operation");
         Span.current().setAttribute("simulation.delay_ms", delay);
         Span.current().addEvent("Starting intentional delay for demo");
@@ -104,8 +84,6 @@ public class MetricsDemoController {
         Thread.sleep(delay);
 
         Span.current().addEvent("Delay completed");
-
-        // Record a custom counter for simulated slow requests
         meterRegistry.counter("pricing.demo.slow_requests", "type", "simulated").increment();
 
         return ResponseEntity.ok(Map.of(
@@ -117,9 +95,8 @@ public class MetricsDemoController {
     }
 
     /**
-     * GET /api/v1/metrics-demo/simulate-error
-     * Simulates an error to demonstrate error rate metrics and Loki error logs.
-     * After calling this, check Grafana for error rate and Loki for ERROR logs.
+     * GET /metrics-demo/simulate-error — fires an error log and increments pricing.demo.errors.total.
+     * Uses demo namespace so it doesn't trigger real PagerDuty/OpsGenie alerts in staging.
      */
     @GetMapping("/simulate-error")
     public ResponseEntity<Map<String, Object>> simulateError() {
@@ -127,9 +104,8 @@ public class MetricsDemoController {
                   "This is a deliberate error for observability demonstration",
             Span.current().getSpanContext().getTraceId());
 
-        // Record error metric
         meterRegistry.counter(
-            "pricing.errors.total",
+            "pricing.demo.errors.total",
             "error_type", "SIMULATED_ERROR",
             "http_status", "500"
         ).increment();
@@ -140,23 +116,18 @@ public class MetricsDemoController {
             "Simulated error for demo purposes"
         );
 
-        // Return 200 even though we simulated an error — we just recorded the metrics
-        // In real scenario, throw an exception which GlobalExceptionHandler catches
         return ResponseEntity.ok(Map.of(
             "message", "Error simulation complete. Check Grafana error rate and Loki ERROR logs.",
             "traceId", Span.current().getSpanContext().getTraceId(),
-            "check_prometheus", "pricing_errors_total{error_type=\"SIMULATED_ERROR\"}",
+            "check_prometheus", "pricing_demo_errors_total{error_type=\"SIMULATED_ERROR\"}",
             "check_loki", "{application=\"epricing-service\"} | json | level=\"ERROR\""
         ));
     }
 
-    /**
-     * GET /api/v1/metrics-demo/generate-load
-     * Generates a burst of counter increments to test Grafana rate calculations.
-     */
+    /** GET /metrics-demo/generate-load — fires 50-100 counter increments across product types */
     @GetMapping("/generate-load")
     public ResponseEntity<Map<String, Object>> generateLoad() {
-        int count = 50 + (int)(Math.random() * 50); // 50-100 increments
+        int count = 50 + (int)(Math.random() * 50);
 
         log.info("Generating load for demo | count={}", count);
 
@@ -177,10 +148,7 @@ public class MetricsDemoController {
         ));
     }
 
-    /**
-     * GET /api/v1/metrics-demo/trace-demo
-     * Shows the current trace context — useful for verifying OTel is working.
-     */
+    /** GET /metrics-demo/trace-demo — returns current trace context, useful for verifying OTel wiring */
     @GetMapping("/trace-demo")
     public ResponseEntity<Map<String, Object>> traceDemo() {
         Span currentSpan = Span.current();
@@ -191,7 +159,6 @@ public class MetricsDemoController {
             currentSpan.getSpanContext().isSampled()
         );
 
-        // Add custom attributes to the span — visible in Grafana Tempo
         currentSpan.setAttribute("demo.custom_attribute", "Hello from ePricing!");
         currentSpan.setAttribute("demo.timestamp", System.currentTimeMillis());
         currentSpan.addEvent("trace-demo endpoint called");
