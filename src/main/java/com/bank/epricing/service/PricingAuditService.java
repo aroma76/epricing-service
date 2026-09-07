@@ -184,30 +184,42 @@ public class PricingAuditService {
             String safeError = (errorMessage != null && !errorMessage.isBlank())
                 ? errorMessage
                 : "Unknown technical error";
+            String customerId = (requestDto != null && requestDto.getCustomerId() != null && !requestDto.getCustomerId().isBlank())
+                ? requestDto.getCustomerId()
+                : "UNKNOWN";
+            String productType = (requestDto != null && requestDto.getProductType() != null && !requestDto.getProductType().isBlank())
+                ? requestDto.getProductType()
+                : "UNKNOWN";
+            java.math.BigDecimal loanAmount = (requestDto != null && requestDto.getLoanAmount() != null)
+                ? requestDto.getLoanAmount()
+                : new java.math.BigDecimal("1000.00");
+            Integer loanTenureMonths = (requestDto != null && requestDto.getLoanTenureMonths() != null)
+                ? requestDto.getLoanTenureMonths()
+                : 12;
+
             PricingRequest.PricingRequestBuilder builder = PricingRequest.builder()
+                .customerId(customerId)
+                .productType(productType)
+                .loanAmount(loanAmount)
+                .loanTenureMonths(loanTenureMonths)
                 .status(PricingRequest.PricingStatus.ERROR)
                 .errorMessage(safeError)
                 .requestIp(requestIp)
                 .traceId(traceId);
 
             if (requestDto != null) {
-                builder.customerId(requestDto.getCustomerId())
-                    .productType(requestDto.getProductType())
-                    .loanAmount(requestDto.getLoanAmount())
-                    .loanTenureMonths(requestDto.getLoanTenureMonths())
-                    .creditScore(requestDto.getCreditScore())
+                builder.creditScore(requestDto.getCreditScore())
                     .annualIncome(requestDto.getAnnualIncome())
                     .loanPurpose(requestDto.getLoanPurpose());
             }
 
             PricingRequest failedRecord = builder.build();
             pricingRepository.save(failedRecord);
-            log.info("Technical failure record saved | customerId={} | traceId={}",
-                requestDto != null ? requestDto.getCustomerId() : "N/A", traceId);
+            log.info("Technical failure record saved | customerId={} | traceId={}", customerId, traceId);
         } catch (Exception e) {
             // Log but never propagate — we're already in an error path
             log.error("Failed to persist technical failure record | customerId={} | error={}",
-                requestDto.getCustomerId(), e.getMessage(), e);
+                requestDto != null ? requestDto.getCustomerId() : "UNKNOWN", e.getMessage(), e);
         }
     }
 }

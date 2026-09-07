@@ -155,7 +155,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
       "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
-      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",method=\"POST\",uri=\"/pricing\"}[$__range])) or vector(0)", "legendFormat": "POST /pricing", "refId": "A" }]
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",method=\"POST\",uri=~\".*/pricing.*\"}[$__range])) or vector(0)", "legendFormat": "POST /pricing", "refId": "A" }]
     },
 
     {

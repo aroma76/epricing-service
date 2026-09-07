@@ -80,11 +80,11 @@
       "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "right" } },
       "fieldConfig": { "defaults": { "unit": "percent", "custom": { "lineWidth": 2, "fillOpacity": 8 }, "min": 0 } },
       "targets": [
-        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=\"epricing-service\"}[1m])) * 100", "legendFormat": "epricing-service", "refId": "A" },
-        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=\"epricing-yugabytedb\"}[1m])) * 100", "legendFormat": "yugabytedb", "refId": "B" },
-        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=\"epricing-prometheus\"}[1m])) * 100", "legendFormat": "prometheus", "refId": "C" },
-        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=\"epricing-grafana\"}[1m])) * 100", "legendFormat": "grafana", "refId": "D" },
-        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=\"epricing-loki\"}[1m])) * 100", "legendFormat": "loki", "refId": "E" }
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"epricing-service\"}[1m])) * 100", "legendFormat": "epricing-service", "refId": "A" },
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"epricing-yugabytedb|yugabytedb\"}[1m])) * 100", "legendFormat": "yugabytedb", "refId": "B" },
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"epricing-prometheus|prometheus\"}[1m])) * 100", "legendFormat": "prometheus", "refId": "C" },
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"epricing-grafana|grafana\"}[1m])) * 100", "legendFormat": "grafana", "refId": "D" },
+        { "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"epricing-loki|loki\"}[1m])) * 100", "legendFormat": "loki", "refId": "E" }
       ]
     },
 
@@ -97,11 +97,11 @@
       "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "right" } },
       "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
       "targets": [
-        { "expr": "container_memory_working_set_bytes{name=\"epricing-service\"}", "legendFormat": "epricing-service", "refId": "A" },
-        { "expr": "container_memory_working_set_bytes{name=\"epricing-yugabytedb\"}", "legendFormat": "yugabytedb", "refId": "B" },
-        { "expr": "container_memory_working_set_bytes{name=\"epricing-prometheus\"}", "legendFormat": "prometheus", "refId": "C" },
-        { "expr": "container_memory_working_set_bytes{name=\"epricing-grafana\"}", "legendFormat": "grafana", "refId": "D" },
-        { "expr": "container_memory_working_set_bytes{name=\"epricing-loki\"}", "legendFormat": "loki", "refId": "E" }
+        { "expr": "container_memory_working_set_bytes{name=~\"epricing-service\"}", "legendFormat": "epricing-service", "refId": "A" },
+        { "expr": "container_memory_working_set_bytes{name=~\"epricing-yugabytedb|yugabytedb\"}", "legendFormat": "yugabytedb", "refId": "B" },
+        { "expr": "container_memory_working_set_bytes{name=~\"epricing-prometheus|prometheus\"}", "legendFormat": "prometheus", "refId": "C" },
+        { "expr": "container_memory_working_set_bytes{name=~\"epricing-grafana|grafana\"}", "legendFormat": "grafana", "refId": "D" },
+        { "expr": "container_memory_working_set_bytes{name=~\"epricing-loki|loki\"}", "legendFormat": "loki", "refId": "E" }
       ]
     },
 

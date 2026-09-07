@@ -94,7 +94,7 @@
       "type": "logs", "gridPos": { "h": 12, "w": 24, "x": 0, "y": 15 },
       "datasource": { "type": "loki", "uid": "loki-uid" },
       "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none", "enableLogDetails": true },
-      "targets": [{ "expr": "{application=\"epricing-service\"} |= `ERROR`", "legendFormat": "", "refId": "A" }]
+      "targets": [{ "expr": "{application=\"epricing-service\", level=\"ERROR\"}", "legendFormat": "", "refId": "A" }]
     },
 
     { "id": 30, "type": "row", "title": "Pricing Request Logs", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 }, "collapsed": false },

@@ -138,7 +138,7 @@ public interface PricingRepository extends JpaRepository<PricingRequest, Long> {
      * Always handle Optional to avoid NullPointerException.
      */
     @Query("SELECT AVG(pr.processingTimeMs) FROM PricingRequest pr " +
-           "WHERE pr.createdAt > :since AND pr.status = 'CALCULATED'")
+           "WHERE pr.createdAt > :since AND pr.status = com.bank.epricing.entity.PricingRequest.PricingStatus.CALCULATED")
     Optional<Double> findAverageProcessingTimeSince(@Param("since") LocalDateTime since);
 
     /**
@@ -159,7 +159,7 @@ public interface PricingRepository extends JpaRepository<PricingRequest, Long> {
      */
     @Query("SELECT SUM(pr.loanAmount) FROM PricingRequest pr " +
            "WHERE pr.createdAt BETWEEN :startTime AND :endTime " +
-           "AND pr.status IN ('CALCULATED', 'APPROVED')")
+           "AND pr.status IN (com.bank.epricing.entity.PricingRequest.PricingStatus.CALCULATED, com.bank.epricing.entity.PricingRequest.PricingStatus.APPROVED)")
     Optional<BigDecimal> sumLoanAmountBetween(
         @Param("startTime") LocalDateTime startTime,
         @Param("endTime") LocalDateTime endTime
