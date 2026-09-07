@@ -1,0 +1,21 @@
+Task ID,Task,Start Date,Target Date,Actual End Date,Hours Spent,Status,Technologies Used,Remarks
+AT-01,Understand project requirements,10-Jul,10-Jul,10-Jul,3,Completed,—,Initial discussion with mentor; understood monitoring scope and architecture
+AT-02,Install development tools,10-Jul,14-Jul,14-Jul,5,Completed,Docker · Java 21 · Maven · IntelliJ IDEA,Docker Desktop required WSL 2 backend on Windows; resolved via BIOS settings
+AT-03,Learn monitoring architecture,11-Jul,16-Jul,16-Jul,10,Completed,Prometheus · Grafana · OpenTelemetry · Micrometer,Studied pull model vs push model; understood metrics vs logs vs traces
+AT-04,Configure Spring Boot Actuator,17-Jul,18-Jul,18-Jul,4,Completed,Spring Boot Actuator · application.yml,Management port 8081 separated from API port 8080; /actuator/prometheus endpoint enabled
+AT-05,Configure Micrometer metrics,18-Jul,21-Jul,21-Jul,6,Completed,Micrometer · Spring Boot,Counter vs Timer vs Gauge understood; pom.xml updated with micrometer-registry-prometheus
+AT-06,Configure Prometheus scraping,21-Jul,23-Jul,23-Jul,5,Completed,Prometheus · prometheus.yml · Docker,Fixed scrape target port from 8080 to 8081; metrics successfully collected every 10s
+AT-07,Connect Grafana to Prometheus,24-Jul,27-Jul,27-Jul,4,Completed,Grafana · Docker Compose,Prometheus datasource configured using container name not localhost; provisioning via YAML
+AT-08,Create CPU and Thread Count dashboard,27-Jul,29-Jul,29-Jul,5,Completed,Grafana · PromQL,system_cpu_usage and jvm_threads_live_threads panels created with alert thresholds
+AT-09,Create JVM Heap and GC dashboard,28-Jul,30-Jul,30-Jul,5,Completed,Grafana · PromQL · Micrometer,jvm_memory_used_bytes heap/nonheap and jvm_gc_pause_seconds P99 panels added
+AT-10,Add HTTP Request Rate and Error Rate,29-Jul,31-Jul,31-Jul,6,Completed,Grafana · PromQL,rate() for request throughput; error rate using 5xx/total ratio; panels live
+AT-11,Add P95 and P99 Response Time panels,30-Jul,01-Aug,01-Aug,5,Completed,Grafana · PromQL · histogram_quantile,histogram_quantile(0.95) and (0.99) with le label preserved in by() clause
+AT-12,Add HikariCP DB Connection Pool dashboard,01-Aug,02-Aug,02-Aug,4,Completed,HikariCP · Micrometer · Grafana,hikaricp_connections_active and hikaricp_connections_pending panels; alert for pending > 0
+AT-13,Implement custom business metrics,01-Aug,03-Aug,03-Aug,6,Completed,Micrometer · Java · PricingMetrics.java,pricing_requests_total by product_type and status; pricing_calculation_duration_seconds timer
+AT-14,Set up Loki and Promtail log pipeline,02-Aug,04-Aug,04-Aug,6,Completed,Loki · Promtail · Docker Compose,JSON logs shipped from app to Loki via shared Docker volume; LogQL queries working in Grafana
+AT-15,Configure OpenTelemetry distributed tracing,03-Aug,05-Aug,05-Aug,5,Completed,OpenTelemetry · OTel Collector · otel-collector-config.yml,OTLP spans flowing from Spring Boot to OTel Collector on port 4318; batch processor configured
+AT-16,Create traffic generator,01-Aug,04-Aug,04-Aug,4,Completed,Shell Script · Docker,Simulates mix of POST /pricing GET /pricing and /actuator/health; used for dashboard validation
+AT-17,Configure Prometheus alerting rules,04-Aug,05-Aug,05-Aug,3,Completed,Prometheus · PromQL · YAML,Alert rules for high error rate JVM heap DB connection pool; tested pending to firing transition
+AT-18,Improve and refine dashboard layout,04-Aug,06-Aug,06-Aug,4,Completed,Grafana · JSON,Organized panels into logical rows; Log Analysis dashboard added; panel ID conflicts resolved
+AT-19,End-to-end testing and validation,05-Aug,08-Aug,—,6,In Progress,All Stack,Verifying full metric/log/trace flow across all 11 Docker services and alertmanager notification pipeline
+AT-20,Project documentation,06-Aug,10-Aug,—,4,In Progress,Markdown,Updating README · 01_what_i_built · 02_future_plan · Alertmanager & Log Analysis docs

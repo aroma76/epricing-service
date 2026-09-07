@@ -1,0 +1,167 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  prometheus.yml — Prometheus Scrape Configuration                        ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY THIS FILE EXISTS:                                                   ║
+# ║  Prometheus needs to know WHERE to scrape metrics from.                 ║
+# ║  This file is the configuration for Prometheus's scraping engine.       ║
+# ║                                                                          ║
+# ║  THE PULL MODEL:                                                         ║
+# ║  Prometheus PULLS metrics (doesn't receive pushes).                     ║
+# ║  Every scrape_interval seconds, Prometheus sends:                       ║
+# ║    GET http://epricing-service:8081/actuator/prometheus                  ║
+# ║  The response is 10,000+ lines of text like:                            ║
+# ║    # HELP jvm_memory_used_bytes                                          ║
+# ║    jvm_memory_used_bytes{area="heap"} 1.23456789e+08                    ║
+# ║    pricing_requests_total{type="all"} 1250.0                            ║
+# ║  Prometheus parses this and stores it in its time-series database.      ║
+# ║                                                                          ║
+# ║  WHAT HAPPENS IF THIS FILE IS WRONG:                                    ║
+# ║  Prometheus starts but has no targets. Grafana shows "No Data" for      ║
+# ║  all panels. The app runs fine but is invisible to monitoring.          ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ═══════════════════════════════════════════════════════════
+# GLOBAL CONFIGURATION
+# Defaults applied to all scrape jobs unless overridden
+# ═══════════════════════════════════════════════════════════
+global:
+  # How often Prometheus scrapes each target
+  # 15s: Good balance — fresh data without overwhelming the target
+  # In production: 30s or 60s for most services (to reduce load)
+  # For critical services with fast-moving metrics: 10s
+  scrape_interval: 15s
+
+  # How long to wait for a scrape to respond before declaring it failed
+  # Must be less than scrape_interval (otherwise a slow response could
+  # block the next scrape)
+  scrape_timeout: 10s
+
+  # How often to evaluate alerting rules
+  # Shorter = faster alerts, more CPU. Longer = slower alerts, less CPU.
+  evaluation_interval: 15s
+
+  # Labels added to ALL metrics scraped by this Prometheus instance.
+  # Useful when you have multiple Prometheus instances (e.g., per region).
+  # In Grafana: filter by monitor="epricing-prometheus-local"
+  external_labels:
+    monitor: 'epricing-prometheus-local'
+    region: 'india'
+    environment: 'local'
+
+# ═══════════════════════════════════════════════════════════
+# ALERTING — Connect to Alertmanager
+# ═══════════════════════════════════════════════════════════
+# Alertmanager handles: routing alerts, deduplication, silencing, notification
+# When Prometheus's rules fire, it sends alerts to Alertmanager.
+# Alertmanager then routes them to webhook / email / Slack.
+#
+# HOW IT WORKS:
+#   Prometheus evaluates alert rules every evaluation_interval (15s).
+#   If a rule condition is true for the 'for' duration → alert is FIRING.
+#   Prometheus sends the firing alert to Alertmanager via HTTP POST.
+#   Alertmanager groups, deduplicates, and sends notifications.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+      timeout: 10s
+
+# ═══════════════════════════════════════════════════════════
+# RULE FILES — Alerting and Recording Rules
+# ═══════════════════════════════════════════════════════════
+# Rule files contain:
+# - Alerting rules: "If error rate > 5% for 5 minutes → fire alert"
+# - Recording rules: "Pre-compute expensive queries and store as new metrics"
+#                    e.g., compute 5-minute HTTP error rate every 15s
+#                    → stored as a simple metric → dashboard loads faster
+rule_files:
+  - "/etc/prometheus/alerts/*.yml"  # Load all alert rule files
+
+# ═══════════════════════════════════════════════════════════
+# SCRAPE CONFIGS — Who does Prometheus scrape?
+# Each scrape_config is a "job" — a group of targets to scrape
+# ═══════════════════════════════════════════════════════════
+scrape_configs:
+
+  # ─── JOB 1: ePricing Service (our main application) ─────────────────────
+  - job_name: 'epricing-service'
+    # Override global scrape_interval for this job.
+    # Our app changes frequently → scrape every 10s for fresh data.
+    scrape_interval: 10s
+
+    # The path to scrape. /actuator/prometheus is Spring Boot's Prometheus endpoint.
+    # This is where Micrometer formats all metrics in Prometheus text format.
+    metrics_path: '/actuator/prometheus'
+
+    # URL scheme: http (use https in production with TLS)
+    scheme: http
+
+    static_configs:
+      # Target: where to scrape.
+      # In Docker Compose, services find each other by service name.
+      # "epricing-service:8081" = the container named "epricing-service" on port 8081
+      # Port 8081 = management port (where Actuator runs)
+      - targets: ['epricing-service:8081']
+        # Labels added to ALL metrics scraped from this target.
+        # These appear in Prometheus: pricing_requests_total{application="epricing-service",...}
+        labels:
+          application: 'epricing-service'
+          team: 'epricing'
+          service_type: 'microservice'
+
+  # ─── JOB 2: Prometheus itself ────────────────────────────────────────────
+  # Monitor the monitor! Prometheus exposes its own metrics.
+  # Tracks: scrape success/failure, query performance, storage.
+  # Alert: "If Prometheus is down → alert" (but who alerts if alertmanager is down?)
+  - job_name: 'prometheus'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          application: 'prometheus'
+          service_type: 'infrastructure'
+
+  # ─── JOB 3: OTel Collector ───────────────────────────────────────────────
+  # The OTel Collector exposes its own metrics on port 8888
+  # Tracks: spans received, metrics received, export failures
+  - job_name: 'otel-collector'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['otel-collector:8888']
+        labels:
+          application: 'otel-collector'
+          service_type: 'infrastructure'
+
+  # ─── JOB 4: OTel Collector Prometheus Exporter ───────────────────────────
+  # The OTel Collector also exports metrics it RECEIVED from our app
+  # on port 8889 in Prometheus format.
+  # This is an ALTERNATIVE to Prometheus directly scraping /actuator/prometheus.
+  # Using both gives you redundancy — if one path fails, the other still works.
+  - job_name: 'otel-metrics-from-collector'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['otel-collector:8889']
+        labels:
+          application: 'epricing-service-via-otel'
+          service_type: 'business-metrics'
+
+  # ─── JOB 5: cAdvisor Container Metrics ───────────────────────────────────
+  # cAdvisor exports container CPU, memory, filesystem, and network utilization
+  - job_name: 'cadvisor'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          application: 'cadvisor'
+          service_type: 'container-metrics'
+
+  # ─── JOB 6: Node Exporter Host & Worker Node Metrics ─────────────────────
+  # Node Exporter exports host hardware and OS utilization metrics
+  - job_name: 'node-exporter'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          application: 'node-exporter'
+          service_type: 'node-metrics'
+

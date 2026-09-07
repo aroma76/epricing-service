@@ -1,0 +1,142 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  alertmanager.yml — Alertmanager Notification Routing                    ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY THIS FILE EXISTS:                                                   ║
+# ║  Prometheus fires alerts but does NOT send notifications by itself.      ║
+# ║  Alertmanager is the separate service that:                              ║
+# ║    1. Receives fired alerts from Prometheus                              ║
+# ║    2. Groups and deduplicates them (prevents alert storms)               ║
+# ║    3. Routes them to the right team channel (email / Slack / webhook)   ║
+# ║    4. Handles silences and inhibitions                                   ║
+# ║                                                                          ║
+# ║  WITHOUT ALERTMANAGER:                                                   ║
+# ║    Alert fires → goes nowhere → nobody knows → incident grows           ║
+# ║                                                                          ║
+# ║  WITH ALERTMANAGER:                                                      ║
+# ║    Alert fires → Alertmanager → webhook/email → team gets notified      ║
+# ║                                                                          ║
+# ║  UI: http://localhost:9093                                               ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ═══════════════════════════════════════════════════════════
+# GLOBAL — Defaults applied to all routes and receivers
+# ═══════════════════════════════════════════════════════════
+global:
+  # How long to wait before sending a resolved notification after an alert clears.
+  # WHY: Prevents flapping — if an alert clears briefly and refires, you don't
+  # get a "resolved" + "firing" notification storm.
+  resolve_timeout: 5m
+
+  # SMTP settings for email notifications.
+  # In production: use your bank's internal SMTP server.
+  # For local testing: use a free SMTP relay or comment out email receiver.
+  smtp_from: 'epricing-alerts@bank.internal'
+  smtp_smarthost: 'localhost:587'
+  smtp_require_tls: false
+
+# ═══════════════════════════════════════════════════════════
+# TEMPLATES — Custom notification message templates
+# ═══════════════════════════════════════════════════════════
+# templates:
+#   - '/etc/alertmanager/templates/*.tmpl'
+
+# ═══════════════════════════════════════════════════════════
+# ROUTE — How alerts are routed to receivers
+# ═══════════════════════════════════════════════════════════
+# The routing tree decides WHICH receiver handles WHICH alert.
+# Alerts flow top-down through the tree until a match is found.
+route:
+  # Default receiver — catches ALL alerts not matched by child routes
+  receiver: 'epricing-webhook'
+
+  # Group alerts by these labels before sending.
+  # WHY: If 10 panels all fire the same alert at once, they are grouped
+  # into ONE notification instead of flooding the channel with 10 messages.
+  group_by: ['alertname', 'severity', 'team']
+
+  # Wait this long after first alert before sending the first notification.
+  # WHY: Collects multiple alerts that fire at the same time into one message.
+  group_wait: 30s
+
+  # After sending the first notification, wait this long before sending
+  # another for the same group (if new alerts are added to the group).
+  group_interval: 5m
+
+  # How long to wait before re-sending a notification for an ongoing alert.
+  # WHY: Reminds the team an alert is still firing without spamming every minute.
+  repeat_interval: 4h
+
+  # ─── Child Routes (more specific matching) ─────────────────────────────
+  routes:
+
+    # CRITICAL alerts — notify immediately, repeat every 1 hour
+    - match:
+        severity: critical
+      receiver: 'epricing-webhook'
+      group_wait: 10s         # Less wait for critical — faster notification
+      repeat_interval: 1h
+
+    # WARNING alerts — standard grouping
+    - match:
+        severity: warning
+      receiver: 'epricing-webhook'
+      repeat_interval: 4h
+
+# ═══════════════════════════════════════════════════════════
+# INHIBIT RULES — Suppress lower-severity alerts when critical ones fire
+# ═══════════════════════════════════════════════════════════
+# WHY INHIBITION:
+# If the service is completely DOWN (EPricingServiceDown fires),
+# you don't also want to receive "High Error Rate" and "High Latency" alerts.
+# Those are caused BY the service being down — they are symptoms, not root causes.
+# Inhibition silences the child symptoms when the root-cause alert is active.
+inhibit_rules:
+  - source_matchers:
+      - alertname = 'EPricingServiceDown'
+    target_matchers:
+      - alertname =~ 'EPricingHigh.*'
+    equal: ['team']
+
+# ═══════════════════════════════════════════════════════════
+# RECEIVERS — Where to send notifications
+# ═══════════════════════════════════════════════════════════
+receivers:
+
+  # ─── Receiver 1: Webhook (works out of the box for local testing) ────────
+  # A webhook receiver sends an HTTP POST with the alert payload (JSON) to any URL.
+  # HOW TO TEST LOCALLY:
+  #   Use https://webhook.site — copy your unique URL and paste it below.
+  #   Every alert Alertmanager sends will appear on that page in real time.
+  #
+  # HOW TO CONNECT TO SLACK:
+  #   1. Create a Slack Incoming Webhook URL in your workspace
+  #   2. Replace the url below with your Slack webhook URL
+  #   3. The alert will appear in your chosen Slack channel
+  #
+  # HOW TO CONNECT TO MICROSOFT TEAMS:
+  #   Use https://github.com/prometheus-msteams/prometheus-msteams as a bridge
+  - name: 'epricing-webhook'
+    webhook_configs:
+      - url: 'http://webhook-logger:5001/alerts'
+        # send_resolved: true → also sends a notification when the alert clears
+        # This tells the team: "Problem resolved, system is back to normal"
+        send_resolved: true
+        # http_config: optional — add auth headers if your webhook requires them
+        # http_config:
+        #   bearer_token: 'your-token-here'
+
+  # ─── Receiver 2: Email (configure SMTP above to enable) ─────────────────
+  # Uncomment and configure when your SMTP server is available
+  # - name: 'epricing-email'
+  #   email_configs:
+  #     - to: 'epricing-team@bank.internal'
+  #       send_resolved: true
+  #       headers:
+  #         Subject: '[ePricing Alert] {{ .CommonLabels.alertname }} - {{ .CommonLabels.severity | toUpper }}'
+  #       html: |
+  #         <h2>{{ .CommonLabels.alertname }}</h2>
+  #         <p><b>Severity:</b> {{ .CommonLabels.severity }}</p>
+  #         {{ range .Alerts }}
+  #         <p><b>Description:</b> {{ .Annotations.description }}</p>
+  #         <p><b>Started:</b> {{ .StartsAt }}</p>
+  #         {{ end }}

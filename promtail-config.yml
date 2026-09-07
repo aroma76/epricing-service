@@ -1,0 +1,133 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  promtail-config.yml — Log Shipping Agent Configuration                  ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY PROMTAIL EXISTS:                                                    ║
+# ║  Loki doesn't read files. Promtail is the AGENT that:                  ║
+# ║    1. Watches log files (like "tail -f")                                ║
+# ║    2. Parses structured JSON logs                                        ║
+# ║    3. Extracts labels (application, level, traceId) from log lines     ║
+# ║    4. Ships log entries to Loki via HTTP push                           ║
+# ║                                                                          ║
+# ║  LOG FLOW:                                                               ║
+# ║  epricing-service writes JSON logs → /app/logs/epricing-service.log    ║
+# ║  Docker volume maps this to → /var/log/epricing/ (Promtail container)  ║
+# ║  Promtail reads → parses JSON → extracts labels → ships to Loki        ║
+# ║  Grafana queries Loki → displays logs with filter/search               ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+server:
+  http_listen_port: 9080  # Promtail's own metrics and admin port
+  grpc_listen_port: 0     # Disable gRPC (not needed for file-based shipping)
+
+# Positions file: Keeps track of WHERE in each log file Promtail has read up to.
+# WHY THIS IS CRITICAL:
+# If Promtail restarts, it reads the positions file to know where to continue.
+# Without this: Promtail would re-read and re-ship ALL logs from the beginning
+# → Grafana would show duplicate log entries.
+# The positions.yaml file is in the container — for persistence across restarts,
+# mount it as a Docker volume.
+positions:
+  # WHY /data/ not /tmp/:
+  # /tmp is ephemeral — cleared on container restart.
+  # If Promtail restarts with /tmp/positions.yaml gone, it re-ships ALL logs
+  # from the beginning → duplicate entries in Loki.
+  # /data/ is backed by the 'promtail-positions' Docker named volume → persistent.
+  filename: /data/positions.yaml
+
+# Clients: Where to ship log entries
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    # Timeout for push requests to Loki
+    timeout: 10s
+    # Backoff on failure — retry with exponential delay
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+    # Batch settings — collect logs before sending (efficiency)
+    # Don't send one log line at a time (too many HTTP requests)
+    batchsize: 1048576  # 1MB batch size
+    batchwait: 1s       # Wait up to 1 second to fill a batch
+
+# Scrape configs: What files to read and how to process them
+scrape_configs:
+
+  # ─── JOB 1: ePricing Service Log File ────────────────────────────────────
+  - job_name: epricing-service-logs
+    static_configs:
+      - targets:
+          - localhost  # Promtail itself (required by format)
+        labels:
+          # STATIC LABELS: Added to every log entry from this job.
+          # In Grafana Loki, filter by: {job="epricing-service-logs"}
+          job: "epricing-service-logs"
+          application: "epricing-service"
+          team: "epricing"
+          # __path__: Special label — tells Promtail WHICH FILES to read.
+          # /var/log/epricing/ is where the Docker volume is mounted.
+          # *.log matches all log files in that directory.
+          __path__: /var/log/epricing/*.log
+
+    # Pipeline stages: How to process each log line before shipping
+    pipeline_stages:
+
+      # Stage 1: Parse JSON
+      # Our logback-spring.xml outputs JSON logs.
+      # This stage parses the JSON and makes all fields available for extraction.
+      - json:
+          expressions:
+            # Extract these fields from the JSON log.
+            # Left side: variable name. Right side: JSON field name.
+            timestamp: '"@timestamp"'   # Matches "@timestamp" in logstash-logback format
+            level: level
+            logger: logger_name
+            message: message
+            traceId: traceId
+            spanId: spanId
+            customerId: customerId
+            requestId: requestId
+            application: application
+            thread: thread_name
+
+      # Stage 2: Extract labels from parsed JSON
+      # Labels are INDEXED by Loki — you can filter and aggregate by them.
+      # Choose labels carefully: HIGH CARDINALITY labels (like customerId with millions
+      # of unique values) cause Loki performance issues and high memory usage.
+      # GOOD labels: level, application, environment (low cardinality)
+      # BAD labels: customerId, requestId (high cardinality — millions of unique values)
+      - labels:
+          level:        # Filter: {level="ERROR"} → show only errors
+          application:  # Filter: {application="epricing-service"}
+          traceId:      # Filter: {traceId="abc123"} → all logs for one request
+
+      # Stage 3: Set the log timestamp from the JSON timestamp
+      # WHY: Without this, Loki uses the CURRENT time (when Promtail shipped the log)
+      # as the timestamp, not when the log was actually generated.
+      # If the log was written at 10:30:00 but Promtail reads it at 10:30:05,
+      # it appears in Grafana at 10:30:05. This causes confusion during debugging.
+      # With timestamp stage: Grafana shows the actual log time (10:30:00).
+      - timestamp:
+          source: timestamp
+          # ISO 8601 format with timezone — matches logstash-logback-encoder output
+          format: RFC3339Nano
+          # Fall back to current time if timestamp parsing fails
+          fallback_formats:
+            - "2006-01-02T15:04:05.999999999Z07:00"
+
+      # Stage 4: Set the log message output
+      # By default, Promtail uses the entire raw log line as the message.
+      # We explicitly set it to the parsed "message" field — cleaner display in Grafana.
+      - output:
+          source: message
+
+  # ─── JOB 2: Docker Container Logs (all containers) ──────────────────────
+  # Promtail can also read Docker container stdout logs via the Docker socket
+  # This catches any application that doesn't write to a file
+  # (disabled in this config — uncomment if needed)
+  # - job_name: docker-containers
+  #   docker_sd_configs:
+  #     - host: unix:///var/run/docker.sock
+  #       refresh_interval: 5s
+  #   relabel_configs:
+  #     - source_labels: ['__meta_docker_container_name']
+  #       target_label: 'container'

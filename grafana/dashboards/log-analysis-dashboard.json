@@ -1,0 +1,123 @@
+{
+  "annotations": { "list": [] },
+  "description": "ePricing Log Analysis Dashboard — CRMNXT color scheme. Error logs, audit trail, structured log analysis from Loki.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": ["epricing", "logs", "loki", "audit"],
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Kolkata",
+  "title": "ePricing Log Analysis Dashboard",
+  "uid": "epricing-logs",
+  "version": 2,
+  "panels": [
+
+    { "id": 1, "type": "row", "title": "Log Volume Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false },
+
+    {
+      "id": 2, "title": "ERROR Log Count (last range)",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(count_over_time({application=\"epricing-service\", level=\"ERROR\"}[$__range]))", "legendFormat": "ERROR logs", "refId": "A" }]
+    },
+
+    {
+      "id": 3, "title": "WARN Log Count (last range)",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(count_over_time({application=\"epricing-service\", level=\"WARN\"}[$__range]))", "legendFormat": "WARN logs", "refId": "A" }]
+    },
+
+    {
+      "id": 4, "title": "INFO Log Count (last range)",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
+      "targets": [{ "expr": "sum(count_over_time({application=\"epricing-service\", level=\"INFO\"}[$__range]))", "legendFormat": "INFO logs", "refId": "A" }]
+    },
+
+    {
+      "id": 5, "title": "DB Errors (5XX from Pricing)",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(increase(pricing_errors_total{application=\"epricing-service\",error_type=\"PRICING_CALCULATION_FAILED\"}[$__range])) or vector(0)", "legendFormat": "Calc Errors", "refId": "A" }]
+    },
+
+    {
+      "id": 6, "title": "Simulated Errors (Load Test)",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 1 }] } } },
+      "targets": [{ "expr": "pricing_errors_total{application=\"epricing-service\",error_type=\"SIMULATED_ERROR\"}", "legendFormat": "Simulated", "refId": "A" }]
+    },
+
+    {
+      "id": 7, "title": "Slow Requests Demo Counter",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 1 }] } } },
+      "targets": [{ "expr": "pricing_demo_slow_requests_total{application=\"epricing-service\"}", "legendFormat": "Slow Demo", "refId": "A" }]
+    },
+
+    { "id": 10, "type": "row", "title": "Log Volume Over Time", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "collapsed": false },
+
+    {
+      "id": 11, "title": "Log Volume by Level",
+      "type": "timeseries", "gridPos": { "h": 8, "w": 24, "x": 0, "y": 6 },
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },
+      "targets": [
+        { "expr": "sum(rate({application=\"epricing-service\", level=\"ERROR\"}[1m]))", "legendFormat": "ERROR/s", "refId": "A" },
+        { "expr": "sum(rate({application=\"epricing-service\", level=\"WARN\"}[1m]))",  "legendFormat": "WARN/s", "refId": "B" },
+        { "expr": "sum(rate({application=\"epricing-service\", level=\"INFO\"}[1m]))",  "legendFormat": "INFO/s", "refId": "C" }
+      ]
+    },
+
+    { "id": 20, "type": "row", "title": "Live Error Logs", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "collapsed": false },
+
+    {
+      "id": 21, "title": "ERROR Logs — Live Stream",
+      "description": "All ERROR level log lines from epricing-service. Scroll to see recent failures.",
+      "type": "logs", "gridPos": { "h": 12, "w": 24, "x": 0, "y": 15 },
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none", "enableLogDetails": true },
+      "targets": [{ "expr": "{application=\"epricing-service\"} |= `ERROR`", "legendFormat": "", "refId": "A" }]
+    },
+
+    { "id": 30, "type": "row", "title": "Pricing Request Logs", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 }, "collapsed": false },
+
+    {
+      "id": 31, "title": "Pricing Calculation Logs",
+      "description": "All log lines related to pricing requests — success and failure",
+      "type": "logs", "gridPos": { "h": 12, "w": 24, "x": 0, "y": 28 },
+      "datasource": { "type": "loki", "uid": "loki-uid" },
+      "options": { "showTime": true, "showLabels": true, "wrapLogMessage": true, "sortOrder": "Descending", "dedupStrategy": "none", "enableLogDetails": true },
+      "targets": [{ "expr": "{application=\"epricing-service\"} |~ `pricing|PRICING|ePricing`", "legendFormat": "", "refId": "A" }]
+    },
+
+    { "id": 40, "type": "row", "title": "Errors by Type — Prometheus", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 }, "collapsed": false },
+
+    {
+      "id": 41, "title": "All Error Types (Cumulative)",
+      "type": "barchart", "gridPos": { "h": 8, "w": 24, "x": 0, "y": 41 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "right" } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
+      "targets": [{ "expr": "sum by (error_type) (pricing_errors_total{application=\"epricing-service\"})", "legendFormat": "{{error_type}}", "refId": "A" }]
+    }
+
+  ]
+}

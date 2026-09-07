@@ -1,0 +1,101 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 01-rbac.yml — Enterprise Role-Based Access Control (RBAC)
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ─── 1. Application ServiceAccount ─────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: epricing-service-sa
+  namespace: epricing
+  labels:
+    app.kubernetes.io/name: epricing-service
+    app.kubernetes.io/component: service-account
+automountServiceAccountToken: true
+---
+# ─── 2. Application Least-Privilege Role ──────────────────────────────────
+# Permits application pods only necessary runtime metadata queries
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: epricing-service-role
+  namespace: epricing
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+# ─── 3. Application RoleBinding ───────────────────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: epricing-service-rolebinding
+  namespace: epricing
+subjects:
+  - kind: ServiceAccount
+    name: epricing-service-sa
+    namespace: epricing
+roleRef:
+  kind: Role
+  name: epricing-service-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ─── 4. Developer / L2 Support Read-Only Role ──────────────────────────────
+# Enables developers to view pods, logs, and events for debugging without modify/delete permissions
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: epricing-developer-role
+  namespace: epricing
+rules:
+  - apiGroups: ["", "apps", "batch"]
+    resources: ["pods", "pods/log", "services", "deployments", "replicasets", "events", "configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/port-forward"]
+    verbs: ["create"]
+---
+# ─── 5. Developer RoleBinding ─────────────────────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: epricing-developer-rolebinding
+  namespace: epricing
+subjects:
+  - kind: Group
+    name: bank:developers
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: epricing-developer-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# ─── 6. Prometheus Service Discovery Scraper Role ──────────────────────────
+# Enables Prometheus operator to scrape /actuator/prometheus on port 8081
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: epricing-prometheus-scraper-role
+  namespace: epricing
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints"]
+    verbs: ["get", "list", "watch"]
+---
+# ─── 7. Prometheus Scraper RoleBinding ────────────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: epricing-prometheus-scraper-binding
+  namespace: epricing
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-k8s
+    namespace: monitoring
+roleRef:
+  kind: Role
+  name: epricing-prometheus-scraper-role
+  apiGroup: rbac.authorization.k8s.io

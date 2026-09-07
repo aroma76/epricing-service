@@ -1,0 +1,366 @@
+{
+  "annotations": { "list": [] },
+  "description": "ePricing L1 Operations Dashboard — CRMNXT-style. Stat tiles go GREEN/YELLOW/RED. Integration Jobs table pulled from DB — no DB login needed.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["epricing", "L1", "operations", "CRMNXT"],
+  "time": { "from": "now-30m", "to": "now" },
+  "timepicker": {},
+  "timezone": "Asia/Kolkata",
+  "title": "ePricing L1 Operations Dashboard",
+  "uid": "epricing-l1-ops",
+  "version": 2,
+  "panels": [
+
+    { "id": 1, "type": "row", "title": "4XX Errors", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false },
+
+    {
+      "id": 2, "title": "GUI (4XX)", "description": "4XX errors on /health and /pricing GET endpoints",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",status=~\"4..\",method=\"GET\"}[$__range])) or vector(0)", "legendFormat": "GUI 4XX", "refId": "A" }]
+    },
+
+    {
+      "id": 3, "title": "API (4XX)", "description": "4XX errors on POST /pricing (validation failures, bad requests)",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",status=~\"4..\",method=\"POST\"}[$__range])) or vector(0)", "legendFormat": "API 4XX", "refId": "A" }]
+    },
+
+    {
+      "id": 4, "title": "Mobile (4XX)", "description": "4XX errors on actuator/metrics-demo endpoints (mobile/other client traffic)",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",status=~\"4..\",uri=~\".*/actuator.*|.*/metrics-demo.*\"}[$__range])) or vector(0)", "legendFormat": "Mobile 4XX", "refId": "A" }]
+    },
+
+    {
+      "id": 5, "title": "CPU Utilization", "description": "JVM process CPU %. Alert at 80%.",
+      "type": "stat", "gridPos": { "h": 4, "w": 3, "x": 12, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 50 }, { "color": "#E02F44", "value": 80 }] } } },
+      "targets": [{ "expr": "process_cpu_usage{application=\"epricing-service\"} * 100", "legendFormat": "CPU %", "refId": "A" }]
+    },
+
+    {
+      "id": 6, "title": "Memory Utilization", "description": "JVM Heap used %. Alert at 85%.",
+      "type": "stat", "gridPos": { "h": 4, "w": 3, "x": 15, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 60 }, { "color": "#E02F44", "value": 85 }] } } },
+      "targets": [{ "expr": "jvm_memory_used_bytes{application=\"epricing-service\",area=\"heap\"} / jvm_memory_max_bytes{application=\"epricing-service\",area=\"heap\"} * 100", "legendFormat": "Heap %", "refId": "A" }]
+    },
+
+    {
+      "id": 7, "title": "Total Jobs (DB)", "description": "Total pricing_requests rows in DB (all statuses)",
+      "type": "stat", "gridPos": { "h": 4, "w": 3, "x": 18, "y": 1 },
+      "datasource": { "type": "postgres", "uid": "yugabytedb-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "yugabytedb-uid" }, "format": "table", "rawSql": "SELECT COUNT(*) AS \"Total Jobs\" FROM pricing_requests", "refId": "A" }]
+    },
+
+    {
+      "id": 8, "title": "Enabled Jobs (DB)", "description": "COUNT of CALCULATED/APPROVED records in DB",
+      "type": "stat", "gridPos": { "h": 4, "w": 3, "x": 21, "y": 1 },
+      "datasource": { "type": "postgres", "uid": "yugabytedb-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
+      "targets": [{ "datasource": { "type": "postgres", "uid": "yugabytedb-uid" }, "format": "table", "rawSql": "SELECT COUNT(*) AS \"Enabled Jobs\" FROM pricing_requests WHERE status IN ('CALCULATED','APPROVED')", "refId": "A" }]
+    },
+
+    { "id": 10, "type": "row", "title": "5XX Errors", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 }, "collapsed": false },
+
+    {
+      "id": 11, "title": "GUI (5XX)", "description": "5XX server errors on GET endpoints",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",status=~\"5..\",method=\"GET\"}[$__range])) or vector(0)", "legendFormat": "GUI 5XX", "refId": "A" }]
+    },
+
+    {
+      "id": 12, "title": "API (5XX)", "description": "5XX errors on POST /pricing — uncaught exceptions, DB failures",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 4, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",status=~\"5..\",method=\"POST\"}[$__range])) or vector(0)", "legendFormat": "API 5XX", "refId": "A" }]
+    },
+
+    {
+      "id": 13, "title": "Mobile (5XX)", "description": "5XX errors on actuator/metrics-demo endpoints (mobile/other client traffic)",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 8, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",status=~\"5..\",uri=~\".*/actuator.*|.*/metrics-demo.*\"}[$__range])) or vector(0)", "legendFormat": "Mobile 5XX", "refId": "A" }]
+    },
+
+    { "id": 20, "type": "row", "title": "Target Response Time", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 10 }, "collapsed": false },
+
+    {
+      "id": 21, "title": "GUI (p95 ms)", "description": "p95 response time on GET /pricing and /health — SLA under 500ms",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 0, "y": 11 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "ms", "decimals": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 500 }, { "color": "#E02F44", "value": 2000 }] } } },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"epricing-service\",method=\"GET\"}[5m])) by (le)) * 1000", "legendFormat": "GUI p95", "refId": "A" }]
+    },
+
+    {
+      "id": 22, "title": "API (p95 ms)", "description": "p95 response time on POST /pricing — RBI SLA: under 2000ms",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 4, "y": 11 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "ms", "decimals": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 500 }, { "color": "#E02F44", "value": 2000 }] } } },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"epricing-service\",method=\"POST\"}[5m])) by (le)) * 1000", "legendFormat": "API p95", "refId": "A" }]
+    },
+
+    {
+      "id": 23, "title": "Mobile (p50 μs)", "description": "p50 median response time in microseconds for actuator/mobile endpoints — matches CRMNXT 0μs display",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 8, "y": 11 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "µs", "decimals": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 200000 }, { "color": "#E02F44", "value": 500000 }] } } },
+      "targets": [{ "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=\"epricing-service\",uri=~\".*/actuator.*|.*/metrics-demo.*\"}[5m])) by (le)) * 1000000", "legendFormat": "p50 μs", "refId": "A" }]
+    },
+
+    { "id": 30, "type": "row", "title": "Target Request Count", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 }, "collapsed": false },
+
+    {
+      "id": 31, "title": "GUI Requests", "description": "Total GET requests in time window",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",method=\"GET\"}[$__range])) or vector(0)", "legendFormat": "GET Requests", "refId": "A" }]
+    },
+
+    {
+      "id": 32, "title": "API Requests", "description": "Total POST /pricing calls in time window",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 4, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\",method=\"POST\",uri=\"/pricing\"}[$__range])) or vector(0)", "legendFormat": "POST /pricing", "refId": "A" }]
+    },
+
+    {
+      "id": 33, "title": "Mobile / Other", "description": "Total actuator and other endpoint requests",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 8, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["sum"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_count{application=\"epricing-service\"}[$__range])) or vector(0)", "legendFormat": "All Requests", "refId": "A" }]
+    },
+
+    { "id": 40, "type": "row", "title": "DB Blockings · Blocker Count · DB Logins · DB Sleeping Sessions · Long Running Query", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 20 }, "collapsed": false },
+
+    {
+      "id": 41, "title": "DB Blockings (Transaction)",
+      "description": "HikariCP threads waiting for a connection — DB bottleneck indicator. 0 = healthy.",
+      "type": "stat", "gridPos": { "h": 4, "w": 3, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "hikaricp_connections_pending{application=\"epricing-service\",pool=\"epricing-pool\"}", "legendFormat": "Pending", "refId": "A" }]
+    },
+
+    {
+      "id": 42, "title": "DB Blockings (Reporting)",
+      "description": "Connection timeouts — connections that failed to acquire in time",
+      "type": "stat", "gridPos": { "h": 4, "w": 3, "x": 3, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "hikaricp_connections_timeout_total{application=\"epricing-service\",pool=\"epricing-pool\"}", "legendFormat": "Timeouts", "refId": "A" }]
+    },
+
+    {
+      "id": 43, "title": "DB Blocker Count",
+      "description": "Total HikariCP connection timeouts since start. 0 = healthy.",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 6, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "hikaricp_connections_timeout_total{application=\"epricing-service\",pool=\"epricing-pool\"}", "legendFormat": "Blockers", "refId": "A" }]
+    },
+
+    {
+      "id": 44, "title": "DB Logins (Transaction)",
+      "description": "Total DB sessions (active + idle) on transaction pool — matches CRMNXT 'Transaction=171' meaning total pool connections",
+      "type": "stat", "gridPos": { "h": 4, "w": 2, "x": 10, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 7 }, { "color": "#E02F44", "value": 10 }] } } },
+      "targets": [{ "expr": "hikaricp_connections_active{application=\"epricing-service\",pool=\"epricing-pool\"} + hikaricp_connections_idle{application=\"epricing-service\",pool=\"epricing-pool\"}", "legendFormat": "Total Sessions", "refId": "A" }]
+    },
+
+    {
+      "id": 45, "title": "DB Logins (Reporting)",
+      "description": "Idle DB connections (reporting pool equivalent) — open but not actively querying",
+      "type": "stat", "gridPos": { "h": 4, "w": 2, "x": 12, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
+      "targets": [{ "expr": "hikaricp_connections_idle{application=\"epricing-service\",pool=\"epricing-pool\"}", "legendFormat": "Idle Sessions", "refId": "A" }]
+    },
+
+    {
+      "id": 46, "title": "DB Sleeping Sessions",
+      "description": "Idle (sleeping) DB connections — open but not querying",
+      "type": "stat", "gridPos": { "h": 4, "w": 4, "x": 14, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }] } } },
+      "targets": [{ "expr": "hikaricp_connections_idle{application=\"epricing-service\",pool=\"epricing-pool\"}", "legendFormat": "Sleeping", "refId": "A" }]
+    },
+
+    {
+      "id": 47, "title": "Long Running Query (TXN)",
+      "description": "Pricing calculation failures in last 5 min. 0 = healthy.",
+      "type": "stat", "gridPos": { "h": 4, "w": 3, "x": 18, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "increase(pricing_requests_total{application=\"epricing-service\",type=\"failed\"}[5m])", "legendFormat": "Failed", "refId": "A" }]
+    },
+
+    {
+      "id": 48, "title": "Long Running Query (RPT)",
+      "description": "HTTP requests exceeding 2s SLA threshold in last 5 min",
+      "type": "stat", "gridPos": { "h": 4, "w": 3, "x": 21, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
+      "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "#E02F44", "value": 1 }] } } },
+      "targets": [{ "expr": "sum(increase(http_server_requests_seconds_bucket{application=\"epricing-service\",le=\"+Inf\"}[5m])) - sum(increase(http_server_requests_seconds_bucket{application=\"epricing-service\",le=\"2.0\"}[5m]))", "legendFormat": ">2s", "refId": "A" }]
+    },
+
+    { "id": 50, "type": "row", "title": "Integration Jobs — All Running / Complete / Error", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 }, "collapsed": false },
+
+    {
+      "id": 51,
+      "title": "Integration Jobs — All Pricing Requests (Click any row to expand full details)",
+      "description": "GREEN=COMPLETED · YELLOW=RUNNING · RED=ERROR · ORANGE=REJECTED. Click any row to expand and see full error details. No DB login needed — data pulled live from YugabyteDB.",
+      "type": "table",
+      "gridPos": { "h": 18, "w": 24, "x": 0, "y": 26 },
+      "datasource": { "type": "postgres", "uid": "yugabytedb-uid" },
+      "options": {
+        "footer": { "show": false },
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [{ "desc": true, "displayName": "Started At" }]
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left", "cellOptions": { "type": "auto" }, "filterable": true, "inspect": true } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.width", "value": 115 },
+              { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+              { "id": "mappings", "value": [{ "type": "value", "options": {
+                "CALCULATED": { "color": "#9FC119", "index": 0, "text": "✅ COMPLETED" },
+                "APPROVED":   { "color": "#9FC119", "index": 1, "text": "✅ COMPLETED" },
+                "PENDING":    { "color": "#E8B904", "index": 2, "text": "⏳ RUNNING" },
+                "ERROR":      { "color": "#E02F44", "index": 3, "text": "❌ ERROR" },
+                "REJECTED":   { "color": "#FF780A", "index": 4, "text": "⚠️ REJECTED" }
+              }}] }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Error Summary" },
+            "properties": [
+              { "id": "custom.width", "value": 340 },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "Full Error (DB)" }, "properties": [{ "id": "custom.width", "value": 500 }, { "id": "custom.hidden", "value": true }] },
+          { "matcher": { "id": "byName", "options": "Job ID" },         "properties": [{ "id": "custom.width", "value": 70 }] },
+          { "matcher": { "id": "byName", "options": "Customer" },       "properties": [{ "id": "custom.width", "value": 110 }] },
+          { "matcher": { "id": "byName", "options": "Product" },        "properties": [{ "id": "custom.width", "value": 130 }] },
+          { "matcher": { "id": "byName", "options": "Duration (ms)" },  "properties": [{ "id": "unit", "value": "ms" }, { "id": "custom.width", "value": 110 }] },
+          { "matcher": { "id": "byName", "options": "Started At" },     "properties": [{ "id": "custom.width", "value": 170 }] },
+          { "matcher": { "id": "byName", "options": "Rate %" },         "properties": [{ "id": "custom.width", "value": 80 }] },
+          { "matcher": { "id": "byName", "options": "EMI (INR)" },      "properties": [{ "id": "custom.width", "value": 100 }] },
+          { "matcher": { "id": "byName", "options": "Trace ID" },       "properties": [{ "id": "custom.width", "value": 260 }] }
+        ]
+      },
+      "targets": [{
+        "datasource": { "type": "postgres", "uid": "yugabytedb-uid" },
+        "format": "table",
+        "rawSql": "SELECT\n  id                                                                  AS \"Job ID\",\n  customer_id                                                         AS \"Customer\",\n  product_type                                                        AS \"Product\",\n  status                                                              AS \"Status\",\n  created_at AT TIME ZONE 'Asia/Kolkata'                             AS \"Started At\",\n  processing_time_ms                                                  AS \"Duration (ms)\",\n  calculated_rate                                                     AS \"Rate %\",\n  emi_amount                                                          AS \"EMI (INR)\",\n  CASE\n    WHEN status = 'ERROR' AND error_message IS NOT NULL\n      THEN CASE\n        WHEN error_message LIKE '%credit score%' OR error_message LIKE '%Credit score%'\n          THEN 'Credit score below minimum threshold'\n        WHEN error_message LIKE '%loan amount%' OR error_message LIKE '%Loan amount%'\n          THEN 'Loan amount outside permitted range'\n        WHEN error_message LIKE '%income%' OR error_message LIKE '%Income%'\n          THEN 'Income insufficient for requested loan'\n        WHEN error_message LIKE '%expired or aborted%' OR error_message LIKE '%Transaction%expired%'\n          THEN 'DB Transaction conflict — retry required'\n        WHEN error_message LIKE '%CannotAcquireLockException%' OR error_message LIKE '%lock%'\n          THEN 'DB lock acquisition failed — concurrent write conflict'\n        WHEN error_message LIKE '%JpaSystemException%'\n          THEN 'JPA persistence layer error'\n        WHEN error_message LIKE '%Connection%' OR error_message LIKE '%connection%'\n          THEN 'Database connection failure'\n        WHEN error_message LIKE '%timeout%' OR error_message LIKE '%Timeout%'\n          THEN 'Request timed out'\n        ELSE SUBSTRING(error_message FROM 1 FOR 120)\n      END\n    WHEN status = 'REJECTED' AND error_message IS NOT NULL\n      THEN COALESCE(SUBSTRING(error_message FROM 1 FOR 120), 'Rejected — see Full Error')\n    WHEN status IN ('ERROR','REJECTED') AND error_message IS NULL\n      THEN 'Error captured — no message recorded'\n    ELSE ''\n  END                                                                 AS \"Error Summary\",\n  COALESCE(error_message, '')                                         AS \"Full Error (DB)\",\n  trace_id                                                            AS \"Trace ID\"\nFROM pricing_requests\nORDER BY created_at DESC\nLIMIT 500",
+        "refId": "A"
+      }]
+    },
+
+    { "id": 53, "type": "row", "title": "❌ Error & Rejected Jobs — Click to investigate", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 44 }, "collapsed": false },
+
+    {
+      "id": 52,
+      "title": "Error & Rejected Jobs — Root Cause Drill-Down (Live from DB)",
+      "description": "Only ERROR and REJECTED records. 'Root Cause' extracts the meaningful failure reason from the raw DB error. 'Full Stack' shows the complete stored error. No DB login needed.",
+      "type": "table",
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 45 },
+      "datasource": { "type": "postgres", "uid": "yugabytedb-uid" },
+      "options": { "footer": { "show": false }, "showHeader": true, "cellHeight": "lg" },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left", "cellOptions": { "type": "auto" }, "filterable": true, "inspect": true } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Status" },
+            "properties": [
+              { "id": "custom.width", "value": 115 },
+              { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } },
+              { "id": "mappings", "value": [{ "type": "value", "options": {
+                "ERROR":    { "color": "#E02F44", "index": 0, "text": "❌ ERROR" },
+                "REJECTED": { "color": "#FF780A", "index": 1, "text": "⚠️ REJECTED" }
+              }}] }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Root Cause" },
+            "properties": [
+              { "id": "custom.width", "value": 380 },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "#E02F44", "value": null }] } },
+              { "id": "custom.wrap", "value": true }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Full Stack (DB)" },
+            "properties": [
+              { "id": "custom.width", "value": 520 },
+              { "id": "custom.wrap", "value": true }
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "Trace ID" },   "properties": [{ "id": "custom.width", "value": 260 }] },
+          { "matcher": { "id": "byName", "options": "Job ID" },     "properties": [{ "id": "custom.width", "value": 70 }] },
+          { "matcher": { "id": "byName", "options": "Failed At" },  "properties": [{ "id": "custom.width", "value": 170 }] },
+          { "matcher": { "id": "byName", "options": "Duration" },   "properties": [{ "id": "unit", "value": "ms" }, { "id": "custom.width", "value": 100 }] }
+        ]
+      },
+      "targets": [{
+        "datasource": { "type": "postgres", "uid": "yugabytedb-uid" },
+        "format": "table",
+        "rawSql": "SELECT\n  id                                                                  AS \"Job ID\",\n  customer_id                                                         AS \"Customer\",\n  product_type                                                        AS \"Product\",\n  status                                                              AS \"Status\",\n  created_at AT TIME ZONE 'Asia/Kolkata'                             AS \"Failed At\",\n  processing_time_ms                                                  AS \"Duration\",\n  CASE\n    WHEN error_message LIKE '%credit score%' OR error_message LIKE '%Credit score%'\n      THEN '❌ Credit score below minimum threshold'\n    WHEN error_message LIKE '%loan amount%' OR error_message LIKE '%Loan amount%'\n      THEN '❌ Loan amount outside permitted range'\n    WHEN error_message LIKE '%income%' OR error_message LIKE '%Income%'\n      THEN '❌ Income insufficient for requested loan'\n    WHEN error_message LIKE '%expired or aborted%' OR error_message LIKE '%Transaction%expired%'\n      THEN '⚠️ DB Transaction conflict — YugabyteDB lock expired (retry safe)'\n    WHEN error_message LIKE '%CannotAcquireLockException%'\n      THEN '⚠️ Concurrent write conflict — lock acquisition failed'\n    WHEN error_message LIKE '%JpaSystemException%'\n      THEN '⚠️ JPA persistence layer error — check DB integrity'\n    WHEN error_message LIKE '%Connection%' OR error_message LIKE '%connection refused%'\n      THEN '🔴 Database connection failure'\n    WHEN error_message LIKE '%timeout%' OR error_message LIKE '%Timeout%'\n      THEN '🔴 Request timed out — SLA breach'\n    WHEN error_message IS NULL\n      THEN '⚠️ Error recorded but no message captured'\n    ELSE CONCAT('⚠️ ', SUBSTRING(error_message FROM 1 FOR 150))\n  END                                                                 AS \"Root Cause\",\n  COALESCE(error_message, 'No error message stored in DB')           AS \"Full Stack (DB)\",\n  trace_id                                                            AS \"Trace ID\"\nFROM pricing_requests\nWHERE status IN ('ERROR', 'REJECTED')\nORDER BY created_at DESC\nLIMIT 200",
+        "refId": "A"
+      }]
+    }
+
+  ]
+}

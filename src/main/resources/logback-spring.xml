@@ -1,0 +1,241 @@
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║  logback-spring.xml — Structured JSON Logging Configuration             ║
+  ╠══════════════════════════════════════════════════════════════════════════╣
+  ║  WHY THIS FILE EXISTS:                                                   ║
+  ║  Logback is the default logging framework in Spring Boot.               ║
+  ║  By default, it prints plain text to the console.                       ║
+  ║                                                                          ║
+  ║  THIS FILE DOES THREE THINGS:                                            ║
+  ║  1. Switches to JSON format (machine-readable for Loki/Promtail)        ║
+  ║  2. Writes logs to a file (so Promtail can read them)                   ║
+  ║  3. Adds traceId/spanId to every log (links logs to traces)             ║
+  ║                                                                          ║
+  ║  WHY -spring SUFFIX:                                                     ║
+  ║  "logback-spring.xml" (not "logback.xml") is the Spring Boot way.      ║
+  ║  The -spring suffix allows you to use Spring's <springProfile> tags     ║
+  ║  to have different logging configs for dev/staging/production.          ║
+  ║                                                                          ║
+  ║  LOG FLOW:                                                               ║
+  ║  Application Code → SLF4J API → Logback → JSON Encoder → Log File      ║
+  ║  Log File → Promtail → Loki → Grafana                                   ║
+  ║                                                                          ║
+  ║  WITHOUT THIS FILE:                                                      ║
+  ║  Logs would be plain text, unstructured, and impossible for Loki to     ║
+  ║  index or Grafana to query efficiently.                                  ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+-->
+<configuration>
+
+    <!--
+      springProperty — Reads values from application.yml/application.properties
+      This allows logging config to be driven by Spring's property system.
+      app.name comes from "spring.application.name" in application.yml.
+      This name appears in every log line, allowing you to filter logs
+      by service name when running multiple microservices.
+    -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="epricing-service"/>
+    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════
+      APPENDER 1: Console (for development and Docker stdout)
+      ═══════════════════════════════════════════════════════════════
+      WHY: Console output is captured by Docker and can be viewed
+      with "docker logs <container>". Also shown in IntelliJ's console.
+
+      In production on Kubernetes, stdout logs are automatically
+      collected by the cluster's logging infrastructure.
+    -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!--
+              LogstashEncoder converts each log event into a JSON object.
+              Every JSON log line contains:
+                {
+                  "@timestamp": "2024-01-15T10:30:00.000+05:30",
+                  "@version": "1",
+                  "message": "Pricing calculated for customer CUST001",
+                  "logger_name": "com.bank.service.PricingService",
+                  "thread_name": "http-nio-8080-exec-1",
+                  "level": "INFO",
+                  "level_value": 20000,
+                  "traceId": "abc123def456",     ← from MDC (Micrometer Tracing)
+                  "spanId": "789xyz",             ← from MDC (Micrometer Tracing)
+                  "application": "epricing-service",
+                  "customerId": "CUST001",        ← from MDC (your custom fields)
+                  "requestId": "REQ-2024-001"     ← from MDC
+                }
+            -->
+
+            <!-- Add application name to EVERY log line -->
+            <customFields>{"application":"${APP_NAME}","team":"epricing","environment":"${SPRING_PROFILES_ACTIVE:-local}"}</customFields>
+
+            <!-- Include MDC (Mapped Diagnostic Context) fields.
+                 MDC is a thread-local map where you put contextual data.
+                 Micrometer Tracing automatically puts traceId and spanId here.
+                 You can also put customerId, requestId, etc. from filters. -->
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>customerId</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>productCode</includeMdcKeyName>
+            <includeMdcKeyName>operationType</includeMdcKeyName>
+
+            <!-- Include caller information (class, method, line) in DEBUG mode.
+                 This is expensive (requires stack trace inspection) so use
+                 only in development. In production, class name is enough. -->
+            <includeCallerData>false</includeCallerData>
+
+        </encoder>
+    </appender>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════
+      APPENDER 2: Rolling File (for Promtail to read)
+      ═══════════════════════════════════════════════════════════════
+      WHY: Promtail is configured to read log files from disk.
+      This appender writes JSON logs to a file that Promtail monitors.
+
+      RollingFileAppender creates a new file based on time/size rules,
+      preventing a single log file from growing infinitely.
+
+      In a banking system processing millions of transactions per day,
+      an unmanaged log file can fill up the disk in hours.
+    -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- Current active log file — Promtail reads THIS file -->
+        <file>${LOG_PATH}/epricing-service.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- Archive pattern: rotate daily AND when file exceeds 100MB
+                 %d{yyyy-MM-dd} → date-based rotation
+                 %i → index within that day (01, 02, 03...)
+                 .gz → compress old logs to save disk space (50-80% savings) -->
+            <fileNamePattern>${LOG_PATH}/archived/epricing-service.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+
+            <!-- Maximum size before rotating to a new file -->
+            <maxFileSize>100MB</maxFileSize>
+
+            <!-- Keep at most 30 days of logs.
+                 After 30 days, old files are automatically deleted.
+                 In production, logs are usually shipped to long-term storage
+                 (S3, GCS) before local deletion. Regulatory compliance for
+                 banking may require 7 years of audit logs. -->
+            <maxHistory>30</maxHistory>
+
+            <!-- Total size cap across all archived files.
+                 Prevents logs from consuming more than 3GB of disk.
+                 Critical on containers with limited storage. -->
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+
+        <!-- Same JSON encoder as console — consistent format -->
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"application":"${APP_NAME}","team":"epricing","environment":"${SPRING_PROFILES_ACTIVE:-local}"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+            <includeMdcKeyName>customerId</includeMdcKeyName>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>productCode</includeMdcKeyName>
+            <includeMdcKeyName>operationType</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════
+      ASYNC APPENDER — Critical for Performance
+      ═══════════════════════════════════════════════════════════════
+      WHY: Writing to disk is an I/O operation that takes time.
+      If logging is synchronous, every log statement blocks your
+      request thread until the write completes.
+
+      In a high-throughput banking API processing 1000 TPS,
+      synchronous logging can add 5-10ms to every request.
+
+      AsyncAppender puts log events into an in-memory queue
+      and a separate background thread handles the actual I/O.
+      Your request thread is unblocked immediately.
+
+      TRADE-OFF: If the application crashes, events in the queue
+      may be lost. For audit logs, this is not acceptable.
+      Use synchronous appenders for audit/compliance logs.
+    -->
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- Queue capacity — adjust based on your throughput -->
+        <queueSize>512</queueSize>
+
+        <!-- When the queue is 80% full, drop TRACE and DEBUG logs.
+             In a traffic spike, low-priority logs are sacrificed
+             to keep high-priority WARN/ERROR logs flowing. -->
+        <discardingThreshold>20</discardingThreshold>
+
+        <!-- On shutdown, wait up to 30 seconds to flush the queue -->
+        <maxFlushTime>30000</maxFlushTime>
+
+        <!-- Include caller data (expensive, only for debug) -->
+        <includeCallerData>false</includeCallerData>
+
+        <appender-ref ref="FILE"/>
+    </appender>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════
+      PROFILE-SPECIFIC CONFIGURATION
+      ═══════════════════════════════════════════════════════════════
+      WHY: Development and production have different logging needs.
+
+      Development: DEBUG level, human-readable, console only
+      Production: INFO level, JSON, file + console
+    -->
+
+    <!-- LOCAL / DEVELOPMENT profile -->
+    <springProfile name="local,dev">
+        <!-- Reduce noise from Spring Boot internals in development -->
+        <logger name="org.springframework" level="INFO"/>
+        <logger name="org.hibernate" level="INFO"/>
+        <!-- Show SQL in development — helps debug JPA issues -->
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <!-- Show SQL parameter values in development -->
+        <logger name="org.hibernate.type.descriptor.sql" level="TRACE"/>
+        <!-- Our application code: DEBUG level in development -->
+        <logger name="com.bank" level="DEBUG"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <!-- No file appender in local dev — keeps it simple -->
+        </root>
+    </springProfile>
+
+    <!-- PRODUCTION / DOCKER profile -->
+    <springProfile name="prod,docker,staging">
+        <!-- Suppress verbose framework logging in production -->
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="org.hibernate" level="WARN"/>
+        <!-- NEVER show SQL in production — security risk (may log PII) -->
+        <logger name="org.hibernate.SQL" level="OFF"/>
+        <!-- Our application code: INFO in production -->
+        <logger name="com.bank" level="INFO"/>
+        <!-- Silence Eureka/Ribbon client noise -->
+        <logger name="com.netflix" level="WARN"/>
+
+        <root level="INFO">
+            <!-- Both console (for Docker/K8s) and file (for Promtail) -->
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- DEFAULT (no profile active) — used in local IntelliJ runs -->
+    <springProfile name="!local &amp; !dev &amp; !prod &amp; !docker &amp; !staging">
+        <logger name="org.springframework" level="INFO"/>
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <logger name="com.bank" level="DEBUG"/>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>

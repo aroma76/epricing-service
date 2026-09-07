@@ -1,0 +1,594 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  docker-compose.yml — Complete Observability Stack Orchestration         ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY THIS FILE EXISTS:                                                   ║
+# ║  Running 7 services manually (Spring Boot, Prometheus, Grafana, Loki,   ║
+# ║  Promtail, OTel Collector, etc.) requires 7 terminal windows and        ║
+# ║  complex configuration of each service's connection to the others.      ║
+# ║                                                                          ║
+# ║  docker-compose.yml defines ALL services and their relationships        ║
+# ║  in ONE file. One command starts everything:                            ║
+# ║    docker-compose up --build                                             ║
+# ║                                                                          ║
+# ║  SERVICES IN THIS FILE:                                                  ║
+# ║    1.  epricing-service  (Spring Boot app)                              ║
+# ║    2.  prometheus        (metrics time-series database)                 ║
+# ║    3.  grafana           (dashboards + visualization)                   ║
+# ║    4.  loki              (log aggregation)                              ║
+# ║    5.  promtail          (log shipper)                                  ║
+# ║    6.  otel-collector    (telemetry pipeline)                           ║
+# ║    7.  traffic-generator (automated load simulator)                     ║
+# ║    8.  cadvisor          (container resource metrics)                   ║
+# ║    9.  node-exporter     (host hardware metrics)                        ║
+# ║    10. alertmanager      (alert routing — webhook/email/Slack)          ║
+# ║    11. webhook-logger    (local alert receiver for dev testing)         ║
+# ║                                                                          ║
+# ║  DATA FLOW:                                                              ║
+# ║  epricing → otel-collector (traces/metrics) → prometheus / tempo         ║
+# ║  epricing → logfile → promtail → loki → grafana                          ║
+# ║  prometheus ← scrape /actuator/prometheus ← epricing                     ║
+# ║  prometheus → alertmanager (when alert rules fire)                       ║
+# ║  alertmanager → webhook-logger (prints alert to console)                 ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NETWORKS — Service Discovery and Isolation
+# ═══════════════════════════════════════════════════════════════════════════
+# WHY CUSTOM NETWORK:
+# By default, all services in a docker-compose file join a shared default network.
+# A custom network lets services find each other by NAME (not IP):
+#   prometheus connects to epricing-service using hostname "epricing-service"
+#   This is internal DNS — Docker's built-in service discovery.
+# Without this, you'd need to hardcode IPs which change on every restart.
+networks:
+  epricing-network:
+    driver: bridge
+    # IPAM: IP Address Management — assigns IPs in the 172.20.0.0/16 subnet
+    # Prevents IP conflicts with other docker-compose stacks on your machine
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ═══════════════════════════════════════════════════════════════════════════
+# VOLUMES — Persistent Data Storage
+# ═══════════════════════════════════════════════════════════════════════════
+# WHY NAMED VOLUMES:
+# Containers are ephemeral — when a container is removed, its data is gone.
+# Named volumes persist data between container restarts:
+#   - Prometheus data: Your metrics history survives container restarts
+#   - Grafana data: Your dashboards and settings are saved
+#   - Loki data: Your log history persists
+#
+# Without volumes:
+#   docker-compose down → Prometheus loses all metric history
+#   On restart: Grafana asks you to set up from scratch
+volumes:
+  yugabyte-data:        # YugabyteDB Distributed SQL persistent storage
+  prometheus-data:      # Prometheus time-series database
+  grafana-data:         # Grafana dashboards, users, settings
+  loki-data:            # Loki log chunks and index
+  epricing-logs:        # Shared log volume between epricing-service and promtail
+  alertmanager-data:    # Alertmanager silences and notification state
+  tempo-data:           # Grafana Tempo distributed trace storage
+  promtail-positions:   # Promtail read positions (deduplication across restarts)
+
+services:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 0: YugabyteDB — Distributed SQL Database (PostgreSQL Compatible)
+  # ═══════════════════════════════════════════════════════════════════════
+  yugabytedb:
+    image: yugabytedb/yugabyte:2.20.1.0-b97
+    container_name: epricing-yugabytedb
+    command: [ "bash", "-c", "bin/yugabyted start --base_dir=/var/lib/yugabyte --ui=false && sleep 10 && bin/ysqlsh -h epricing-yugabytedb -p 5433 -U yugabyte -c 'CREATE DATABASE epricingdb;' || true && tail -f /dev/null" ]
+    ports:
+      - "5433:5433"   # YSQL API port (PostgreSQL wire-compatible)
+      - "7000:7000"   # Master Admin UI
+      - "9000:9000"   # TServer Admin UI
+      - "15433:15433" # yugabyted Web UI dashboard
+    environment:
+      - YB_ADMIN_USER=yugabyte
+      - YB_ADMIN_PASSWORD=yugabyte
+    volumes:
+      - yugabyte-data:/var/lib/yugabyte
+    networks:
+      - epricing-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "bin/yugabyted status --base_dir=/var/lib/yugabyte"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 1: Spring Boot — ePricing Microservice
+  # ═══════════════════════════════════════════════════════════════════════
+  epricing-service:
+    # Build from Dockerfile in current directory
+    # Alternative: image: epricing-service:1.0.0 (use pre-built image in CI/CD)
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: epricing-service
+    
+    # Port mapping: host:container
+    # 8080:8080 → Your laptop's port 8080 → Container's port 8080
+    # Browser: http://localhost:8080/api/v1/health
+    ports:
+      - "8080:8080"   # API port
+      - "8081:8081"   # Management/Actuator port
+    
+    # Environment variables override application.yml settings
+    # In production: use secrets manager (AWS Secrets Manager, HashiCorp Vault)
+    # NEVER hardcode passwords here. Use Docker secrets or env files.
+    environment:
+      # Spring profile — activates docker-specific logging config
+      SPRING_PROFILES_ACTIVE: docker
+      
+      # OTel Collector endpoint — uses Docker's internal DNS
+      # "otel-collector" resolves to the OTel Collector container's IP
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: epricing-service
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=Bank,team.name=epricing
+      OTEL_TRACES_SAMPLER: parentbased_always_on
+      
+      # Enterprise Distributed Database (YugabyteDB Smart Driver)
+      SPRING_DATASOURCE_URL: jdbc:yugabytedb://yugabytedb:5433/epricingdb?load-balance=true&sslmode=disable
+      SPRING_DATASOURCE_USERNAME: yugabyte
+      SPRING_DATASOURCE_PASSWORD: yugabyte
+      SPRING_FLYWAY_ENABLED: "false"
+      
+      # Actuator OTLP push (metrics) — pushes to OTel Collector
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://otel-collector:4318/v1/metrics
+      MANAGEMENT_OTLP_TRACING_EXPORT_URL: http://otel-collector:4318/v1/traces
+      
+      # Log file path (inside container) — Promtail reads from this volume
+      LOGGING_FILE_PATH: /app/logs
+    
+    volumes:
+      # Mount the shared log volume so promtail can read logs
+      # /app/logs (container path) = epricing-logs (named Docker volume)
+      - epricing-logs:/app/logs
+    
+    networks:
+      - epricing-network
+    
+    # Startup ordering — wait for OTel Collector & YugabyteDB before starting
+    depends_on:
+      otel-collector:
+        condition: service_started
+      yugabytedb:
+        condition: service_healthy
+    
+    # Resource limits — prevent the container from consuming all host resources
+    # In production: right-size based on load testing results
+    deploy:
+      resources:
+        limits:
+          memory: 512M   # Container is killed if it uses > 512MB
+          cpus: '1.0'    # Limit to 1 CPU core
+        reservations:
+          memory: 256M   # Docker scheduler ensures this much is available
+    
+    # Restart policy — auto-restart if the container crashes
+    # "unless-stopped": restart on crash but not if manually stopped (docker stop)
+    # In production: "always" for critical services
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",
+             "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Give Spring Boot time to start before health checks begin
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 2: Prometheus — Metrics Time-Series Database
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY PROMETHEUS:
+  # Prometheus is a PULL-based metrics system. It periodically scrapes
+  # (fetches) metrics from your application's /actuator/prometheus endpoint.
+  # This is opposite to push-based systems (like StatsD) where the app sends metrics.
+  #
+  # PULL model advantages:
+  # - Prometheus controls when metrics are collected (consistent intervals)
+  # - Prometheus knows if a target is down (scrape fails = target is down)
+  # - No need to configure each app with the metrics backend address
+  # - Easier to add new scrape targets without restarting Prometheus
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    ports:
+      - "9090:9090"  # Prometheus UI: http://localhost:9090
+    
+    volumes:
+      # Mount our custom prometheus.yml configuration
+      # :ro = read-only mount (container cannot modify it — security best practice)
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Mount alerts directory
+      - ./prometheus/alerts:/etc/prometheus/alerts:ro
+      # Persist Prometheus data (metric history) across container restarts
+      - prometheus-data:/prometheus
+    
+    # Command-line flags for Prometheus:
+    command:
+      # Location of the config file (inside the container)
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      # Where to store TSDB (time-series database) data
+      - '--storage.tsdb.path=/prometheus'
+      # Keep 30 days of metric data. After 30 days, old data is deleted.
+      # In production: use remote_write to ship to Thanos/Cortex for long-term storage
+      - '--storage.tsdb.retention.time=30d'
+      # Enable Prometheus's own web UI (for manual queries/debugging)
+      - '--web.enable-lifecycle'  # Allows hot-reload of config via POST /-/reload
+      # Enable remote write receiver (so OTel Collector can push metrics to Prometheus)
+      - '--web.enable-remote-write-receiver'
+    
+    networks:
+      - epricing-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 3: Grafana — Visualization and Dashboards
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY GRAFANA:
+  # Prometheus only stores data and provides a basic query UI (PromQL).
+  # Grafana turns PromQL queries into beautiful, shareable dashboards.
+  # It also integrates Loki (logs) and Tempo (traces) in ONE UI.
+  # "Single pane of glass" — ops team sees metrics, logs, and traces together.
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: grafana
+    ports:
+      - "3000:3000"  # Grafana UI: http://localhost:3000
+                     # Default credentials: admin/admin (change on first login)
+    
+    environment:
+      # Admin credentials — change in production!
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: Bank@grafana123  # Change this in production!
+      
+      # Anonymous access — disabled in production
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      
+      # Disable Grafana's built-in telemetry (phone-home)
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      
+      # Organization name appears in the browser tab
+      GF_USERS_DEFAULT_THEME: dark
+      GF_SERVER_ROOT_URL: "http://localhost:3000"
+      
+      # Enable features for Grafana 11
+      GF_FEATURE_TOGGLES_ENABLE: "traceToMetrics"
+    
+    volumes:
+      # Persist Grafana data (dashboards, users, plugins)
+      - grafana-data:/var/lib/grafana
+      # Provisioning: automatically configure datasources and dashboards on startup
+      # No manual setup needed — Grafana reads these files on startup
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    
+    networks:
+      - epricing-network
+    
+    depends_on:
+      prometheus:
+        condition: service_started
+      tempo:
+        condition: service_started
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",
+             "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 4: Loki — Log Aggregation System
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY LOKI (not Elasticsearch):
+  # Elasticsearch indexes every word in every log → huge storage + CPU cost.
+  # Loki only indexes LABELS (structured fields like application, level, traceId).
+  # The log content is stored compressed and retrieved on demand.
+  # Result: 10x less storage, 50x less compute than Elasticsearch at scale.
+  #
+  # TRADE-OFF: Loki requires structured logs (JSON) to extract labels.
+  # Plain text logs are harder to filter in Loki. This is why logback-spring.xml
+  # outputs JSON — so Loki can extract fields like traceId, customerId, level.
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: loki
+    ports:
+      - "3100:3100"  # Loki API — Promtail sends logs here
+                     # Grafana reads logs from here (datasource configured to :3100)
+    
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      # Persistent storage for log data (compressed log chunks)
+      - loki-data:/loki
+    
+    command: -config.file=/etc/loki/local-config.yaml
+    
+    networks:
+      - epricing-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 5: Promtail — Log Shipper (Agent)
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY PROMTAIL:
+  # Loki doesn't read log files directly. Promtail is the agent that:
+  #   1. TAILS log files (like "tail -f" but smart)
+  #   2. PARSES structured JSON logs
+  #   3. ADDS LABELS (application, host, level) for Loki indexing
+  #   4. SHIPS log entries to Loki
+  #
+  # Promtail is to logs what Prometheus is to metrics:
+  #   Prometheus: scrapes metrics from /actuator/prometheus
+  #   Promtail:   reads logs from log files and ships to Loki
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: promtail
+    
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+      # Mount the log directory from epricing-service
+      # Promtail reads /var/log/epricing/ which maps to the epricing-logs volume
+      - epricing-logs:/var/log/epricing:ro  # ro=read-only for security
+      # Mount Docker socket to read container labels (for service discovery)
+      # WHY /var/run/docker.sock: Promtail can auto-discover containers and
+      # use their labels as Loki labels (automated label extraction)
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Persistent positions file — prevents duplicate log shipping on restart
+      - promtail-positions:/data
+    
+    command: -config.file=/etc/promtail/config.yml
+    
+    networks:
+      - epricing-network
+    
+    depends_on:
+      loki:
+        condition: service_started
+    
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 5.5: Grafana Tempo — Distributed Trace Backend
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY TEMPO:
+  # The OTel Collector receives traces from Spring Boot but needs a backend
+  # to STORE and SERVE them. Tempo is Grafana's native trace backend:
+  #   - Receives OTLP traces from OTel Collector via gRPC (port 4317)
+  #   - Stores traces compressed on disk
+  #   - Grafana queries Tempo on port 3200 for trace visualization
+  #
+  # CORRELATED OBSERVABILITY:
+  #   Prometheus exemplar → Tempo trace (metrics to trace in 1 click)
+  #   Loki log traceId   → Tempo trace (logs to trace in 1 click)
+  #   Tempo trace        → Prometheus/Loki (trace to metrics/logs)
+  tempo:
+    image: grafana/tempo:2.5.0
+    container_name: tempo
+    ports:
+      - "3200:3200"   # Grafana queries Tempo here
+    volumes:
+      - ./tempo-config.yml:/etc/tempo/tempo.yml:ro
+      - tempo-data:/var/tempo
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    networks:
+      - epricing-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",
+             "http://localhost:3200/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 6: OpenTelemetry Collector
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY OTEL COLLECTOR:
+  # Without it, your app needs separate exporters for each backend:
+  #   App → Jaeger exporter → Jaeger
+  #   App → Prometheus exporter → Prometheus
+  #   App → Loki exporter → Loki
+  #
+  # The OTel Collector is a SINGLE receiver that:
+  #   1. Receives OTLP data (traces + metrics + logs) from your app
+  #   2. Processes it (batching, filtering, enriching)
+  #   3. Exports to multiple backends in parallel
+  #
+  # If you decide to switch from Jaeger to Zipkin, you change the Collector
+  # config — NOT your application code. Vendor lock-in is eliminated.
+  #
+  # This is the "Swiss Army Knife" of telemetry.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.107.0
+    container_name: otel-collector
+    
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver — app sends traces/metrics via gRPC
+      - "4318:4318"   # OTLP HTTP receiver — app sends traces/metrics via HTTP (we use this)
+      - "8888:8888"   # Collector's own metrics (Prometheus format)
+                      # Monitor the monitor: Prometheus can scrape the collector's health
+      - "8889:8889"   # Prometheus exporter port (collector exports metrics here)
+    
+    volumes:
+      - ./otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
+    
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    
+    networks:
+      - epricing-network
+    depends_on:
+      tempo:
+        condition: service_started
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 7: Automatic Traffic Generator — Live Data Simulation
+  # ═══════════════════════════════════════════════════════════════════════
+  traffic-generator:
+    image: alpine/curl:latest
+    container_name: traffic-generator
+    command: >
+      sh -c '
+        echo "Starting automatic background traffic simulator for Grafana..."
+        sleep 20
+        while true; do
+          curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+            -H "Content-Type: application/json" \
+            -d "{\"customer_id\":\"CUST001234\",\"product_type\":\"HOME_LOAN\",\"loan_amount\":5000000,\"loan_tenure_months\":240,\"credit_score\":780,\"annual_income\":2400000}" > /dev/null
+
+          curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+            -H "Content-Type: application/json" \
+            -d "{\"customer_id\":\"CUST002345\",\"product_type\":\"AUTO_LOAN\",\"loan_amount\":800000,\"loan_tenure_months\":60,\"credit_score\":720,\"annual_income\":1200000}" > /dev/null
+
+          curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-slow > /dev/null
+          curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-error > /dev/null
+          curl -s http://epricing-service:8080/api/v1/metrics-demo/generate-load > /dev/null
+
+          sleep 2
+        done
+      '
+    networks:
+      - epricing-network
+    depends_on:
+      epricing-service:
+        condition: service_started
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 8: cAdvisor — Container Resource & Utilization Exporter
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY cADVISOR:
+  # cAdvisor (Container Advisor) analyzes resource usage (CPU, memory, disk, network)
+  # and performance characteristics of all running Docker containers.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    ports:
+      - "8082:8080"  # Map host 8082 to container 8080 (since epricing actuator uses 8081)
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - epricing-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 9: Node Exporter — Host / Worker Node Utilization Exporter
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY NODE EXPORTER:
+  # Node Exporter exposes hardware and OS metrics of the Node (host/virtual machine)
+  # such as CPU usage %, memory availability, disk utilization, and network IO.
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: node-exporter
+    ports:
+      - "9100:9100"  # Prometheus host metric collector
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/host/root'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+    networks:
+      - epricing-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 10: Alertmanager — Alert Routing & Notification
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY ALERTMANAGER:
+  # Prometheus fires alerts but does NOT send notifications itself.
+  # Alertmanager receives fired alerts and routes them to:
+  #   - webhook-logger (local dev testing — prints to console)
+  #   - Slack / PagerDuty / email (production)
+  #
+  # KEY FEATURES:
+  #   Grouping:    Multiple alerts → ONE notification (not an alert storm)
+  #   Inhibition:  Service DOWN → suppress downstream symptom alerts
+  #   Silences:    Maintenance window → suppress alerts for N hours
+  #   Dedup:       Same alert won't re-notify if already acknowledged
+  #
+  # UI: http://localhost:9093
+  #   View active alerts, create silences, inspect routing tree
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    ports:
+      - "9093:9093"   # Alertmanager UI + API
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--data.retention=120h'
+      - '--web.external-url=http://localhost:9093'
+    networks:
+      - epricing-network
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",
+             "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 11: Webhook Logger — Local Alert Receiver for Dev Testing
+  # ═══════════════════════════════════════════════════════════════════════
+  # WHY WEBHOOK LOGGER:
+  # In production you send alerts to Slack / PagerDuty / email.
+  # Locally those integrations need credentials we don't have.
+  # This tiny Python HTTP server listens on :5001, receives the
+  # Alertmanager webhook POST, and prints the alert details to its logs.
+  #
+  # HOW TO SEE ALERTS LOCALLY:
+  #   docker logs webhook-logger -f
+  #   When an alert fires you will see output like:
+  #   ============================================================
+  #   [2026-08-13 10:30:00] ALERT NOTIFICATION RECEIVED
+  #   ============================================================
+  #     STATUS   : FIRING
+  #     ALERT    : EPricingHighErrorRate
+  #     SEVERITY : critical
+  #     DETAILS  : Error rate is 8.50%. Check Grafana Loki for ERROR logs.
+  #
+  # IN PRODUCTION: Replace webhook-logger with your real integration:
+  #   Slack:         alertmanager.yml slack_configs receiver
+  #   PagerDuty:     alertmanager.yml pagerduty_configs receiver
+  #   MS Teams:      prometheus-msteams bridge container
+  webhook-logger:
+    image: python:3.11-alpine
+    container_name: webhook-logger
+    ports:
+      - "5001:5001"
+    # Mount the standalone Python script — avoids all YAML quoting issues
+    volumes:
+      - ./webhook-logger/server.py:/app/server.py:ro
+    command: ["python3", "/app/server.py"]
+    networks:
+      - epricing-network
+    restart: unless-stopped

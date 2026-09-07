@@ -1,0 +1,160 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  otel-collector-config.yml — OpenTelemetry Collector Pipeline           ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY THIS FILE EXISTS:                                                   ║
+# ║  The OTel Collector is a vendor-neutral pipeline for telemetry.         ║
+# ║  It receives, processes, and exports telemetry to multiple backends.    ║
+# ║                                                                          ║
+# ║  THE COLLECTOR PIPELINE:                                                 ║
+# ║  Receivers → Processors → Exporters                                     ║
+# ║                                                                          ║
+# ║  Receivers: How data comes IN (OTLP gRPC/HTTP, Jaeger, Zipkin, etc.)   ║
+# ║  Processors: Transform data (batch, filter, enrich, sample)             ║
+# ║  Exporters: Where data goes OUT (Prometheus, Jaeger, Loki, debug)      ║
+# ║                                                                          ║
+# ║  VENDOR NEUTRALITY:                                                      ║
+# ║  Your app sends OTLP (standard). The Collector translates to any       ║
+# ║  backend format. Switch from Jaeger to Zipkin? Change collector config. ║
+# ║  No code changes in your application.                                   ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RECEIVERS — How telemetry data enters the collector
+# ═══════════════════════════════════════════════════════════════════════════
+receivers:
+
+  # OTLP Receiver — the primary receiver for our Spring Boot app
+  # Our app sends to port 4317 (gRPC) or 4318 (HTTP/protobuf)
+  # We use HTTP (4318) because gRPC requires additional setup
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317  # Listen on all interfaces, port 4317
+      http:
+        endpoint: 0.0.0.0:4318  # Listen on all interfaces, port 4318
+
+  # Prometheus receiver — scrapes metrics from /actuator/prometheus
+  # Alternative to the Spring Boot app pushing metrics.
+  # Having both gives redundancy.
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: 'epricing-via-otel-collector'
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['epricing-service:8081']
+          metrics_path: '/actuator/prometheus'
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PROCESSORS — Transform data before exporting
+# ═══════════════════════════════════════════════════════════════════════════
+processors:
+
+  # Batch processor — CRITICAL for performance
+  # Without batching: every span is sent individually (thousands of HTTP requests)
+  # With batching: spans are grouped and sent in bulk (efficient)
+  #
+  # timeout: Maximum time to wait before sending a batch (even if not full)
+  # send_batch_size: Send when batch reaches this size
+  # In production: tune these based on your traffic volume
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+    send_batch_max_size: 2000
+
+  # Memory limiter — prevents the collector from running out of memory
+  # If memory usage exceeds the limit, the collector starts dropping data
+  # (graceful degradation vs crashing)
+  memory_limiter:
+    # Check memory every 5 seconds
+    check_interval: 5s
+    # Start soft throttling at 80% of 512MB = 409MB
+    limit_mib: 512
+    # Start dropping data at 90% of 512MB = 460MB
+    spike_limit_mib: 128
+
+  # Resource processor — adds resource attributes to all telemetry
+  # These attributes appear in Grafana Tempo as span metadata
+  resource:
+    attributes:
+      - key: service.environment
+        value: "docker-local"
+        action: upsert
+      - key: host.name
+        from_attribute: host.name
+        action: insert
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EXPORTERS — Where data goes after processing
+# ═══════════════════════════════════════════════════════════════════════════
+exporters:
+
+  # Debug exporter — prints telemetry to collector logs (useful for development)
+  # verbosity: detailed → prints every span attribute
+  # In production: remove this or set verbosity to "basic"
+  debug:
+    verbosity: basic
+
+  # Prometheus exporter — exposes metrics on port 8889 in Prometheus format
+  # Prometheus (in docker-compose) scrapes this port.
+  # This is how OTel Collector acts as a Prometheus metrics bridge.
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    # namespace: adds prefix to all metric names
+    # epricing_jvm_memory_used_bytes (vs just jvm_memory_used_bytes)
+    # Helps distinguish metrics origin in Grafana
+    namespace: epricing
+    # Don't append _total to counter names (Prometheus convention handles this)
+    send_timestamps: true
+
+  # OTLP exporter to Grafana Tempo (for traces)
+  # Tempo receives the traces and stores them for Grafana visualization.
+  # After adding Tempo to docker-compose.yml, uncomment this exporter.
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Loki exporter for logs received via OTLP
+  # (If your app sends logs via OTLP, they go to Loki here)
+  # We use Promtail for log collection, so this is optional
+  # loki:
+  #   endpoint: http://loki:3100/loki/api/v1/push
+
+# ═══════════════════════════════════════════════════════════════════════════
+# SERVICE — Wire receivers, processors, exporters into pipelines
+# ═══════════════════════════════════════════════════════════════════════════
+# A pipeline connects: [receivers] → [processors] → [exporters]
+# You can have multiple pipelines for different signal types.
+service:
+
+  # Collector's own telemetry (how the collector monitors itself)
+  telemetry:
+    logs:
+      level: info  # Collector log level: debug, info, warn, error
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888  # Prometheus scrapes collector's own metrics here
+
+  pipelines:
+
+    # TRACES PIPELINE
+    # Spring Boot → OTLP → [batch] → Tempo (stored) + debug (logged)
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlp/tempo, debug]
+
+    # METRICS PIPELINE
+    # Spring Boot → OTLP → [batch] → Prometheus format on :8889
+    # Also: Collector scrapes /actuator/prometheus → same pipeline
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus, debug]
+
+    # LOGS PIPELINE (for OTLP logs if app sends them)
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]

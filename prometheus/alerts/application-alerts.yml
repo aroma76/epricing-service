@@ -1,0 +1,189 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  prometheus/alerts/application-alerts.yml                               ║
+# ║  Prometheus Alerting Rules for ePricing Service                         ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY ALERTS:                                                             ║
+# ║  Dashboards are reactive — you see problems AFTER you look.             ║
+# ║  Alerts are proactive — the system tells YOU when something is wrong.  ║
+# ║                                                                          ║
+# ║  HOW PROMETHEUS ALERTS WORK:                                            ║
+# ║  1. Prometheus evaluates rule conditions every evaluation_interval      ║
+# ║  2. If condition is true for the specified 'for' duration → alert fires  ║
+# ║  3. Alert is sent to Alertmanager                                        ║
+# ║  4. Alertmanager routes to Slack/PagerDuty/email                        ║
+# ║                                                                          ║
+# ║  WHY THRESHOLD JUSTIFICATION:                                           ║
+# ║  CPU > 80%: Application starts degrading; GC pressure increases        ║
+# ║  RAM > 85%: Risk of OOM kill (JVM crash)                               ║
+# ║  Error Rate > 5%: 1 in 20 customers experiencing failures               ║
+# ║  P95 Latency > 2s: RBI SLA for banking APIs: <2s response time         ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+groups:
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # GROUP 1: Application Health Alerts
+  # ═══════════════════════════════════════════════════════════════════════
+  - name: epricing-application-health
+    rules:
+
+      # ─── ALERT: Application Down ────────────────────────────────────────
+      - alert: EPricingServiceDown
+        # PromQL: up{job="epricing-service"} == 0
+        # "up" is a special metric Prometheus creates for each scrape target.
+        # up=1 means last scrape succeeded. up=0 means scrape failed (service down or unreachable).
+        expr: up{job="epricing-service"} == 0
+        # "for: 1m" → Alert fires only if the condition is true for 1 continuous minute.
+        # WHY: Prevents false alerts from transient 1-second failures (network blip).
+        # In production: reduce to 30s for critical services.
+        for: 1m
+        labels:
+          # severity is used by Alertmanager to route to the right team/channel
+          severity: critical
+          team: epricing
+          service: epricing-service
+        annotations:
+          # summary: Short text, appears in Slack/PagerDuty notification title
+          summary: "ePricing Service is DOWN"
+          # description: Detailed text for the alert body.
+          # {{ $labels.instance }}: Template syntax — inserts the instance label value
+          description: "ePricing service at {{ $labels.instance }} is down. Prometheus scrape failed for over 1 minute. Check Docker logs: docker logs epricing-service"
+          # runbook_url: Link to your internal runbook for this alert
+          runbook_url: "https://wiki.Bank.com/runbooks/epricing-service-down"
+
+      # ─── ALERT: High Error Rate ─────────────────────────────────────────
+      - alert: EPricingHighErrorRate
+        # FORMULA EXPLAINED:
+        # rate(http_server_requests_seconds_count{...}[5m])
+        # → per-second rate of HTTP requests in the last 5 minutes
+        # {status=~"5.."} → only 5xx status codes (server errors)
+        # {status!~"5.."} → all non-5xx requests (successes)
+        # (error_rate / total_rate) * 100 > 5 → error percentage > 5%
+        #
+        # WHY rate() not count():
+        # count() is cumulative. If the app restarts, count resets.
+        # rate() gives per-second rate — not affected by restarts.
+        expr: |
+          (
+            rate(http_server_requests_seconds_count{
+              job="epricing-service",
+              status=~"5.."
+            }[5m])
+            /
+            rate(http_server_requests_seconds_count{
+              job="epricing-service"
+            }[5m])
+          ) * 100 > 5
+        for: 3m
+        labels:
+          severity: critical
+          team: epricing
+        annotations:
+          summary: "ePricing Service error rate exceeds 5%"
+          description: "Error rate is {{ printf \"%.2f\" $value }}%. This means more than 1 in 20 requests are failing. Possible causes: database issues, downstream service failure, code bug. Check Grafana Loki for ERROR logs."
+
+      # ─── ALERT: High P95 Latency ────────────────────────────────────────
+      - alert: EPricingHighLatency
+        # histogram_quantile(0.95, ...): Calculates the 95th percentile latency.
+        # This requires percentileHistogram=true in application.yml (we set this).
+        # 0.95 = 95th percentile
+        # > 2: More than 2 seconds (RBI SLA threshold for banking APIs)
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_server_requests_seconds_bucket{
+              job="epricing-service"
+            }[5m])
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: epricing
+        annotations:
+          summary: "ePricing Service p95 latency exceeds 2 seconds"
+          description: "95th percentile response time is {{ printf \"%.3f\" $value }}s. Customers are experiencing slow responses. Check database connection pool and pricing calculation duration."
+
+      # ─── ALERT: High Pricing Rejection Rate ─────────────────────────────
+      - alert: EPricingHighRejectionRate
+        expr: |
+          (
+            rate(pricing_requests_total{type="rejected"}[10m])
+            /
+            rate(pricing_requests_total{type="all"}[10m])
+          ) * 100 > 20
+        for: 5m
+        labels:
+          severity: warning
+          team: epricing
+          team_notify: risk-analytics
+        annotations:
+          summary: "High pricing rejection rate (>20%)"
+          description: "{{ printf \"%.1f\" $value }}% of pricing requests are being rejected. This may indicate a systemic eligibility issue. Alert risk analytics team."
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # GROUP 2: Infrastructure Alerts
+  # ═══════════════════════════════════════════════════════════════════════
+  - name: epricing-infrastructure
+    rules:
+
+      # ─── ALERT: High CPU ────────────────────────────────────────────────
+      - alert: EPricingHighCPU
+        # process_cpu_usage: Micrometer's JVM CPU usage metric (0.0 to 1.0)
+        # > 0.80 = > 80% CPU usage
+        # WHY 80%: Above 80%, GC pressure increases and latency spikes.
+        # The 20% buffer handles burst traffic without triggering false alerts.
+        expr: process_cpu_usage{job="epricing-service"} > 0.80
+        for: 5m
+        labels:
+          severity: warning
+          team: epricing
+        annotations:
+          summary: "ePricing Service CPU usage exceeds 80%"
+          description: "CPU usage is {{ printf \"%.1f\" $value }}%. Check for CPU-intensive operations (garbage collection, pricing loop bugs)."
+
+      # ─── ALERT: High JVM Heap Usage ─────────────────────────────────────
+      - alert: EPricingHighHeapUsage
+        # jvm_memory_used_bytes{area="heap"}: current heap usage
+        # jvm_memory_max_bytes{area="heap"}: maximum heap size
+        # Ratio > 0.85 = using more than 85% of max heap
+        # WHY 85%: Above 85%, Full GC becomes frequent. Above 95% → OOM crash.
+        expr: |
+          (
+            jvm_memory_used_bytes{job="epricing-service", area="heap"}
+            /
+            jvm_memory_max_bytes{job="epricing-service", area="heap"}
+          ) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: epricing
+        annotations:
+          summary: "ePricing Service JVM heap usage exceeds 85%"
+          description: "Heap usage is {{ printf \"%.1f\" $value }}% of max heap. Risk of OutOfMemoryError. Check for memory leaks."
+
+      # ─── ALERT: HikariCP Connection Pool Exhaustion ──────────────────────
+      - alert: EPricingDBConnectionPoolLow
+        # hikaricp_connections_pending: requests waiting for a DB connection
+        # If pending > 0 for 2 minutes, DB connections are exhausted.
+        # WHY CRITICAL: Pending connections mean requests are blocked waiting for DB.
+        # This cascades to: request timeouts → HTTP 500 → customer-facing errors.
+        expr: hikaricp_connections_pending{job="epricing-service"} > 0
+        for: 2m
+        labels:
+          severity: critical
+          team: epricing
+        annotations:
+          summary: "ePricing Service database connection pool exhausted"
+          description: "{{ $value }} requests waiting for a DB connection. Active: {{ query \"hikaricp_connections_active{job='epricing-service'}\" | first | value }}. Pool max: {{ query \"hikaricp_connections_max{job='epricing-service'}\" | first | value }}. Consider increasing maximum-pool-size."
+
+      # ─── ALERT: High Active Pricing Requests ────────────────────────────
+      - alert: EPricingRequestBacklog
+        # Our custom Gauge: pricing_requests_active
+        # > 50 in-flight requests means the service is under severe load
+        expr: pricing_requests_active{job="epricing-service"} > 50
+        for: 3m
+        labels:
+          severity: warning
+          team: epricing
+        annotations:
+          summary: "ePricing Service has high number of in-flight requests"
+          description: "{{ $value }} pricing requests are currently being processed. This may indicate a slowdown (database, calculation time). Consider horizontal scaling."

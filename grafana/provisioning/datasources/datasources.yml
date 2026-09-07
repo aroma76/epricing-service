@@ -1,0 +1,79 @@
+apiVersion: 1
+
+datasources:
+
+  # --- Prometheus -----------------------------------------------------------
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus-uid
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    version: 1
+    editable: true
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST
+      exemplarTraceIdDestinations:
+        - name: traceId
+          datasourceUid: tempo-uid
+          urlDisplayLabel: "View in Grafana Tempo"
+
+  # --- Loki -----------------------------------------------------------------
+  - name: Loki
+    type: loki
+    uid: loki-uid
+    access: proxy
+    url: http://loki:3100
+    version: 1
+    editable: true
+    jsonData:
+      derivedFields:
+        - name: "Trace ID"
+          matcherRegex: '"traceId":"([a-f0-9]+)"'
+          url: "$${__value.raw}"
+          datasourceUid: tempo-uid
+          urlDisplayLabel: "View Trace"
+
+  # --- YugabyteDB (PostgreSQL) ----------------------------------------------
+  # WHY: Powers the L1 Jobs Table in the Operations Dashboard.
+  # YugabyteDB is PostgreSQL-wire-compatible so Grafana's built-in PostgreSQL
+  # plugin connects directly — no extra plugins needed.
+  # Support teams see job status + error_message without logging into YugabyteDB.
+  - name: YugabyteDB
+    type: postgres
+    uid: yugabytedb-uid
+    access: proxy
+    url: yugabytedb:5433
+    user: yugabyte
+    version: 1
+    editable: true
+    secureJsonData:
+      password: yugabyte
+    jsonData:
+      database: epricingdb
+      sslmode: disable
+      postgresVersion: 1400
+      timescaledb: false
+
+  # --- Grafana Tempo (Distributed Traces) -----------------------------------
+  # WHY: Completes the metrics → traces → logs triad.
+  # Prometheus exemplar links and Loki traceId derived fields both point to
+  # tempo-uid. Without this datasource, those links produce "datasource not found".
+  - name: Tempo
+    type: tempo
+    uid: tempo-uid
+    access: proxy
+    url: http://tempo:3200
+    version: 1
+    editable: true
+    jsonData:
+      httpMethod: GET
+      serviceMap:
+        datasourceUid: prometheus-uid
+      lokiSearch:
+        datasourceUid: loki-uid
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false

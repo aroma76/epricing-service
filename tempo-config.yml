@@ -1,0 +1,64 @@
+﻿# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  tempo-config.yml — Grafana Tempo Distributed Tracing Backend           ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY TEMPO:                                                              ║
+# ║  The OTel Collector receives traces from Spring Boot and needs a        ║
+# ║  backend to STORE them. Tempo is Grafana's native trace backend:        ║
+# ║    - Receives traces via OTLP (gRPC/HTTP)                               ║
+# ║    - Stores them compressed on disk or object storage                   ║
+# ║    - Serves them to Grafana via its query API (:3200)                   ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+  log_level: info
+
+query_frontend:
+  search:
+    duration_slo: 5s
+    throughput_bytes_slo: 1.073741824e+09
+  trace_by_id:
+    duration_slo: 5s
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+  trace_idle_period: 10s
+
+compactor:
+  compaction:
+    block_retention: 48h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: epricing-local
+  storage:
+    path: /var/tempo/generator/wal
+  processors:
+    - service-graphs
+    - span-metrics
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]

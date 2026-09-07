@@ -1,0 +1,61 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 00-namespace.yml — Dedicated Enterprise Kubernetes Namespace
+# ═══════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: epricing
+  labels:
+    name: epricing
+    app.kubernetes.io/name: epricing-service
+    app.kubernetes.io/part-of: bank-digital-onboarding
+    environment: production
+    compliance.bank.com/tier: "tier-1-financial"
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+# ═══════════════════════════════════════════════════════════════════════════
+# ResourceQuota — Enforces overall compute ceiling for the epricing namespace
+# ═══════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: epricing-quota
+  namespace: epricing
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+    pods: "20"
+    services: "10"
+    secrets: "20"
+    configmaps: "20"
+    persistentvolumeclaims: "5"
+---
+# ═══════════════════════════════════════════════════════════════════════════
+# LimitRange — Enforces default and min/max container resource bounds
+# ═══════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: epricing-limit-range
+  namespace: epricing
+spec:
+  limits:
+    - default:
+        cpu: "1000m"
+        memory: "1024Mi"
+      defaultRequest:
+        cpu: "250m"
+        memory: "256Mi"
+      max:
+        cpu: "2000m"
+        memory: "2048Mi"
+      min:
+        cpu: "100m"
+        memory: "128Mi"
+      type: Container

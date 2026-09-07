@@ -1,0 +1,575 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════════╗
+  ║          Bank — ePricing Monitoring System                          ║
+  ║          Maven Project Object Model (pom.xml)                            ║
+  ╠══════════════════════════════════════════════════════════════════════════╣
+  ║  WHY THIS FILE EXISTS:                                                   ║
+  ║  pom.xml is the heart of every Maven project. It is the single source   ║
+  ║  of truth for:                                                           ║
+  ║    1. Project identity (groupId, artifactId, version)                   ║
+  ║    2. All dependencies your application needs                           ║
+  ║    3. Build plugins that compile, test, and package your code           ║
+  ║    4. Java version configuration                                         ║
+  ║                                                                          ║
+  ║  WHAT WOULD HAPPEN WITHOUT IT:                                           ║
+  ║  Maven would not know what to build, what libraries to download, or     ║
+  ║  how to package the application. Nothing would compile.                 ║
+  ╚══════════════════════════════════════════════════════════════════════════╝
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <!--
+      ═══════════════════════════════════════════════════════════
+      PARENT: spring-boot-starter-parent
+      ═══════════════════════════════════════════════════════════
+      WHY: This is the most important line in any Spring Boot project.
+      By inheriting from spring-boot-starter-parent, you get:
+
+        1. DEPENDENCY MANAGEMENT — You don't need to specify versions
+           for most Spring libraries. The parent manages compatible versions.
+           This prevents "dependency hell" where incompatible versions break
+           your app at runtime.
+
+        2. DEFAULT PLUGINS — maven-compiler-plugin, maven-surefire-plugin,
+           spring-boot-maven-plugin are pre-configured.
+
+        3. RESOURCE FILTERING — application.yml, application.properties
+           are automatically included in the classpath.
+
+        4. ENCODING — UTF-8 is set as default to prevent character issues
+           in international banking environments.
+
+      PRODUCTION NOTE: Always pin to an exact Spring Boot version (3.3.x)
+      and never use LATEST or RELEASE in production. This ensures
+      reproducible builds — the same code always produces the same artifact.
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.4</version>
+        <relativePath/> <!-- Tells Maven to look in Maven Central, not local filesystem -->
+    </parent>
+
+    <!--
+      ═══════════════════════════════════════════════════════════
+      PROJECT COORDINATES
+      ═══════════════════════════════════════════════════════════
+      groupId   → Your organisation's reverse domain name.
+                  This namespaces your code globally.
+      artifactId → The name of this specific module/service.
+      version    → Semantic versioning: MAJOR.MINOR.PATCH
+                  -SNAPSHOT means "in development, not released yet".
+                  In production CI/CD, SNAPSHOT is replaced with
+                  the build number (e.g., 1.0.0-Bank-2024-001).
+    -->
+    <groupId>com.bank</groupId>
+    <artifactId>epricing-service</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Bank ePricing Monitoring Service</name>
+    <description>
+        Production-grade microservice demonstrating the complete observability stack:
+        Metrics (Micrometer + Prometheus + Grafana),
+        Logs (Logback + Loki + Promtail),
+        Traces (OpenTelemetry + Grafana Tempo).
+        Built for Bank ePricing domain.
+    </description>
+
+    <!--
+      ═══════════════════════════════════════════════════════════
+      PROPERTIES — Central version management
+      ═══════════════════════════════════════════════════════════
+      WHY: Defining versions here as properties means you change
+      a version in ONE place and it applies everywhere.
+      In large banking projects with 50+ dependencies, this is
+      critical for maintainability and audit trails.
+    -->
+    <properties>
+        <!-- Java 21 — LTS release with Virtual Threads (Project Loom)
+             Virtual Threads allow handling thousands of concurrent requests
+             without the overhead of OS threads. Critical for high-throughput
+             banking APIs. -->
+        <java.version>21</java.version>
+
+        <!-- Maven compiler must also be told to target Java 21 -->
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+
+        <!-- OpenTelemetry Bill of Materials version
+             Using a BOM ensures ALL OTel libraries are version-compatible -->
+        <opentelemetry.version>1.40.0</opentelemetry.version>
+        <opentelemetry-instrumentation.version>2.8.0</opentelemetry-instrumentation.version>
+
+        <!-- Project encoding — always UTF-8 in international systems -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    </properties>
+
+    <!--
+      ═══════════════════════════════════════════════════════════
+      DEPENDENCY MANAGEMENT — Bill of Materials (BOMs)
+      ═══════════════════════════════════════════════════════════
+      WHY: A BOM (Bill of Materials) is a special POM that defines
+      a set of dependency versions that are known to work together.
+
+      Think of it like a "compatibility matrix" for libraries.
+      Without a BOM, you might pick OTel SDK 1.40.0 but accidentally
+      use an exporter from 1.38.0, causing subtle runtime failures.
+
+      Using <scope>import</scope> with <type>pom</type> is the Maven
+      way to include a BOM — it imports version information but does
+      NOT add the library as a dependency itself.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- OpenTelemetry BOM — manages all io.opentelemetry.* versions -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- OpenTelemetry Instrumentation BOM — manages auto-instrumentation agents -->
+            <dependency>
+                <groupId>io.opentelemetry.instrumentation</groupId>
+                <artifactId>opentelemetry-instrumentation-bom-alpha</artifactId>
+                <version>${opentelemetry-instrumentation.version}-alpha</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+
+        <!-- ═══════════════════════════════════════════════════
+             GROUP 1: Spring Boot Core Web
+             ═══════════════════════════════════════════════════ -->
+
+        <!--
+          spring-boot-starter-web
+          WHY: This is the foundation of our REST API. It includes:
+            - Spring MVC (handles HTTP routing with @RestController, @GetMapping etc.)
+            - Embedded Tomcat server (no external server needed)
+            - Jackson (JSON serialization/deserialization)
+            - Validation support
+
+          Without this, you cannot create REST endpoints.
+          The embedded Tomcat means your app is a self-contained JAR —
+          you don't need to deploy to an external application server.
+          This is the "fat JAR" model used in modern microservices.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!--
+          spring-boot-starter-actuator
+          WHY: This is the CORE of our observability stack.
+          Spring Boot Actuator exposes production-ready endpoints:
+
+            /actuator/health   → Is the application alive?
+            /actuator/info     → What version is deployed?
+            /actuator/metrics  → What metrics is it producing?
+            /actuator/prometheus → Metrics in Prometheus format (this is what Prometheus scrapes)
+            /actuator/loggers  → Change log levels at runtime without restart
+            /actuator/env      → View all configuration properties
+            /actuator/threaddump → Diagnose thread issues
+            /actuator/heapdump → Diagnose memory issues
+
+          In production banking, these endpoints are secured behind a
+          management port (e.g., 8081) that is NOT exposed to the internet,
+          only to your internal monitoring network.
+
+          WITHOUT THIS: You would have zero visibility into your running
+          application. You'd be flying blind in production.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- ═══════════════════════════════════════════════════
+             GROUP 2: Metrics — Micrometer + Prometheus
+             ═══════════════════════════════════════════════════ -->
+
+        <!--
+          micrometer-registry-prometheus
+          WHY: Micrometer is the "SLF4J of metrics" — a vendor-neutral
+          facade for collecting metrics. You write code against the
+          Micrometer API, and you can export to any backend:
+            - Prometheus (what we use here)
+            - Datadog
+            - InfluxDB
+            - CloudWatch
+            - Dynatrace
+            - New Relic
+
+          This specific dependency is the PROMETHEUS REGISTRY — it
+          translates Micrometer's internal metric format into the
+          text-based format that Prometheus can scrape.
+
+          The flow is:
+          Your Code → Micrometer API → Prometheus Registry → /actuator/prometheus → Prometheus scrapes → Grafana displays
+
+          WITHOUT THIS: /actuator/prometheus would return 404.
+          Prometheus would have nothing to scrape.
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!--
+          micrometer-tracing-bridge-otel
+          WHY: This bridges Micrometer's tracing API with OpenTelemetry's SDK.
+          Spring Boot 3.x uses Micrometer Tracing as its tracing facade.
+          This bridge allows Spring Boot's auto-instrumentation (e.g., HTTP
+          request tracing, database query tracing) to export traces through
+          OpenTelemetry's exporters.
+
+          Without this bridge, Spring Boot and OpenTelemetry would not
+          speak the same language. Your traces would not be exported.
+        -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-tracing-bridge-otel</artifactId>
+        </dependency>
+
+        <!-- ═══════════════════════════════════════════════════
+             GROUP 3: OpenTelemetry SDK + Exporters
+             ═══════════════════════════════════════════════════ -->
+
+        <!--
+          opentelemetry-api
+          WHY: This is the OpenTelemetry API — the interfaces and abstractions
+          you program against. Your business code uses this API to:
+            - Create custom spans
+            - Add span attributes (e.g., customerId, productCode)
+            - Set span status (OK, ERROR)
+            - Propagate context across service boundaries
+
+          Think of it like java.sql.Connection — it's the API, not the driver.
+          This allows you to write OTel-instrumented code without depending
+          on a specific SDK implementation.
+        -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api</artifactId>
+        </dependency>
+
+        <!--
+          opentelemetry-sdk
+          WHY: This is the SDK — the actual implementation of the OTel API.
+          It includes:
+            - TracerProvider: Creates Tracer instances
+            - MeterProvider: Creates Meter instances (metrics)
+            - LoggerProvider: Creates Logger instances (OTel logs)
+            - Span processing pipeline
+            - Sampling configuration
+        -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk</artifactId>
+        </dependency>
+
+        <!--
+          opentelemetry-exporter-otlp
+          WHY: This exporter sends telemetry data (traces, metrics, logs)
+          to an OpenTelemetry Collector using the OTLP protocol.
+
+          OTLP (OpenTelemetry Protocol) is the standard, efficient protocol
+          for sending telemetry. It uses gRPC (port 4317) or HTTP (port 4318).
+
+          The collector then fans out to multiple backends:
+            → Prometheus (metrics)
+            → Grafana Tempo (traces)
+            → Loki (logs)
+
+          Without this: Your application generates telemetry but has no
+          way to send it anywhere. It's like writing logs to /dev/null.
+        -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-exporter-otlp</artifactId>
+        </dependency>
+
+        <!--
+          opentelemetry-sdk-extension-autoconfigure
+          WHY: This extension reads OTel configuration from environment
+          variables and system properties, following the OTel specification.
+          Examples:
+            OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+            OTEL_SERVICE_NAME=epricing-service
+            OTEL_TRACES_SAMPLER=parentbased_traceidratio
+            OTEL_TRACES_SAMPLER_ARG=0.1  (sample 10% in prod to save cost)
+
+          Without this: You must configure the OTel SDK programmatically
+          in Java code, making it impossible to change settings without
+          recompiling.
+        -->
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-sdk-extension-autoconfigure</artifactId>
+        </dependency>
+
+        <!--
+          opentelemetry-instrumentation-spring-webmvc-6.0
+          WHY: This provides automatic instrumentation for Spring MVC.
+          Without writing any business code, it:
+            - Creates a span for every HTTP request
+            - Records HTTP method, URL, status code as span attributes
+            - Propagates trace context (W3C TraceContext headers)
+            - Measures request duration
+            - Links parent spans from upstream services (B3, W3C)
+
+          This is the "zero-touch" instrumentation that makes OTel powerful.
+        -->
+        <dependency>
+            <groupId>io.opentelemetry.instrumentation</groupId>
+            <artifactId>opentelemetry-spring-webmvc-6.0</artifactId>
+            <version>${opentelemetry-instrumentation.version}-alpha</version>
+        </dependency>
+
+        <!-- ═══════════════════════════════════════════════════
+             GROUP 4: Data Layer — JPA + H2
+             ═══════════════════════════════════════════════════ -->
+
+        <!--
+          spring-boot-starter-data-jpa
+          WHY: JPA (Java Persistence API) is the standard for ORM
+          (Object-Relational Mapping) in Java. This starter includes:
+            - Hibernate (JPA implementation)
+            - Spring Data JPA (repository pattern)
+            - HikariCP (connection pooling) ← THIS IS CRITICAL FOR OBSERVABILITY
+            - Transaction management
+
+          HikariCP is especially important for us because:
+            - It exposes connection pool metrics (active connections, idle, etc.)
+            - Micrometer automatically instruments HikariCP
+            - These metrics appear in Grafana as database health indicators
+            - In banking, a "connection pool exhausted" issue = downtime
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!--
+          Enterprise Distributed Database: YugabyteDB JDBC Smart Driver
+          Provides cluster-aware client-side load balancing and multi-node routing
+        -->
+        <dependency>
+            <groupId>com.yugabyte</groupId>
+            <artifactId>jdbc-yugabytedb</artifactId>
+            <version>42.3.5-yb-4</version>
+        </dependency>
+
+        <!-- Standard PostgreSQL JDBC Driver fallback -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Enterprise Database Migrations: Flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- In-memory H2 database for local standalone runs and unit testing -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+        </dependency>
+
+        <!-- ═══════════════════════════════════════════════════
+             GROUP 5: Validation
+             ═══════════════════════════════════════════════════ -->
+
+        <!--
+          spring-boot-starter-validation
+          WHY: Input validation is critical in banking APIs.
+          This enables:
+            @NotNull, @NotBlank, @Min, @Max, @Pattern, @Email, @Size
+          annotations on your DTOs.
+
+          Without validation, a client could send:
+            {"amount": -99999999, "customerId": null}
+          and it would reach your business logic and potentially corrupt data.
+
+          Validation is the FIRST LINE OF DEFENSE in a banking API.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+
+
+        <!-- ═══════════════════════════════════════════════════
+             GROUP 7: JSON Logging
+             ═══════════════════════════════════════════════════ -->
+
+        <!--
+          logstash-logback-encoder
+          WHY: This Logback encoder converts log events into JSON format.
+
+          Default Logback output looks like:
+            2024-01-15 10:30:00 INFO  PricingController - Pricing requested
+
+          JSON output looks like:
+            {"timestamp":"2024-01-15T10:30:00Z","level":"INFO",
+             "logger":"PricingController","message":"Pricing requested",
+             "traceId":"abc123","customerId":"CUST001","amount":50000}
+
+          WHY JSON LOGS ARE CRITICAL:
+            1. Machine-readable — Promtail/Loki can parse and index fields
+            2. Queryable — In Grafana, you can filter by traceId, customerId
+            3. Consistent — Every log has the same structure
+            4. Searchable — Find all logs for a specific transaction
+
+          In a production incident at 3 AM, being able to search
+          {customerId="CUST001"} across millions of log lines is the
+          difference between a 5-minute fix and a 5-hour crisis.
+        -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
+
+        <!-- ═══════════════════════════════════════════════════
+             GROUP 8: Spring Boot DevTools (Development only)
+             ═══════════════════════════════════════════════════ -->
+
+        <!--
+          spring-boot-devtools
+          WHY: Enables hot-reload during development.
+          When you change code and save, Spring Boot automatically restarts.
+          This speeds up the development feedback loop significantly.
+
+          optional=true: This dependency is NOT included in the final JAR.
+          It's only active in the IDE and developer workstations.
+          NEVER runs in production (Spring Boot detects the production
+          environment and disables it automatically).
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- ═══════════════════════════════════════════════════
+             GROUP 9: Testing
+             ═══════════════════════════════════════════════════ -->
+
+        <!--
+          spring-boot-starter-test
+          WHY: Includes JUnit 5, Mockito, AssertJ, Spring Test Context.
+          scope=test: Only on the classpath during test compilation and execution.
+          Never included in the production JAR.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+
+            <!--
+              spring-boot-maven-plugin
+              WHY: This plugin does three critical things:
+
+              1. REPACKAGE — Creates an executable "fat JAR" that includes
+                 ALL dependencies (your code + all 100+ library JARs) into
+                 a single file. You can run it with: java -jar epricing-service.jar
+
+              2. BUILD INFO — Generates build-info.properties with:
+                 build.version, build.time, build.artifact
+                 This appears in /actuator/info — critical for knowing
+                 which version is deployed in production.
+
+              3. LAYERS — Creates a layered JAR for efficient Docker caching.
+                 Libraries change rarely, your code changes often.
+                 Layers ensure Docker only rebuilds the layer with your code,
+                 not all 200MB of dependencies every time.
+
+              The <excludes> section removes Lombok from the final JAR
+              (it was only needed at compile time).
+            -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                    <!-- Enable build info for /actuator/info endpoint -->
+                    <executable>true</executable>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <!-- build-info generates META-INF/build-info.properties -->
+                            <goal>build-info</goal>
+                            <!-- repackage creates the fat/uber JAR -->
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+              maven-compiler-plugin
+              WHY: Configures the Java compiler.
+              We explicitly set source and target to Java 21.
+              Without this, Maven might default to Java 8 or 11.
+
+              -parameters flag: Preserves method parameter names in bytecode.
+              Spring uses this for:
+                - @RequestParam without explicit name: @RequestParam String customerId
+                  (without -parameters, Spring can't read "customerId" and needs
+                   @RequestParam("customerId") String customerId explicitly)
+                - Better error messages
+                - Bean validation parameter names
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>

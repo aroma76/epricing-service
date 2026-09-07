@@ -1,0 +1,42 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  .gitignore — Source Control Exclusions                                  ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# Maven build output — never commit compiled code
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE files — each developer uses their own IDE settings
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.classpath
+*.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Log files — generated at runtime, not source code
+*.log
+logs/
+
+# Application secrets — NEVER commit credentials
+application-prod.yml
+application-local.yml
+*.env
+.env
+
+# Docker volumes (if accidentally created locally)
+grafana-data/
+prometheus-data/
+loki-data/
+
+# Java heap dumps — generated during OOM events
+*.hprof
+
+# Test reports
+surefire-reports/

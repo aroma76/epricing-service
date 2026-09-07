@@ -1,0 +1,303 @@
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  application.yml — Central Configuration for the ePricing Service       ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY THIS FILE EXISTS:                                                   ║
+# ║  application.yml is the SINGLE PLACE where you configure your entire    ║
+# ║  Spring Boot application. It drives:                                     ║
+# ║    - Which port to run on                                                ║
+# ║    - Database connection settings                                        ║
+# ║    - Which Actuator endpoints to expose                                  ║
+# ║    - Micrometer metric labels                                            ║
+# ║    - OpenTelemetry endpoint configuration                                ║
+# ║    - Log file locations                                                  ║
+# ║                                                                          ║
+# ║  WHY YAML OVER PROPERTIES:                                               ║
+# ║  YAML supports hierarchical structure (nested keys), which maps          ║
+# ║  naturally to Spring's configuration hierarchy. It's more readable       ║
+# ║  than flat key=value properties for complex configs.                     ║
+# ║                                                                          ║
+# ║  WITHOUT THIS FILE:                                                      ║
+# ║  Spring Boot uses hardcoded defaults. Actuator endpoints would be        ║
+# ║  restricted, Prometheus wouldn't work, and the app would be             ║
+# ║  impossible to operate in production.                                    ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+# ═══════════════════════════════════════════════════════════════════
+# SPRING CORE CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════
+spring:
+  # Application name — used in:
+  #   1. Prometheus labels (job="epricing-service")
+  #   2. Grafana dashboard titles
+  #   3. Log output (every JSON log line includes application name)
+  #   4. OTel service name (if not overridden by env var)
+  #   5. /actuator/info response
+  application:
+    name: epricing-service
+
+  # Active profiles determine which logback-spring.xml <springProfile> block runs
+  # Override with: -Dspring.profiles.active=prod (or env var SPRING_PROFILES_ACTIVE=prod)
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  sql:
+    init:
+      mode: never
+
+  # ═══════════════════════════════════════════════════════════════
+  # ENTERPRISE DISTRIBUTED DATABASE — YugabyteDB (YSQL)
+  # ═══════════════════════════════════════════════════════════════
+  datasource:
+    url: jdbc:yugabytedb://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:epricingdb}?load-balance=true&sslmode=disable
+    driver-class-name: com.yugabyte.Driver
+    username: ${DB_USERNAME:yugabyte}
+    password: ${DB_PASSWORD:yugabyte}
+    # HikariCP Connection Pool — Enterprise Production Tuning
+    hikari:
+      pool-name: epricing-pool
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+      validation-timeout: 5000
+
+  # ═══════════════════════════════════════════════════════════════
+  # FLYWAY / MIGRATIONS — Enterprise Database Schema Migrations
+  # ═══════════════════════════════════════════════════════════════
+  flyway:
+    enabled: false
+
+  # ═══════════════════════════════════════════════════════════════
+  # JPA / HIBERNATE
+  # ═══════════════════════════════════════════════════════════════
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate  # NEVER use 'update' in production — use migrate/validate only
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        generate_statistics: true
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+
+  # ═══════════════════════════════════════════════════════════════
+  # JACKSON — JSON Serialization
+  # ═══════════════════════════════════════════════════════════════
+  jackson:
+    # ISO 8601 timestamps: "2024-01-15T10:30:00.000+05:30"
+    # Better than epoch timestamps for human readability in logs/APIs
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: Asia/Kolkata  # IST for Bank
+
+# ═══════════════════════════════════════════════════════════════════
+# SERVER CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════
+server:
+  port: 8080
+  # Context path: all endpoints start with /api/v1
+  # e.g., /api/v1/pricing instead of /pricing
+  # Versioning is critical in banking APIs — clients depend on stable contracts
+  servlet:
+    context-path: /api/v1
+  # HTTP error response format
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never  # NEVER expose stack traces to clients in production
+
+# ═══════════════════════════════════════════════════════════════════
+# ACTUATOR — The Observability Foundation
+# ═══════════════════════════════════════════════════════════════════
+management:
+  # Run Actuator on a SEPARATE port (8081) in production.
+  # This port is NOT exposed to the internet — only to your monitoring network.
+  # Prometheus, Grafana, and ops tools access port 8081.
+  # Clients access your API on port 8080.
+  # This is critical for security — you don't want the world hitting /actuator/heapdump
+  server:
+    port: 8081
+
+  endpoints:
+    web:
+      # Actuator base path (accessible on port 8081)
+      base-path: /actuator
+      exposure:
+        # EXPLICITLY list which endpoints to expose.
+        # NEVER use include: "*" in production without understanding each endpoint.
+        # Exposed:
+        #   health     → Is the app alive? Used by load balancers, k8s liveness probes
+        #   info       → Version, git commit, build time
+        #   prometheus → Metrics for Prometheus to scrape (THE most important one)
+        #   metrics    → Human-readable metrics (for debugging)
+        #   loggers    → Change log levels at runtime without restart
+        #   env        → View configuration (HIDE in production — may expose secrets)
+        #   threaddump → Diagnose deadlocks and thread issues
+        #   httptrace  → Last 100 HTTP requests (useful for debugging)
+        include: health,info,prometheus,metrics,loggers,env,threaddump,beans,conditions,configprops
+
+  endpoint:
+    health:
+      # "always" shows full health details including DB, disk, etc.
+      # In production use "when-authorized" to hide details from public.
+      show-details: always
+      # Health groups let you create custom health checks for different purposes.
+      # liveness: Is the app running? (Kubernetes restarts it if not)
+      # readiness: Is the app ready to receive traffic? (K8s removes from load balancer if not)
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db, diskSpace
+
+  # ═══════════════════════════════════════════════════════════════
+  # METRICS — Micrometer Configuration
+  # ═══════════════════════════════════════════════════════════════
+  metrics:
+    # Common tags added to ALL metrics automatically.
+    # These appear as labels in Prometheus:
+    # http_server_requests_seconds_count{application="epricing-service",team="epricing",region="india",...}
+    #
+    # WHY TAGS MATTER:
+    # When you run 5 instances of this service, Prometheus collects metrics
+    # from all 5. Tags like "instance" and "application" let you:
+    #   - Sum across instances: sum(http_requests_total{application="epricing-service"})
+    #   - Compare instances: http_requests_total{instance="pod-1"} vs {instance="pod-2"}
+    tags:
+      application: ${spring.application.name}
+      team: epricing
+      region: india
+      environment: ${spring.profiles.active}
+    distribution:
+      # Percentile histograms are needed for p95, p99 latency in Grafana.
+      # Without this, you can only see average latency.
+      # p95 = 95% of requests completed within this time
+      # p99 = 99% of requests completed within this time
+      # These are critical SLOs (Service Level Objectives) in banking.
+      percentiles-histogram:
+        http.server.requests: true  # Enable for HTTP endpoint latency
+        pricing.calculation.duration: true  # Enable for our custom metric
+      # Publish these specific percentiles
+      percentiles:
+        http.server.requests: 0.5, 0.75, 0.90, 0.95, 0.99
+        pricing.calculation.duration: 0.5, 0.90, 0.95, 0.99
+      # SLA (Service Level Agreement) buckets — count requests above these thresholds
+      # Used in Grafana to show "% of requests under 200ms"
+      sla:
+        http.server.requests: 50ms, 100ms, 200ms, 500ms, 1s, 2s
+
+  # ═══════════════════════════════════════════════════════════════
+  # TRACING — OpenTelemetry via Micrometer
+  # ═══════════════════════════════════════════════════════════════
+  tracing:
+    # Sampling probability: 1.0 = trace 100% of requests
+    # In production, use 0.1 (10%) or 0.01 (1%) to reduce overhead and cost.
+    # High-value transactions (large amounts) should always be traced.
+    # Use "parentbased" sampling to ensure a full trace is captured if
+    # any service in the chain decides to trace.
+    sampling:
+      probability: 1.0
+
+  # ═══════════════════════════════════════════════════════════════
+  # OTLP EXPORTER — Sends metrics to OTel Collector
+  # ═══════════════════════════════════════════════════════════════
+  otlp:
+    metrics:
+      export:
+        # OTel Collector OTLP endpoint for metrics
+        # In Docker Compose, "otel-collector" resolves to the container
+        url: http://otel-collector:4318/v1/metrics
+        step: 15s  # Push metrics every 15 seconds
+    tracing:
+      export:
+        url: http://otel-collector:4318/v1/traces
+
+# ═══════════════════════════════════════════════════════════════════
+# LOGGING — File Location (read by logback-spring.xml)
+# ═══════════════════════════════════════════════════════════════════
+logging:
+  file:
+    # Promtail is configured to read from this directory
+    # In Docker Compose, this maps to a shared volume
+    path: ./logs
+  level:
+    root: INFO
+    com.bank: DEBUG  # Verbose for our own code
+    org.springframework.web: INFO
+    org.hibernate: WARN
+
+# ═══════════════════════════════════════════════════════════════════
+# OPENTELEMETRY — SDK Configuration via Environment Variables
+# ═══════════════════════════════════════════════════════════════════
+# These can be overridden by environment variables at runtime (OTel spec).
+# Environment variable format: replace "." with "_" and uppercase
+# e.g., otel.service.name → OTEL_SERVICE_NAME
+otel:
+  service:
+    name: ${spring.application.name}
+  exporter:
+    otlp:
+      endpoint: http://otel-collector:4318
+      protocol: http/protobuf
+  resource:
+    attributes:
+      service.name: ${spring.application.name}
+      service.version: 1.0.0
+      deployment.environment: ${spring.profiles.active}
+      service.namespace: Bank
+      team.name: epricing
+
+# ═══════════════════════════════════════════════════════════════════
+# APPLICATION-SPECIFIC CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════
+epricing:
+  # Business configuration
+  pricing:
+    # Base rate used in pricing calculation
+    base-rate: 8.5
+    # Risk multiplier for different loan types
+    risk-multiplier:
+      home-loan: 1.00
+      auto-loan: 1.10
+      business-loan: 1.30
+      personal-loan: 1.50
+      education-loan: 1.05
+    # Maximum allowed pricing deviation (%)
+    max-deviation-percent: 15
+  # Rate limiting (requests per second per customer)
+  rate-limit:
+    requests-per-second: 100
+    burst-capacity: 200
+  # Async configuration
+  async:
+    core-pool-size: 5
+    max-pool-size: 20
+    queue-capacity: 100
+    thread-name-prefix: epricing-async-
+  # CORS allowed origins — restrict in production to specific domains
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+
+---
+# ═══════════════════════════════════════════════════════════════════
+# IN-MEMORY PROFILE FOR LOCAL STANDALONE RUNS (NO DOCKER NEEDED)
+# ═══════════════════════════════════════════════════════════════════
+spring:
+  config:
+    activate:
+      on-profile: h2
+  datasource:
+    url: jdbc:h2:mem:epricingdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update

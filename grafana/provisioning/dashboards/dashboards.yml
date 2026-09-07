@@ -1,0 +1,26 @@
+apiVersion: 1
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  dashboards.yml — Grafana Dashboard Auto-Provisioning                   ║
+# ╠══════════════════════════════════════════════════════════════════════════╣
+# ║  WHY: Tells Grafana WHERE to find dashboard JSON files and              ║
+# ║  automatically imports them on startup.                                 ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
+
+providers:
+  - name: "ePricing Dashboards"
+    orgId: 1
+    # folder: Dashboard folder name shown in Grafana's sidebar
+    folder: "Bank ePricing Monitoring"
+    type: file
+    # disableDeletion: If you delete a dashboard in the UI, Grafana re-creates
+    # it from the file on next restart. Ensures dashboards are always in sync
+    # with the file definition (infrastructure-as-code for dashboards).
+    disableDeletion: false
+    # updateIntervalSeconds: How often Grafana checks the folder for new/changed dashboards
+    updateIntervalSeconds: 10
+    allowUiUpdates: true  # Allow editing in UI (changes persisted to grafana-data volume)
+    options:
+      # Absolute path inside the Grafana container
+      # Mapped from ./grafana/dashboards/ on your host via docker-compose volume
+      path: /var/lib/grafana/dashboards
