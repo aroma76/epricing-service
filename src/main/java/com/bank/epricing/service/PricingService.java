@@ -163,7 +163,7 @@ public class PricingService {
                     requestDto.getCustomerId(), requestDto.getProductType(),
                     e.getMessage(), e.getErrorCode()
                 );
-                auditService.recordRejection(requestDto, e.getErrorCode(), requestIp,
+                auditService.recordRejection(requestDto, e.getMessage(), e.getErrorCode(), requestIp,
                     Span.current().getSpanContext().getTraceId());
                 throw e; // Rethrow so GlobalExceptionHandler formats the response
             } finally {
@@ -293,6 +293,9 @@ public class PricingService {
         } catch (PricingException e) {
             pricingSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
             pricingMetrics.decrementActiveRequests();
+            pricingMetrics.recordPricingFailure();
+            auditService.recordTechnicalFailure(requestDto, e.getMessage(), requestIp,
+                pricingSpan.getSpanContext().getTraceId());
             throw e;
         } catch (Exception e) {
             pricingSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Unexpected error");
@@ -306,7 +309,10 @@ public class PricingService {
             // CRITICAL GAP FIX: Persist a FAILED record to DB in a NEW transaction
             // so Grafana's L1 Jobs Table shows the error without anyone logging into DB.
             // Uses REQUIRES_NEW propagation so this commit is independent of the rolled-back main tx.
-            auditService.recordTechnicalFailure(requestDto, e.getMessage(), requestIp,
+            String failureDetail = (e.getMessage() != null && !e.getMessage().isBlank())
+                ? e.getMessage()
+                : e.getClass().getSimpleName();
+            auditService.recordTechnicalFailure(requestDto, failureDetail, requestIp,
                 pricingSpan.getSpanContext().getTraceId());
             throw new PricingException.PricingCalculationException(
                 "Unexpected error during pricing", e

@@ -92,21 +92,25 @@ public class PricingAuditService {
     }
 
     /**
-     * Records a business rejection event.
+     * Records a business rejection event with both the human-readable error message and the error code.
      */
     @Async("epricingAsyncExecutor")
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordRejection(PricingRequestDto requestDto, String errorCode, String requestIp, String traceId) {
+    public void recordRejection(PricingRequestDto requestDto, String errorMessage, String errorCode, String requestIp, String traceId) {
         try {
+            String displayReason = (errorMessage != null && !errorMessage.isBlank())
+                ? errorMessage
+                : (errorCode != null ? errorCode : "Business eligibility rejection");
+
             PricingAuditLog auditLog = PricingAuditLog.builder()
                 .customerId(requestDto.getCustomerId())
                 .action("PRICING_REJECTED")
                 .description(String.format(
-                    "Pricing rejected for %s %s loan of ₹%s. ErrorCode: %s",
+                    "Pricing rejected for %s %s loan of ₹%s. Reason: %s",
                     requestDto.getCustomerId(),
                     requestDto.getProductType(),
                     requestDto.getLoanAmount().toPlainString(),
-                    errorCode
+                    displayReason
                 ))
                 .performedBy("system:pricing-engine")
                 .outcome("REJECTED")
@@ -122,7 +126,7 @@ public class PricingAuditService {
 
             auditRepository.save(auditLog);
 
-            // Also persist a PricingRequest record with status REJECTED
+            // Persist a PricingRequest record with status REJECTED and full error message
             // so Grafana's L1 Jobs table reflects business rejections live from DB
             PricingRequest rejectedRecord = PricingRequest.builder()
                 .customerId(requestDto.getCustomerId())
@@ -133,7 +137,7 @@ public class PricingAuditService {
                 .annualIncome(requestDto.getAnnualIncome())
                 .loanPurpose(requestDto.getLoanPurpose())
                 .status(PricingRequest.PricingStatus.REJECTED)
-                .errorMessage(errorCode != null ? errorCode : "Business eligibility rejection")
+                .errorMessage(displayReason)
                 .requestIp(requestIp)
                 .traceId(traceId)
                 .build();
@@ -143,6 +147,13 @@ public class PricingAuditService {
             log.error("Failed to save rejection records | customerId={} | error={}",
                 requestDto.getCustomerId(), e.getMessage(), e);
         }
+    }
+
+    /**
+     * Backward-compatible overload for recording rejections with errorCode only.
+     */
+    public void recordRejection(PricingRequestDto requestDto, String errorCode, String requestIp, String traceId) {
+        recordRejection(requestDto, null, errorCode, requestIp, traceId);
     }
 
     /**
@@ -170,23 +181,29 @@ public class PricingAuditService {
     public void recordTechnicalFailure(PricingRequestDto requestDto, String errorMessage,
                                        String requestIp, String traceId) {
         try {
-            PricingRequest failedRecord = PricingRequest.builder()
-                .customerId(requestDto.getCustomerId())
-                .productType(requestDto.getProductType())
-                .loanAmount(requestDto.getLoanAmount())
-                .loanTenureMonths(requestDto.getLoanTenureMonths())
-                .creditScore(requestDto.getCreditScore())
-                .annualIncome(requestDto.getAnnualIncome())
-                .loanPurpose(requestDto.getLoanPurpose())
+            String safeError = (errorMessage != null && !errorMessage.isBlank())
+                ? errorMessage
+                : "Unknown technical error";
+            PricingRequest.PricingRequestBuilder builder = PricingRequest.builder()
                 .status(PricingRequest.PricingStatus.ERROR)
-                .errorMessage(errorMessage != null ? errorMessage : "Unknown technical error")
+                .errorMessage(safeError)
                 .requestIp(requestIp)
-                .traceId(traceId)
-                .build();
+                .traceId(traceId);
 
+            if (requestDto != null) {
+                builder.customerId(requestDto.getCustomerId())
+                    .productType(requestDto.getProductType())
+                    .loanAmount(requestDto.getLoanAmount())
+                    .loanTenureMonths(requestDto.getLoanTenureMonths())
+                    .creditScore(requestDto.getCreditScore())
+                    .annualIncome(requestDto.getAnnualIncome())
+                    .loanPurpose(requestDto.getLoanPurpose());
+            }
+
+            PricingRequest failedRecord = builder.build();
             pricingRepository.save(failedRecord);
             log.info("Technical failure record saved | customerId={} | traceId={}",
-                requestDto.getCustomerId(), traceId);
+                requestDto != null ? requestDto.getCustomerId() : "N/A", traceId);
         } catch (Exception e) {
             // Log but never propagate — we're already in an error path
             log.error("Failed to persist technical failure record | customerId={} | error={}",
