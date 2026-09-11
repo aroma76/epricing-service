@@ -98,10 +98,19 @@ public class PricingRequest {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * Lifecycle states of a pricing calculation.
+     *
+     * CALCULATED — pricing engine ran successfully; rate and EMI computed.
+     * REJECTED   — customer failed eligibility (credit score, FOIR). No rate issued.
+     * ERROR      — technical failure during processing. Record saved for audit/ops visibility.
+     *
+     * NOTE: PENDING (pre-processing) and APPROVED (post-underwriting) are out of scope
+     * for this service. This service is a pricing engine, not a full loan origination system.
+     * Approval workflow would live in a separate LOS (Loan Origination System).
+     */
     public enum PricingStatus {
-        PENDING,
         CALCULATED,
-        APPROVED,
         REJECTED,
         ERROR
     }

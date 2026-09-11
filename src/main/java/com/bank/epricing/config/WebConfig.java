@@ -64,15 +64,23 @@ public class WebConfig implements WebMvcConfigurer {
      *   Access-Control-Allow-Methods: GET, POST, PUT, DELETE
      *   Access-Control-Allow-Headers: Content-Type, X-Request-ID
      *
-     * IN PRODUCTION: Replace "*" with specific allowed origins.
-     * Never use "*" for authenticated APIs — it bypasses CORS protection.
+     * COMPLIANCE: The allowed-origins property has NO default. If CORS_ALLOWED_ORIGINS
+     * is not set in the environment, CORS is denied for all cross-origin requests.
+     * This is fail-closed (secure by default).
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        if (corsAllowedOrigins == null || corsAllowedOrigins.isBlank()) {
+            // No origins configured — deny all cross-origin requests (secure default).
+            log.warn("CORS_ALLOWED_ORIGINS is not set — all cross-origin requests will be blocked.");
+            return;
+        }
+        String[] origins = corsAllowedOrigins.split(",");
+        log.info("CORS configured | allowedOrigins={}", corsAllowedOrigins);
         registry.addMapping("/api/**")
-            // In production, set CORS_ALLOWED_ORIGINS env var to restrict origins.
+            // Set via CORS_ALLOWED_ORIGINS env var:
             // e.g., CORS_ALLOWED_ORIGINS=https://grafana.bank.com,https://portal.bank.com
-            .allowedOriginPatterns(corsAllowedOrigins.split(","))
+            .allowedOriginPatterns(origins)
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders(
                 "Content-Type",

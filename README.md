@@ -46,11 +46,22 @@ This project represents a simplified retail banking **ePricing (Electronic Prici
 
 5. **Enterprise Hardening & Resilience**:
    - Dynamic application versioning via `BuildProperties` (auto-read from Maven `build-info.properties`).
-   - Profile-isolated demonstration endpoints (`MetricsDemoController` gated with `@Profile("!prod")` to prevent metric pollution in production).
+   - Profile-isolated demonstration endpoints (`MetricsDemoController` gated with `@Profile("!prod")` to prevent metric pollution in production). Demo metrics isolated in `pricing.demo.*` namespace to prevent alert pollution.
    - Sequential, fail-fast distributed schema migration runner (`DatabaseMigrationInitializer`) tracking scripts in `schema_history`.
-   - Externalized CORS allowed origin patterns via `CORS_ALLOWED_ORIGINS` environment variable.
+   - Externalized CORS allowed origin patterns via `CORS_ALLOWED_ORIGINS` environment variable. **Defaults to deny-all** if not set.
 
-6. **Container -> Nodes -> Pods Utilization Monitoring**:
+6. **Banking Compliance Hardening**:
+   - **Actuator lockdown**: Restricted to `health`, `info`, `prometheus`, `metrics` only. Sensitive endpoints (`env`, `configprops`, `threaddump`) removed.
+   - **DB credentials fail-fast**: No default fallback — application refuses to start if `DB_USERNAME`/`DB_PASSWORD` are not set in the environment.
+   - **PII masked in all logs**: Customer IDs masked (`CUST****1234`), exact loan amounts replaced with range labels (`1L-10L`). No customer financial data stored in Loki.
+   - **Synchronous audit trail**: `recordSuccess()` and `recordRejection()` run synchronously — regulatory audit records cannot be silently lost in a JVM crash.
+   - **Proxy-aware IP capture**: `PricingController` reads `X-Forwarded-For` header to capture the real client IP, not the load balancer IP.
+   - **FOIR check enforced**: `annualIncome` is now `@NotNull` — income eligibility check cannot be silently bypassed.
+   - **Rate validity configurable**: `rateValidUntil` now driven by `epricing.rate-valid-days` config (default: 7 days).
+   - **Enum cleanup**: Removed unused `PENDING` and `APPROVED` statuses that implied an unbuilt approval workflow.
+   > See [`docs/compliance/COMPLIANCE_FIXES.md`](docs/compliance/COMPLIANCE_FIXES.md) for a full learning guide on every issue and fix.
+
+7. **Container → Nodes → Pods Utilization Monitoring**:
    - Added **cAdvisor** (`cadvisor:8080`) to capture container-level CPU %, memory working set, disk I/O, and throttling metrics.
    - Added **Node Exporter** (`node-exporter:9100`) to expose host / node hardware utilization (Node CPU idle %, memory available %, filesystem size).
    - Created dedicated **Grafana Dashboard** (`container-nodes-pods-utilization.json`) visualizing Node, Pod, and Container utilization.
@@ -142,15 +153,21 @@ epricing-service/
 │   │   └── resources/
 │   │       ├── application.yml      # Spring Boot application configuration
 │   │       ├── logback-spring.xml   # JSON log appenders with MDC fields
-│   │       └── db/migration/        # Sequential SQL schema & seed scripts (V1..V4)
+│   │       └── db/migration/        # Sequential SQL schema & seed scripts (V1..V5)
 │   └── test/
 │       └── java/com/bank/epricing/
 │           ├── controller/          # PricingControllerTest (7 MockMvc tests: 200, 201, 400, 404, 422)
 │           ├── service/             # PricingServiceTest (4 Mockito tests)
 │           └── util/                # PricingCalculatorTest (6 JUnit 5 tests)
+├── docs/
+│   ├── compliance/
+│   │   └── COMPLIANCE_FIXES.md      # Learning guide: every banking compliance issue & fix
+│   ├── security/
+│   │   └── Security.md              # Security controls (implemented + remaining)
+│   └── ...                          # Full docs index in docs/README.md
 ├── docker-compose.yml               # Complete Docker orchestration
 ├── pom.xml                          # Maven build dependencies
-└── README.md                        # Documentation
+└── README.md                        # This file
 ```
 
 ---

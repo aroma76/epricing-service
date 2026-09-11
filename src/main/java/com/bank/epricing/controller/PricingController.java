@@ -115,22 +115,20 @@ public class PricingController {
         @Valid @RequestBody PricingRequestDto requestDto,
         HttpServletRequest httpRequest
     ) {
-        log.info("POST /pricing | customerId={} | productType={} | amount={}",
-            requestDto.getCustomerId(),
-            requestDto.getProductType(),
-            requestDto.getLoanAmount()
+        log.info("POST /pricing | customerId={} | productType={}",
+            maskCustomerId(requestDto.getCustomerId()),
+            requestDto.getProductType()
         );
 
-        String clientIp = httpRequest.getRemoteAddr();
+        String clientIp = extractClientIp(httpRequest);
         PricingResponseDto response = pricingService.calculatePricing(requestDto, clientIp);
 
         log.info("Pricing calculation complete | customerId={} | rate={}% | traceId={}",
-            requestDto.getCustomerId(),
+            maskCustomerId(requestDto.getCustomerId()),
             response.getInterestRatePA(),
             response.getTraceId()
         );
 
-        // ResponseEntity.status(201).body(response) — explicit 201 CREATED
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -150,5 +148,38 @@ public class PricingController {
         log.info("GET /pricing/{}", id);
         PricingResponseDto response = pricingService.getPricingById(id);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Extracts the real client IP address, accounting for reverse proxies and load balancers.
+     *
+     * In production, requests arrive through:
+     *   Client → CDN → Load Balancer → API Gateway → This App
+     *
+     * getRemoteAddr() returns the PROXY IP, not the client IP.
+     * The actual client IP is carried in X-Forwarded-For (first value in the chain).
+     *
+     * SECURITY NOTE: X-Forwarded-For can be spoofed by clients.
+     * Only trust it when your infrastructure sets it from a known trusted proxy.
+     */
+    private String extractClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
+            // X-Forwarded-For: "client, proxy1, proxy2" — leftmost is the original client IP
+            return xForwardedFor.split(",")[0].trim();
+        }
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isBlank()) {
+            return xRealIp;
+        }
+        return request.getRemoteAddr();
+    }
+
+    /**
+     * Masks a customer ID for log output. Example: "CUST001234" → "CUST****1234".
+     */
+    private String maskCustomerId(String customerId) {
+        if (customerId == null || customerId.length() <= 4) return "****";
+        return customerId.substring(0, 4) + "****" + customerId.substring(customerId.length() - 4);
     }
 }

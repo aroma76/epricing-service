@@ -45,7 +45,7 @@ public class PricingRequestDto { ... }
 | `loanAmount` | `loan_amount` | `BigDecimal` | `@NotNull`, `@Positive`, `@DecimalMax("100000000")` |
 | `loanTenureMonths` | `loan_tenure_months` | `Integer` | `@NotNull`, `@Min(12)`, `@Max(360)` |
 | `creditScore` | `credit_score` | `Integer` | `@Min(300)`, `@Max(900)` |
-| `annualIncome` | `annual_income` | `BigDecimal` | `@NotNull`, `@Positive` |
+| `annualIncome` | `annual_income` | `BigDecimal` | `@NotNull`, `@DecimalMin("100000.00")` |
 
 ### Validation Details
 
@@ -53,7 +53,7 @@ public class PricingRequestDto { ... }
 - **`loanAmount`**: Maximum ₹10 crore (100,000,000). Minimum: any positive amount.
 - **`loanTenureMonths`**: 12 months (1 year) to 360 months (30 years).
 - **`creditScore`**: 300 (lowest) to 900 (highest) — CIBIL score range.
-- **`creditScore` / `annualIncome`**: Not annotated with `@NotNull` — these are optional in the HTTP layer. However, `PricingCalculator.validateEligibility()` applies additional business rules at the service layer.
+- **`annualIncome`**: **Required.** Minimum ₹1,00,000 per year. This field is mandatory for the FOIR (Fixed Obligation to Income Ratio) eligibility check. If a borrower's total monthly obligations exceed 50% of monthly income, the request is rejected. Without income data this check cannot run — which is a regulatory compliance gap.
 
 ### Example Request
 

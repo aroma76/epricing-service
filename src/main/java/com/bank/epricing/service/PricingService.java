@@ -14,6 +14,7 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -64,6 +65,15 @@ public class PricingService {
     private final PricingAuditService auditService;
     private final StructuredLogger structuredLogger;
     private final Tracer tracer;
+
+    /**
+     * Number of days a quoted interest rate is valid.
+     * Configurable via epricing.rate-valid-days in application.yml
+     * or the RATE_VALID_DAYS environment variable.
+     * Defaults to 7 days if not set.
+     */
+    @Value("${epricing.rate-valid-days:7}")
+    private int rateValidDays;
 
     public PricingService(PricingRepository pricingRepository,
                           PricingCalculator pricingCalculator,
@@ -287,7 +297,7 @@ public class PricingService {
                 .processingTimeMs(totalDuration)
                 .calculatedAt(LocalDateTime.now())
                 .riskCategory(riskCategory)
-                .rateValidUntil(LocalDateTime.now().plusDays(30))
+                .rateValidUntil(LocalDateTime.now().plusDays(rateValidDays))
                 .build();
 
         } catch (PricingException e) {
@@ -421,7 +431,9 @@ public class PricingService {
             .calculatedAt(entity.getCreatedAt())
             .traceId(entity.getTraceId())
             .riskCategory(riskCategory)
-            .rateValidUntil(entity.getCreatedAt() != null ? entity.getCreatedAt().plusDays(30) : LocalDateTime.now().plusDays(30))
+            .rateValidUntil(entity.getCreatedAt() != null
+                ? entity.getCreatedAt().plusDays(rateValidDays)
+                : LocalDateTime.now().plusDays(rateValidDays))
             .build();
     }
 }

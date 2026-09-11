@@ -50,8 +50,10 @@ spring:
   datasource:
     url: jdbc:yugabytedb://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:epricingdb}?load-balance=true&sslmode=disable
     driver-class-name: com.yugabyte.Driver
-    username: ${DB_USERNAME:yugabyte}
-    password: ${DB_PASSWORD:yugabyte}
+    # No default credentials — application will fail to start if these are not set.
+    # This prevents silent use of insecure defaults in any environment.
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     # HikariCP Connection Pool — Enterprise Production Tuning
     hikari:
       pool-name: epricing-pool
@@ -136,11 +138,15 @@ management:
         #   info       → Version, git commit, build time
         #   prometheus → Metrics for Prometheus to scrape (THE most important one)
         #   metrics    → Human-readable metrics (for debugging)
-        #   loggers    → Change log levels at runtime without restart
-        #   env        → View configuration (HIDE in production — may expose secrets)
-        #   threaddump → Diagnose deadlocks and thread issues
-        #   httptrace  → Last 100 HTTP requests (useful for debugging)
-        include: health,info,prometheus,metrics,loggers,env,threaddump,beans,conditions,configprops
+        #
+        # REMOVED from exposure (compliance hardening):
+        #   env        → Would expose ALL config values including DB credentials
+        #   configprops → Would expose all Spring config including secrets
+        #   threaddump → Exposes internal thread/memory state
+        #   beans      → Exposes Spring bean wiring internals
+        #   conditions → Exposes internal auto-configuration decisions
+        #   loggers    → Allows runtime log-level changes without deploy (keep for prod-ops only)
+        include: health,info,prometheus,metrics
 
   endpoint:
     health:
@@ -280,9 +286,14 @@ epricing:
     max-pool-size: 20
     queue-capacity: 100
     thread-name-prefix: epricing-async-
-  # CORS allowed origins — restrict in production to specific domains
+  # CORS allowed origins — MUST be set via CORS_ALLOWED_ORIGINS env var in all environments.
+  # No wildcard default. If not set, CORS is denied for all cross-origin requests.
+  # Example: CORS_ALLOWED_ORIGINS=https://grafana.bank.com,https://portal.bank.com
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  # Rate validity period — number of days the quoted rate is valid
+  # Product/risk-team configurable; defaults to 7 days (tighter than the previous hardcoded 30)
+  rate-valid-days: ${RATE_VALID_DAYS:7}
 
 ---
 # ═══════════════════════════════════════════════════════════════════

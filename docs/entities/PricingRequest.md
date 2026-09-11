@@ -42,8 +42,8 @@ public class PricingRequest { ... }
 | `productType` | `product_type` | `String(50)` | `@NotBlank` | Loan type (see below) |
 | `loanAmount` | `loan_amount` | `BigDecimal` | `@NotNull`, precision(15,2) | Requested loan amount in INR |
 | `loanTenureMonths` | `loan_tenure_months` | `Integer` | `@NotNull` | Repayment period in months |
-| `creditScore` | `credit_score` | `Integer` | — | Applicant's credit bureau score |
-| `annualIncome` | `annual_income` | `BigDecimal` | precision(15,2) | Applicant's annual income in INR |
+| `creditScore` | `credit_score` | `Integer` | `@Min(300)`, `@Max(900)` | Applicant's CIBIL credit bureau score |
+| `annualIncome` | `annual_income` | `BigDecimal` | `@NotNull`, `@DecimalMin("100000")` | **Required.** Annual income in INR. Used for FOIR eligibility check |
 | `calculatedRate` | `calculated_rate` | `BigDecimal` | precision(5,2) | Computed annual interest rate (%) |
 | `emiAmount` | `emi_amount` | `BigDecimal` | precision(15,2) | Monthly EMI amount in INR |
 | `totalPayableAmount` | `total_payable_amount` | `BigDecimal` | precision(18,2) | Principal + total interest |
@@ -62,24 +62,25 @@ public class PricingRequest { ... }
 
 ```java
 public enum PricingStatus {
-    PENDING,     // Request received, calculation not yet complete
     CALCULATED,  // Rate and EMI successfully computed
-    APPROVED,    // Manually or automatically approved by risk team
-    REJECTED,    // Business rule rejection (eligibility failure)
+    REJECTED,    // Business rule rejection (credit score, FOIR failure)
     ERROR        // Technical/system error during processing
 }
 ```
+
+> **Why only 3 states?**
+> `PENDING` (pre-processing) and `APPROVED` (post-underwriting) were removed.
+> This service is a **pricing engine**, not a full Loan Origination System (LOS).
+> Approval workflow lives in a separate downstream service. Having unused enum
+> values implies an unbuilt workflow and causes confusion during audits.
 
 **Lifecycle transitions:**
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING : Request received
-    PENDING --> CALCULATED : Calculation success
-    PENDING --> REJECTED : Eligibility failure
-    PENDING --> ERROR : Technical error
-    CALCULATED --> APPROVED : Risk team approval
-    CALCULATED --> REJECTED : Post-review rejection
+    [*] --> CALCULATED : Calculation success
+    [*] --> REJECTED : Eligibility failure (credit score / FOIR)
+    [*] --> ERROR : Technical error
 ```
 
 ---

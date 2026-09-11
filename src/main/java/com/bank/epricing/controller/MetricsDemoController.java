@@ -120,6 +120,11 @@ public class MetricsDemoController {
      * GET /api/v1/metrics-demo/simulate-error
      * Simulates an error to demonstrate error rate metrics and Loki error logs.
      * After calling this, check Grafana for error rate and Loki for ERROR logs.
+     *
+     * COMPLIANCE: Uses "pricing.demo.errors.total" — a separate counter from
+     * the real "pricing.errors.total" counter used by GlobalExceptionHandler.
+     * This prevents demo traffic from corrupting production error-rate dashboards
+     * and triggering real PagerDuty/OpsGenie alerts in staging/UAT.
      */
     @GetMapping("/simulate-error")
     public ResponseEntity<Map<String, Object>> simulateError() {
@@ -127,9 +132,10 @@ public class MetricsDemoController {
                   "This is a deliberate error for observability demonstration",
             Span.current().getSpanContext().getTraceId());
 
-        // Record error metric
+        // IMPORTANT: Write to the demo namespace, NOT pricing.errors.total.
+        // pricing.errors.total is reserved for real errors only (used by alert rules).
         meterRegistry.counter(
-            "pricing.errors.total",
+            "pricing.demo.errors.total",
             "error_type", "SIMULATED_ERROR",
             "http_status", "500"
         ).increment();
@@ -140,12 +146,10 @@ public class MetricsDemoController {
             "Simulated error for demo purposes"
         );
 
-        // Return 200 even though we simulated an error — we just recorded the metrics
-        // In real scenario, throw an exception which GlobalExceptionHandler catches
         return ResponseEntity.ok(Map.of(
             "message", "Error simulation complete. Check Grafana error rate and Loki ERROR logs.",
             "traceId", Span.current().getSpanContext().getTraceId(),
-            "check_prometheus", "pricing_errors_total{error_type=\"SIMULATED_ERROR\"}",
+            "check_prometheus", "pricing_demo_errors_total{error_type=\"SIMULATED_ERROR\"}",
             "check_loki", "{application=\"epricing-service\"} | json | level=\"ERROR\""
         ));
     }
