@@ -80,7 +80,7 @@ services:
   yugabytedb:
     image: yugabytedb/yugabyte:2.20.1.0-b97
     container_name: epricing-yugabytedb
-    command: [ "bash", "-c", "bin/yugabyted start --base_dir=/var/lib/yugabyte --ui=false && sleep 10 && bin/ysqlsh -h epricing-yugabytedb -p 5433 -U yugabyte -c 'CREATE DATABASE epricingdb;' || true && tail -f /dev/null" ]
+    command: [ "bash", "-c", "bin/yugabyted start --advertise_address=172.20.100.10 --base_dir=/var/lib/yugabyte --ui=false && sleep 10 && bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -c 'CREATE DATABASE epricingdb;' || true && tail -f /dev/null" ]
     ports:
       - "5433:5433"   # YSQL API port (PostgreSQL wire-compatible)
       - "7000:7000"   # Master Admin UI
@@ -92,7 +92,8 @@ services:
     volumes:
       - yugabyte-data:/var/lib/yugabyte
     networks:
-      - epricing-network
+      epricing-network:
+        ipv4_address: 172.20.100.10
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "bin/yugabyted status --base_dir=/var/lib/yugabyte"]
@@ -138,6 +139,7 @@ services:
       SPRING_DATASOURCE_USERNAME: yugabyte
       SPRING_DATASOURCE_PASSWORD: yugabyte
       SPRING_FLYWAY_ENABLED: "false"
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
       
       # Actuator OTLP push (metrics) — pushes to OTel Collector
       MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://otel-collector:4318/v1/metrics
@@ -166,10 +168,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M   # Container is killed if it uses > 512MB
-          cpus: '1.0'    # Limit to 1 CPU core
+          memory: 1024M  # Container memory limit for Java 21 + Spring Boot + OTel
+          cpus: '2.0'
         reservations:
-          memory: 256M   # Docker scheduler ensures this much is available
+          memory: 512M
     
     # Restart policy — auto-restart if the container crashes
     # "unless-stopped": restart on crash but not if manually stopped (docker stop)
@@ -178,11 +180,11 @@ services:
     
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",
-             "http://localhost:8081/actuator/health"]
+             "http://127.0.0.1:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s  # Give Spring Boot time to start before health checks begin
+      start_period: 90s  # Give Spring Boot time to start before health checks begin
 
   # ═══════════════════════════════════════════════════════════════════════
   # SERVICE 2: Prometheus — Metrics Time-Series Database
@@ -263,6 +265,9 @@ services:
       
       # Enable features for Grafana 11
       GF_FEATURE_TOGGLES_ENABLE: "traceToMetrics"
+      
+      # Set default home dashboard directly to ePricing Complete Observability Dashboard
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/epricing-complete-dashboard.json"
     
     volumes:
       # Persist Grafana data (dashboards, users, plugins)

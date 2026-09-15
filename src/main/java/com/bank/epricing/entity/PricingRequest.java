@@ -110,7 +110,9 @@ public class PricingRequest {
      * Approval workflow would live in a separate LOS (Loan Origination System).
      */
     public enum PricingStatus {
+        PENDING,
         CALCULATED,
+        APPROVED,
         REJECTED,
         ERROR
     }
