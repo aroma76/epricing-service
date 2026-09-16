@@ -1,6 +1,6 @@
 # Bank — ePricing Monitoring System
 
-A beginner-friendly, production-style Spring Boot application demonstrating real-world banking ePricing functionality and an end-to-end observability stack using **Prometheus**, **Grafana**, and **OpenTelemetry**.
+An enterprise-grade, production-style Spring Boot banking microservice demonstrating real-world ePricing functionality, financial concurrency controls, and a full-stack observability platform using **OpenTelemetry**, **Prometheus**, **Grafana**, and **Tempo**.
 
 ---
 
