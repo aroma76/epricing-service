@@ -48,7 +48,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Value("${epricing.async.thread-name-prefix:epricing-async-}")
     private String asyncThreadNamePrefix;
 
-    @Value("${epricing.cors.allowed-origins:*}")
+    @Value("${epricing.cors.allowed-origins:}")
     private String corsAllowedOrigins;
 
     /**

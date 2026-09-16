@@ -76,7 +76,7 @@ public class PricingController {
         @RequestParam(required = false) Integer page,
         @RequestParam(required = false) Integer size
     ) {
-        log.info("GET /pricing | customerId={} | page={} | size={}", customerId, page, size);
+        log.info("GET /pricing | customerId={} | page={} | size={}", maskCustomerId(customerId), page, size);
         if (page != null && customerId != null && !customerId.isBlank()) {
             int pageSize = (size != null && size > 0 && size <= 100) ? size : 20;
             Page<PricingResponseDto> pagedResult = pricingService.getPricingHistory(
