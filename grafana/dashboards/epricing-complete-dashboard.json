@@ -77,7 +77,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "thresholds": { "mode": "absolute", "steps": [{ "color": "#9FC119", "value": null }, { "color": "yellow", "value": 60 }, { "color": "#E02F44", "value": 85 }] } } },
-      "targets": [{ "expr": "jvm_memory_used_bytes{application=\"epricing-service\",area=\"heap\"} / jvm_memory_max_bytes{application=\"epricing-service\",area=\"heap\"} * 100", "legendFormat": "Heap %", "refId": "A" }]
+      "targets": [{ "expr": "sum(jvm_memory_used_bytes{application=\"epricing-service\",area=\"heap\"}) / (sum(jvm_memory_max_bytes{application=\"epricing-service\",area=\"heap\"} > 0)) * 100", "legendFormat": "Heap %", "refId": "A" }]
     },
 
     {
@@ -209,8 +209,8 @@
       "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
       "fieldConfig": { "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2, "fillOpacity": 8 } } },
       "targets": [
-        { "expr": "jvm_memory_used_bytes{application=\"epricing-service\",area=\"heap\"}", "legendFormat": "Heap Used", "refId": "A" },
-        { "expr": "jvm_memory_max_bytes{application=\"epricing-service\",area=\"heap\"}", "legendFormat": "Heap Max", "refId": "B" }
+        { "expr": "sum(jvm_memory_used_bytes{application=\"epricing-service\",area=\"heap\"})", "legendFormat": "Heap Used", "refId": "A" },
+        { "expr": "sum(jvm_memory_max_bytes{application=\"epricing-service\",area=\"heap\"} > 0)", "legendFormat": "Heap Max", "refId": "B" }
       ]
     },
 

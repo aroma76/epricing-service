@@ -89,36 +89,29 @@ scrape_configs:
             application: application
             thread: thread_name
 
-      # Stage 2: Extract labels from parsed JSON
-      # Labels are INDEXED by Loki — you can filter and aggregate by them.
-      # Choose labels carefully: HIGH CARDINALITY labels (like customerId with millions
-      # of unique values) cause Loki performance issues and high memory usage.
-      # GOOD labels: level, application, environment (low cardinality)
-      # BAD labels: customerId, requestId (high cardinality — millions of unique values)
+      # Stage 2: Extract low-cardinality labels (INDEXED by Loki)
+      # Labels define streams. Only use low-cardinality fields here!
+      # DO NOT put traceId or customerId here (causes stream explosion).
       - labels:
           level:        # Filter: {level="ERROR"} → show only errors
           application:  # Filter: {application="epricing-service"}
-          traceId:      # Filter: {traceId="abc123"} → all logs for one request
 
-      # Stage 3: Set the log timestamp from the JSON timestamp
+      # Stage 3: Structured Metadata (Loki 3.x feature)
+      # Attaches high-cardinality metadata (traceId, spanId, customerId)
+      # WITHOUT creating separate index streams or exploding RAM.
+      - structured_metadata:
+          traceId:
+          spanId:
+          customerId:
+
+      # Stage 4: Set the log timestamp from the JSON timestamp
       # WHY: Without this, Loki uses the CURRENT time (when Promtail shipped the log)
       # as the timestamp, not when the log was actually generated.
-      # If the log was written at 10:30:00 but Promtail reads it at 10:30:05,
-      # it appears in Grafana at 10:30:05. This causes confusion during debugging.
-      # With timestamp stage: Grafana shows the actual log time (10:30:00).
       - timestamp:
           source: timestamp
-          # ISO 8601 format with timezone — matches logstash-logback-encoder output
           format: RFC3339Nano
-          # Fall back to current time if timestamp parsing fails
           fallback_formats:
             - "2006-01-02T15:04:05.999999999Z07:00"
-
-      # Stage 4: Set the log message output
-      # By default, Promtail uses the entire raw log line as the message.
-      # We explicitly set it to the parsed "message" field — cleaner display in Grafana.
-      - output:
-          source: message
 
   # ─── JOB 2: Docker Container Logs (all containers) ──────────────────────
   # Promtail can also read Docker container stdout logs via the Docker socket

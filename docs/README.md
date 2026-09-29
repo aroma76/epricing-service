@@ -156,7 +156,8 @@ docker-compose up --build
 
 | Category | Document |
 |---|---|
-| Architecture | [SystemOverview.md](./architecture/SystemOverview.md) |
+| **Architecture (HLD & LLD)** | **[ARCHITECTURE_DIAGRAMS_HLD_LLD.md](./architecture/ARCHITECTURE_DIAGRAMS_HLD_LLD.md)** — High-level platform architecture + Low-level class & sequence diagrams |
+| System Overview | [SystemOverview.md](./architecture/SystemOverview.md) |
 | Services | [PricingService.md](./services/PricingService.md), [PricingAuditService.md](./services/PricingAuditService.md) |
 | Controllers | [PricingController.md](./controllers/PricingController.md), [HealthController.md](./controllers/HealthController.md) |
 | Entities | [PricingRequest.md](./entities/PricingRequest.md), [PricingAuditLog.md](./entities/PricingAuditLog.md) |
@@ -174,4 +175,5 @@ docker-compose up --build
 | Testing | [TestStrategy.md](./testing/TestStrategy.md) |
 | API Reference | [PricingAPI.md](./api/PricingAPI.md) |
 | Database | [DatabaseDesign.md](./database/DatabaseDesign.md) |
+| **Hands-on Lab** | **[HANDS_ON_OBSERVABILITY_LAB.md](./HANDS_ON_OBSERVABILITY_LAB.md)** — Step-by-step incident simulations, curls, PromQL/LogQL cheat sheet & triage drill |
 | **Production Readiness** | **[PRODUCTION_READINESS.md](./PRODUCTION_READINESS.md)** — What is ready, what is missing, roadmap to production |
