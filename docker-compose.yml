@@ -118,7 +118,7 @@ services:
     # Browser: http://localhost:8080/api/v1/health
     ports:
       - "8080:8080"   # API port
-      - "8081:8081"   # Management/Actuator port
+      - "8089:8081"   # Management/Actuator port (mapped to host 8089 to avoid conflict with Dapr transaction-app on 8081)
     
     # Environment variables override application.yml settings
     # In production: use secrets manager (AWS Secrets Manager, HashiCorp Vault)
@@ -449,22 +449,43 @@ services:
     container_name: traffic-generator
     command: >
       sh -c '
-        echo "Starting automatic background traffic simulator for Grafana..."
-        sleep 20
+        echo "Starting realistic background traffic simulator for Grafana (cadence: 6s)..."
+        sleep 15
+        STEP=0
         while true; do
-          curl -s -X POST http://epricing-service:8080/api/v1/pricing \
-            -H "Content-Type: application/json" \
-            -d "{\"customer_id\":\"CUST001234\",\"product_type\":\"HOME_LOAN\",\"loan_amount\":5000000,\"loan_tenure_months\":240,\"credit_score\":780,\"annual_income\":2400000}" > /dev/null
+          STEP=$$((STEP + 1))
 
-          curl -s -X POST http://epricing-service:8080/api/v1/pricing \
-            -H "Content-Type: application/json" \
-            -d "{\"customer_id\":\"CUST002345\",\"product_type\":\"AUTO_LOAN\",\"loan_amount\":800000,\"loan_tenure_months\":60,\"credit_score\":720,\"annual_income\":1200000}" > /dev/null
+          # 1. Normal Banking Traffic: Rotate product types
+          MOD=$$((STEP % 4))
+          if [ "$$MOD" -eq 0 ]; then
+            curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+              -H "Content-Type: application/json" \
+              -d "{\"customer_id\":\"CUST001234\",\"product_type\":\"HOME_LOAN\",\"loan_amount\":5000000,\"loan_tenure_months\":240,\"credit_score\":780,\"annual_income\":2400000}" > /dev/null
+          elif [ "$$MOD" -eq 1 ]; then
+            curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+              -H "Content-Type: application/json" \
+              -d "{\"customer_id\":\"CUST002345\",\"product_type\":\"AUTO_LOAN\",\"loan_amount\":800000,\"loan_tenure_months\":60,\"credit_score\":720,\"annual_income\":1200000}" > /dev/null
+          elif [ "$$MOD" -eq 2 ]; then
+            curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+              -H "Content-Type: application/json" \
+              -d "{\"customer_id\":\"CUST003456\",\"product_type\":\"PERSONAL_LOAN\",\"loan_amount\":300000,\"loan_tenure_months\":36,\"credit_score\":750,\"annual_income\":900000}" > /dev/null
+          else
+            curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+              -H "Content-Type: application/json" \
+              -d "{\"customer_id\":\"CUST004567\",\"product_type\":\"EDUCATION_LOAN\",\"loan_amount\":1500000,\"loan_tenure_months\":84,\"credit_score\":710,\"annual_income\":1500000}" > /dev/null
+          fi
 
-          curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-slow > /dev/null
-          curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-error > /dev/null
-          curl -s http://epricing-service:8080/api/v1/metrics-demo/generate-load > /dev/null
+          # 2. Occasional Slow Request (every ~90 seconds / 15 steps)
+          if [ "$$((STEP % 15))" -eq 0 ]; then
+            curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-slow > /dev/null
+          fi
 
-          sleep 2
+          # 3. Occasional Simulated Error (every ~150 seconds / 25 steps)
+          if [ "$$((STEP % 25))" -eq 0 ]; then
+            curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-error > /dev/null
+          fi
+
+          sleep 6
         done
       '
     networks:
@@ -484,7 +505,7 @@ services:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
     ports:
-      - "8082:8080"  # Map host 8082 to container 8080 (since epricing actuator uses 8081)
+      - "8085:8080"  # Map host 8085 to container 8080 (changed from 8082 to avoid conflict with Dapr)
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
