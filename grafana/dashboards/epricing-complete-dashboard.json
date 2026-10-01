@@ -21,7 +21,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Complete Observability Dashboard",
   "uid": "epricing-complete",
-  "version": 3,
+  "version": 4,
   "panels": [
     {
       "id": 1,
@@ -598,7 +598,7 @@
       "type": "barchart",
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 10,
         "x": 0,
         "y": 15
       },
@@ -607,10 +607,16 @@
         "uid": "prometheus-uid"
       },
       "options": {
-        "orientation": "horizontal",
+        "orientation": "vertical",
+        "showValue": "always",
+        "barWidth": 0.55,
+        "groupWidth": 0.7,
         "legend": {
           "displayMode": "list",
-          "placement": "right"
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
         }
       },
       "fieldConfig": {
@@ -618,6 +624,11 @@
           "unit": "short",
           "color": {
             "mode": "palette-classic"
+          },
+          "custom": {
+            "gradientMode": "opacity",
+            "fillOpacity": 85,
+            "lineWidth": 1
           }
         }
       },
@@ -631,12 +642,12 @@
     },
     {
       "id": 22,
-      "title": "Pricing Calculation Duration (p50/p95/p99 ms)",
+      "title": "Pricing Calculation Latency SLA (p50 / p95 / p99)",
       "type": "stat",
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
+        "h": 3,
+        "w": 14,
+        "x": 10,
         "y": 15
       },
       "datasource": {
@@ -644,14 +655,17 @@
         "uid": "prometheus-uid"
       },
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
         "textMode": "auto",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
-          ]
+          ],
+          "fields": "",
+          "values": false
         }
       },
       "fieldConfig": {
@@ -666,12 +680,12 @@
                 "value": null
               },
               {
-                "color": "yellow",
-                "value": 100
+                "color": "#E5A000",
+                "value": 50
               },
               {
                 "color": "#E02F44",
-                "value": 500
+                "value": 200
               }
             ]
           }
@@ -691,6 +705,61 @@
         {
           "expr": "histogram_quantile(0.99, sum(rate(pricing_calculation_duration_seconds_bucket{application=\"epricing-service\"}[5m])) by (le)) * 1000",
           "legendFormat": "p99 calc ms",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "Pricing Calculation Duration Over Time",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 5,
+        "w": 14,
+        "x": 10,
+        "y": 18
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-uid"
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(pricing_calculation_duration_seconds_bucket{application=\"epricing-service\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p50 (median) ms",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(pricing_calculation_duration_seconds_bucket{application=\"epricing-service\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p95 (SLA) ms",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(pricing_calculation_duration_seconds_bucket{application=\"epricing-service\"}[5m])) by (le)) * 1000",
+          "legendFormat": "p99 (tail) ms",
           "refId": "C"
         }
       ]
