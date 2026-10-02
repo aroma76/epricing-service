@@ -198,32 +198,6 @@ management:
       sla:
         http.server.requests: 50ms, 100ms, 200ms, 500ms, 1s, 2s
 
-  # ═══════════════════════════════════════════════════════════════
-  # TRACING — OpenTelemetry via Micrometer
-  # ═══════════════════════════════════════════════════════════════
-  tracing:
-    # Sampling probability: 1.0 = trace 100% of requests
-    # In production, use 0.1 (10%) or 0.01 (1%) to reduce overhead and cost.
-    # High-value transactions (large amounts) should always be traced.
-    # Use "parentbased" sampling to ensure a full trace is captured if
-    # any service in the chain decides to trace.
-    sampling:
-      probability: 1.0
-
-  # ═══════════════════════════════════════════════════════════════
-  # OTLP EXPORTER — Sends metrics to OTel Collector
-  # ═══════════════════════════════════════════════════════════════
-  otlp:
-    metrics:
-      export:
-        # OTel Collector OTLP endpoint for metrics
-        # In Docker Compose, "otel-collector" resolves to the container
-        url: http://otel-collector:4318/v1/metrics
-        step: 15s  # Push metrics every 15 seconds
-    tracing:
-      export:
-        url: http://otel-collector:4318/v1/traces
-
 # ═══════════════════════════════════════════════════════════════════
 # LOGGING — File Location (read by logback-spring.xml)
 # ═══════════════════════════════════════════════════════════════════
@@ -239,17 +213,16 @@ logging:
     org.hibernate: WARN
 
 # ═══════════════════════════════════════════════════════════════════
-# OPENTELEMETRY — SDK Configuration via Environment Variables
+# OPENTELEMETRY SDK CONFIGURATION
+# Telemetry is initialized programmatically in OpenTelemetryConfig.java
+# using the OpenTelemetry SDK AutoConfigure extension.
 # ═══════════════════════════════════════════════════════════════════
-# These can be overridden by environment variables at runtime (OTel spec).
-# Environment variable format: replace "." with "_" and uppercase
-# e.g., otel.service.name → OTEL_SERVICE_NAME
 otel:
   service:
     name: ${spring.application.name}
   exporter:
     otlp:
-      endpoint: http://otel-collector:4318
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
       protocol: http/protobuf
   resource:
     attributes:
@@ -274,12 +247,6 @@ epricing:
       business-loan: 1.30
       personal-loan: 1.50
       education-loan: 1.05
-    # Maximum allowed pricing deviation (%)
-    max-deviation-percent: 15
-  # Rate limiting (requests per second per customer)
-  rate-limit:
-    requests-per-second: 100
-    burst-capacity: 200
   # Async configuration
   async:
     core-pool-size: 5

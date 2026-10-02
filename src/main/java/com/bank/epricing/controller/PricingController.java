@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import com.bank.epricing.logging.StructuredLogger;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -76,7 +77,7 @@ public class PricingController {
         @RequestParam(required = false) Integer page,
         @RequestParam(required = false) Integer size
     ) {
-        log.info("GET /pricing | customerId={} | page={} | size={}", maskCustomerId(customerId), page, size);
+        log.info("GET /pricing | customerId={} | page={} | size={}", StructuredLogger.maskCustomerId(customerId), page, size);
         if (page != null && customerId != null && !customerId.isBlank()) {
             int pageSize = (size != null && size > 0 && size <= 100) ? size : 20;
             Page<PricingResponseDto> pagedResult = pricingService.getPricingHistory(
@@ -85,7 +86,7 @@ public class PricingController {
             return ResponseEntity.ok(pagedResult);
         }
         List<PricingResponseDto> history = pricingService.getPricingHistory(customerId);
-        log.info("Pricing history retrieved | customerId={} | count={}", customerId, history.size());
+        log.info("Pricing history retrieved | customerId={} | count={}", StructuredLogger.maskCustomerId(customerId), history.size());
         return ResponseEntity.ok(history);
     }
 
@@ -116,7 +117,7 @@ public class PricingController {
         HttpServletRequest httpRequest
     ) {
         log.info("POST /pricing | customerId={} | productType={}",
-            maskCustomerId(requestDto.getCustomerId()),
+            StructuredLogger.maskCustomerId(requestDto.getCustomerId()),
             requestDto.getProductType()
         );
 
@@ -124,7 +125,7 @@ public class PricingController {
         PricingResponseDto response = pricingService.calculatePricing(requestDto, clientIp);
 
         log.info("Pricing calculation complete | customerId={} | rate={}% | traceId={}",
-            maskCustomerId(requestDto.getCustomerId()),
+            StructuredLogger.maskCustomerId(requestDto.getCustomerId()),
             response.getInterestRatePA(),
             response.getTraceId()
         );
@@ -173,13 +174,5 @@ public class PricingController {
             return xRealIp;
         }
         return request.getRemoteAddr();
-    }
-
-    /**
-     * Masks a customer ID for log output. Example: "CUST001234" → "CUST****1234".
-     */
-    private String maskCustomerId(String customerId) {
-        if (customerId == null || customerId.length() <= 4) return "****";
-        return customerId.substring(0, 4) + "****" + customerId.substring(customerId.length() - 4);
     }
 }

@@ -132,20 +132,7 @@ scrape_configs:
           application: 'otel-collector'
           service_type: 'infrastructure'
 
-  # ─── JOB 4: OTel Collector Prometheus Exporter ───────────────────────────
-  # The OTel Collector also exports metrics it RECEIVED from our app
-  # on port 8889 in Prometheus format.
-  # This is an ALTERNATIVE to Prometheus directly scraping /actuator/prometheus.
-  # Using both gives you redundancy — if one path fails, the other still works.
-  - job_name: 'otel-metrics-from-collector'
-    scrape_interval: 30s
-    static_configs:
-      - targets: ['otel-collector:8889']
-        labels:
-          application: 'epricing-service-via-otel'
-          service_type: 'business-metrics'
-
-  # ─── JOB 5: cAdvisor Container Metrics ───────────────────────────────────
+  # ─── JOB 4: cAdvisor Container Metrics ───────────────────────────────────
   # cAdvisor exports container CPU, memory, filesystem, and network utilization
   - job_name: 'cadvisor'
     scrape_interval: 15s

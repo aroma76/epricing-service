@@ -309,6 +309,11 @@ public class PricingMetrics implements MeterBinder {
         activePricingRequests.decrementAndGet();
     }
 
+    /** Get the current number of active pricing requests */
+    public long getActivePricingRequests() {
+        return activePricingRequests.get();
+    }
+
     /** Record the loan amount for distribution analysis */
     public void recordLoanAmount(double amountInRupees) {
         loanAmountSummary.record(amountInRupees);

@@ -49,6 +49,7 @@ public class OpenTelemetryConfig {
             serviceName, otlpEndpoint);
 
         return AutoConfiguredOpenTelemetrySdk.builder()
+            .setResultAsGlobal()
             .addPropertiesSupplier(() -> {
                 Map<String, String> props = new HashMap<>();
                 props.put("otel.service.name", serviceName);

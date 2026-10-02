@@ -7,6 +7,7 @@ import com.bank.epricing.repository.PricingAuditRepository;
 import com.bank.epricing.repository.PricingRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.bank.epricing.logging.StructuredLogger;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -44,6 +45,40 @@ public class PricingAuditService {
     }
 
     /**
+     * Persists the PricingRequest and its corresponding PricingAuditLog atomically
+     * within a single short database transaction.
+     * If saving either entity fails, the transaction is rolled back completely,
+     * ensuring no orphaned PricingRequest is committed without its audit trail.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PricingRequest savePricingWithAudit(PricingRequest entity, String requestIp, String traceId) {
+        PricingRequest savedRequest = pricingRepository.save(entity);
+
+        PricingAuditLog auditLog = PricingAuditLog.builder()
+            .pricingRequestId(savedRequest.getId())
+            .customerId(savedRequest.getCustomerId())
+            .action("PRICING_CALCULATED")
+            .description(String.format(
+                "Interest rate %.2f%% p.a. calculated for %s loan. " +
+                "Risk category: %s",
+                savedRequest.getCalculatedRate(),
+                savedRequest.getProductType(),
+                savedRequest.getRiskCategory() != null ? savedRequest.getRiskCategory() : "STANDARD"
+            ))
+            .performedBy("system:pricing-engine")
+            .outcome("SUCCESS")
+            .requestIp(requestIp)
+            .traceId(traceId)
+            .durationMs(savedRequest.getProcessingTimeMs())
+            .build();
+
+        auditRepository.save(auditLog);
+        log.debug("Persisted PricingRequest and AuditLog atomically | requestId={} | traceId={}",
+            savedRequest.getId(), traceId);
+        return savedRequest;
+    }
+
+    /**
      * Records a successful pricing calculation.
      *
      * COMPLIANCE: This method is SYNCHRONOUS (no @Async).
@@ -64,7 +99,7 @@ public class PricingAuditService {
                     "Risk category: %s",
                     savedRequest.getCalculatedRate(),
                     savedRequest.getProductType(),
-                    "CALCULATED"
+                    savedRequest.getRiskCategory() != null ? savedRequest.getRiskCategory() : "STANDARD"
                 ))
                 .performedBy("system:pricing-engine")
                 .outcome("SUCCESS")
@@ -140,7 +175,7 @@ public class PricingAuditService {
             pricingRepository.save(rejectedRecord);
         } catch (Exception e) {
             log.error("Failed to save rejection records | customerId={} | error={}",
-                requestDto.getCustomerId(), e.getMessage(), e);
+                StructuredLogger.maskCustomerId(requestDto.getCustomerId()), e.getMessage(), e);
         }
     }
 
@@ -210,11 +245,12 @@ public class PricingAuditService {
 
             PricingRequest failedRecord = builder.build();
             pricingRepository.save(failedRecord);
-            log.info("Technical failure record saved | customerId={} | traceId={}", customerId, traceId);
+            log.info("Technical failure record saved | customerId={} | traceId={}",
+                StructuredLogger.maskCustomerId(customerId), traceId);
         } catch (Exception e) {
             // Log but never propagate — we're already in an error path
             log.error("Failed to persist technical failure record | customerId={} | error={}",
-                requestDto != null ? requestDto.getCustomerId() : "UNKNOWN", e.getMessage(), e);
+                StructuredLogger.maskCustomerId(requestDto != null ? requestDto.getCustomerId() : "UNKNOWN"), e.getMessage(), e);
         }
     }
 }

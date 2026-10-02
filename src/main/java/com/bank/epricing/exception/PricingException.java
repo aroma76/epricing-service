@@ -92,6 +92,19 @@ public class PricingException extends RuntimeException {
      * Thrown when the requested loan amount exceeds the customer's eligibility.
      */
     public static class LoanAmountExceedsEligibilityException extends PricingException {
+        public LoanAmountExceedsEligibilityException(String customerId, java.math.BigDecimal requestedAmount, java.math.BigDecimal eligibleAmount) {
+            super(
+                String.format(
+                    "Customer %s is eligible for a maximum loan of ₹%s but requested ₹%s",
+                    customerId,
+                    eligibleAmount != null ? eligibleAmount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00",
+                    requestedAmount != null ? requestedAmount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00"
+                ),
+                "PRICING_AMOUNT_EXCEEDS_ELIGIBILITY",
+                HttpStatus.UNPROCESSABLE_ENTITY
+            );
+        }
+
         public LoanAmountExceedsEligibilityException(String customerId, double requestedAmount, double eligibleAmount) {
             super(
                 String.format(

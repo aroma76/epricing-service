@@ -45,11 +45,11 @@ datasources:
     uid: yugabytedb-uid
     access: proxy
     url: yugabytedb:5433
-    user: yugabyte
-    version: 1
+    user: grafana_reader
+    version: 2
     editable: true
     secureJsonData:
-      password: yugabyte
+      password: grafana_reader_pass
     jsonData:
       database: epricingdb
       sslmode: disable

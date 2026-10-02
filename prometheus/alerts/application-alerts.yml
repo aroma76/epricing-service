@@ -65,14 +65,14 @@ groups:
         # rate() gives per-second rate — not affected by restarts.
         expr: |
           (
-            rate(http_server_requests_seconds_count{
+            sum(rate(http_server_requests_seconds_count{
               job="epricing-service",
               status=~"5.."
-            }[5m])
+            }[5m]))
             /
-            rate(http_server_requests_seconds_count{
+            sum(rate(http_server_requests_seconds_count{
               job="epricing-service"
-            }[5m])
+            }[5m]))
           ) * 100 > 5
         for: 3m
         labels:
@@ -90,9 +90,9 @@ groups:
         # > 2: More than 2 seconds (RBI SLA threshold for banking APIs)
         expr: |
           histogram_quantile(0.95,
-            rate(http_server_requests_seconds_bucket{
+            sum(rate(http_server_requests_seconds_bucket{
               job="epricing-service"
-            }[5m])
+            }[5m])) by (le)
           ) > 2
         for: 5m
         labels:
@@ -106,9 +106,9 @@ groups:
       - alert: EPricingHighRejectionRate
         expr: |
           (
-            rate(pricing_requests_total{type="rejected"}[10m])
+            sum(rate(pricing_requests_total{type="rejected"}[10m]))
             /
-            rate(pricing_requests_total{type="all"}[10m])
+            sum(rate(pricing_requests_total{type="all"}[10m]))
           ) * 100 > 20
         for: 5m
         labels:
@@ -142,15 +142,14 @@ groups:
 
       # ─── ALERT: High JVM Heap Usage ─────────────────────────────────────
       - alert: EPricingHighHeapUsage
-        # jvm_memory_used_bytes{area="heap"}: current heap usage
-        # jvm_memory_max_bytes{area="heap"}: maximum heap size
-        # Ratio > 0.85 = using more than 85% of max heap
-        # WHY 85%: Above 85%, Full GC becomes frequent. Above 95% → OOM crash.
+        # In Java 21 G1 GC, Eden and Survivor max bytes are -1 (dynamically allocated).
+        # We aggregate heap used bytes and divide by total bounded max bytes (> 0).
+        # Ratio > 0.85 = using more than 85% of configured max heap.
         expr: |
           (
-            jvm_memory_used_bytes{job="epricing-service", area="heap"}
+            sum(jvm_memory_used_bytes{job="epricing-service", area="heap"})
             /
-            jvm_memory_max_bytes{job="epricing-service", area="heap"}
+            sum(jvm_memory_max_bytes{job="epricing-service", area="heap"} > 0)
           ) > 0.85
         for: 5m
         labels:

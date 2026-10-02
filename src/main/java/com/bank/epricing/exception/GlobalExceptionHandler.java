@@ -119,6 +119,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(
+        org.springframework.web.servlet.resource.NoResourceFoundException ex,
+        WebRequest request
+    ) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .timestamp(LocalDateTime.now())
+            .status(HttpStatus.NOT_FOUND.value())
+            .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+            .errorCode("RESOURCE_NOT_FOUND")
+            .message(ex.getMessage())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .build();
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
         Exception ex,

@@ -104,7 +104,6 @@ public class PricingService {
      * "If pricing calculation succeeded but audit log failed → rollback both"
      * This prevents partial state (pricing without audit trail).
      */
-    @Transactional
     public PricingResponseDto calculatePricing(PricingRequestDto requestDto, String requestIp) {
 
         long overallStartTime = System.currentTimeMillis();
@@ -167,7 +166,6 @@ public class PricingService {
                      PricingException.LoanAmountExceedsEligibilityException e) {
                 // Business rejection — record in metrics and audit, then rethrow
                 validationSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
-                pricingMetrics.decrementActiveRequests();
                 pricingMetrics.recordPricingRejection();
                 structuredLogger.logPricingRejected(
                     requestDto.getCustomerId(), requestDto.getProductType(),
@@ -241,11 +239,11 @@ public class PricingService {
                     .traceId(traceId)
                     .build();
 
-                savedRequest = pricingRepository.save(entity);
+                savedRequest = auditService.savePricingWithAudit(entity, requestIp, traceId);
 
                 long dbDuration = System.currentTimeMillis() - dbStartTime;
                 dbSpan.setAttribute("db.row.id", savedRequest.getId().toString());
-                dbSpan.addEvent("Pricing request persisted to database");
+                dbSpan.addEvent("Pricing request and audit record persisted atomically");
 
                 structuredLogger.logDatabaseOperation("INSERT", "PricingRequest", dbDuration, true);
             } catch (Exception e) {
@@ -256,15 +254,10 @@ public class PricingService {
                 dbSpan.end();
             }
 
-            // ─── STEP 6: Create audit record ──────────────────────────────
-            auditService.recordSuccess(savedRequest, requestIp, traceId);
-
-            // ─── STEP 7: Record success metrics ───────────────────────────
+            // ─── STEP 6: Record success metrics ───────────────────────────
             long totalDuration = System.currentTimeMillis() - overallStartTime;
             savedRequest.setProcessingTimeMs(totalDuration);
             pricingMetrics.recordPricingSuccess();
-            pricingMetrics.decrementActiveRequests();
-            pricingMetrics.recordEndToEndDuration(endToEndSample);
 
             // Add result attributes to the span
             pricingSpan.setAttribute("result.rate", interestRate.toPlainString());
@@ -300,9 +293,13 @@ public class PricingService {
                 .rateValidUntil(LocalDateTime.now().plusDays(rateValidDays))
                 .build();
 
+        } catch (PricingException.InsufficientCreditScoreException |
+                 PricingException.LoanAmountExceedsEligibilityException e) {
+            // Business rejection — already recorded in validation span & audit, rethrow cleanly
+            pricingSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
+            throw e;
         } catch (PricingException e) {
             pricingSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
-            pricingMetrics.decrementActiveRequests();
             pricingMetrics.recordPricingFailure();
             auditService.recordTechnicalFailure(requestDto, e.getMessage(), requestIp,
                 pricingSpan.getSpanContext().getTraceId());
@@ -311,7 +308,6 @@ public class PricingService {
             pricingSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Unexpected error");
             pricingSpan.recordException(e);
             pricingMetrics.recordPricingFailure();
-            pricingMetrics.decrementActiveRequests();
             structuredLogger.logPricingError(
                 requestDto.getCustomerId(), requestDto.getProductType(),
                 e.getMessage(), e
@@ -328,7 +324,9 @@ public class PricingService {
                 "Unexpected error during pricing", e
             );
         } finally {
-            // ALWAYS end the span — even if an exception was thrown
+            // ALWAYS decrement active requests exactly once and record end-to-end duration
+            pricingMetrics.decrementActiveRequests();
+            pricingMetrics.recordEndToEndDuration(endToEndSample);
             pricingSpan.end();
         }
     }
@@ -338,7 +336,7 @@ public class PricingService {
      */
     @Transactional(readOnly = true)
     public List<PricingResponseDto> getPricingHistory(String customerId) {
-        log.info("Fetching pricing history | customerId={}", customerId);
+        log.info("Fetching pricing history | customerId={}", StructuredLogger.maskCustomerId(customerId));
         Span repoSpan = tracer.spanBuilder("PricingRepository.findByCustomerId")
             .setAttribute("db.operation", "SELECT")
             .setAttribute("db.table", "pricing_requests")
@@ -366,7 +364,7 @@ public class PricingService {
     @Transactional(readOnly = true)
     public Page<PricingResponseDto> getPricingHistory(String customerId, Pageable pageable) {
         log.info("Fetching paginated pricing history | customerId={} | page={} | size={}",
-            customerId, pageable.getPageNumber(), pageable.getPageSize());
+            StructuredLogger.maskCustomerId(customerId), pageable.getPageNumber(), pageable.getPageSize());
         return pricingRepository.findByCustomerId(customerId, pageable)
             .map(this::mapToResponseDto);
     }

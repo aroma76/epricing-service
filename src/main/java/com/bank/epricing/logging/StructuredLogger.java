@@ -179,7 +179,7 @@ public class StructuredLogger {
      * Retains enough information to correlate logs with an audit record
      * without exposing the full identifier in Loki plaintext.
      */
-    private String maskCustomerId(String customerId) {
+    public static String maskCustomerId(String customerId) {
         if (customerId == null || customerId.length() <= 4) return "****";
         return customerId.substring(0, 4) + "****" + customerId.substring(customerId.length() - 4);
     }

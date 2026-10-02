@@ -219,8 +219,8 @@ public class PricingCalculator {
             if (loanAmount.compareTo(maxEligibleLoan) > 0) {
                 throw new PricingException.LoanAmountExceedsEligibilityException(
                     customerId,
-                    loanAmount.doubleValue(),
-                    maxEligibleLoan.doubleValue()
+                    loanAmount,
+                    maxEligibleLoan
                 );
             }
         }

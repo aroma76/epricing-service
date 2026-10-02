@@ -3,6 +3,8 @@ package com.bank.epricing.service;
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.dto.PricingResponseDto;
 import com.bank.epricing.entity.PricingRequest;
+import com.bank.epricing.exception.PricingException;
+import com.bank.epricing.exception.PricingException.InsufficientCreditScoreException;
 import com.bank.epricing.logging.StructuredLogger;
 import com.bank.epricing.metrics.PricingMetrics;
 import com.bank.epricing.repository.PricingAuditRepository;
@@ -180,5 +182,28 @@ class PricingServiceTest {
         assertNotNull(response);
         assertEquals(42L, response.getRequestId());
         assertEquals("CUST001234", response.getCustomerId());
+    }
+
+    @Test
+    @DisplayName("Should decrement active requests exactly once on business rejection and record rejection not failure")
+    void testCalculatePricing_BusinessRejection_ActiveRequestsIntegrity() {
+        PricingRequestDto rejectedRequest = PricingRequestDto.builder()
+            .customerId("CUST001234")
+            .productType("HOME_LOAN")
+            .loanAmount(new BigDecimal("5000000"))
+            .loanTenureMonths(240)
+            .creditScore(550) // Below minimum 650
+            .annualIncome(new BigDecimal("2400000"))
+            .build();
+
+        assertThrows(PricingException.InsufficientCreditScoreException.class, () ->
+            pricingService.calculatePricing(rejectedRequest, "127.0.0.1")
+        );
+
+        // Active requests gauge must be exactly 0 (incremented once, decremented once in finally)
+        assertEquals(0, pricingMetrics.getActivePricingRequests());
+        // Verify auditRepository recorded rejection, NOT technical failure
+        verify(auditRepository, times(1)).save(argThat(auditLog -> "REJECTED".equals(auditLog.getOutcome())));
+        verify(auditRepository, never()).save(argThat(auditLog -> "FAILED".equals(auditLog.getOutcome())));
     }
 }

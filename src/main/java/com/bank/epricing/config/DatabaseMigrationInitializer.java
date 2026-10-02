@@ -2,8 +2,11 @@ package com.bank.epricing.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.annotation.Order;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
@@ -13,17 +16,18 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Comparator;
 
 /**
  * DatabaseMigrationInitializer — Enterprise Distributed Schema Migration Runner.
  * Executes versioned SQL migrations (V1..Vn) sequentially and tracks applied scripts
- * in schema_history without requiring monolithic single-node PostgreSQL advisory locks.
+ * in schema_history. Implements InitializingBean and configures EntityManagerFactory
+ * dependency to ensure migrations complete BEFORE Hibernate validates the schema.
  */
-@Component
-@Order(1)
-public class DatabaseMigrationInitializer implements CommandLineRunner {
+@Component("databaseMigrationInitializer")
+public class DatabaseMigrationInitializer implements InitializingBean {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseMigrationInitializer.class);
 
@@ -34,8 +38,12 @@ public class DatabaseMigrationInitializer implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) {
-        log.info("Starting Enterprise Database Schema Migration Check...");
+    public void afterPropertiesSet() {
+        runMigrations();
+    }
+
+    public void runMigrations() {
+        log.info("Starting Enterprise Database Schema Migration Check (pre-JPA initialization)...");
         try (Connection conn = dataSource.getConnection()) {
             // 1. Ensure schema_history table exists
             try (PreparedStatement stmt = conn.prepareStatement(
@@ -74,6 +82,17 @@ public class DatabaseMigrationInitializer implements CommandLineRunner {
 
                 if (!alreadyApplied) {
                     log.info("Applying database migration: {} - {}", filename, description);
+                    if (filename.startsWith("V6")) {
+                        try (PreparedStatement roleCheck = conn.prepareStatement("SELECT 1 FROM pg_roles WHERE rolname = 'grafana_reader'")) {
+                            try (ResultSet rs = roleCheck.executeQuery()) {
+                                if (!rs.next()) {
+                                    try (Statement createStmt = conn.createStatement()) {
+                                        createStmt.execute("CREATE ROLE grafana_reader WITH LOGIN PASSWORD 'grafana_reader_pass'");
+                                    }
+                                }
+                            }
+                        }
+                    }
                     ScriptUtils.executeSqlScript(conn, resource);
 
                     try (PreparedStatement insertStmt = conn.prepareStatement(
@@ -92,6 +111,25 @@ public class DatabaseMigrationInitializer implements CommandLineRunner {
         } catch (Exception e) {
             log.error("CRITICAL: Database migration failed — application cannot start safely: {}", e.getMessage(), e);
             throw new RuntimeException("Database migration failed. Fix the migration scripts and restart.", e);
+        }
+    }
+
+    @Component
+    public static class DatabaseMigrationJpaDependencyConfig implements BeanFactoryPostProcessor {
+        @Override
+        public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
+            String[] entityManagerFactoryNames = beanFactory.getBeanNamesForType(jakarta.persistence.EntityManagerFactory.class, true, false);
+            for (String beanName : entityManagerFactoryNames) {
+                BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
+                String[] currentDependsOn = bd.getDependsOn();
+                if (currentDependsOn == null || currentDependsOn.length == 0) {
+                    bd.setDependsOn("databaseMigrationInitializer");
+                } else {
+                    String[] newDependsOn = Arrays.copyOf(currentDependsOn, currentDependsOn.length + 1);
+                    newDependsOn[currentDependsOn.length] = "databaseMigrationInitializer";
+                    bd.setDependsOn(newDependsOn);
+                }
+            }
         }
     }
 }

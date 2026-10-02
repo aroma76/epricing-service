@@ -97,11 +97,10 @@ public class MDCFilter implements Filter {
             MDC.put(HTTP_METHOD, request.getMethod());
             MDC.put(REQUEST_URI, request.getRequestURI());
 
-            // Extract customer ID from header if provided (for logging enrichment)
-            // In a real system with JWT auth, you'd extract this from the JWT token.
+            // Extract customer ID from header if provided (masked for PII compliance)
             String customerId = request.getHeader("X-Customer-ID");
             if (customerId != null && !customerId.isBlank()) {
-                MDC.put(CUSTOMER_ID, customerId);
+                MDC.put(CUSTOMER_ID, StructuredLogger.maskCustomerId(customerId));
             }
 
             // ─── STEP 3: Add request ID to response header ────────────────
@@ -174,6 +173,7 @@ public class MDCFilter implements Filter {
         }
         return request.getRemoteAddr();
     }
+
 
     @Override
     public void init(FilterConfig filterConfig) {

@@ -98,87 +98,11 @@ public interface PricingRepository extends JpaRepository<PricingRequest, Long> {
     );
 
     /**
-     * CUSTOM JPQL QUERY using @Query annotation.
-     *
-     * WHY @Query instead of derived method?
-     * Derived method would be:
-     *   findByCreatedAtBetween(LocalDateTime start, LocalDateTime end)
-     * But we want COUNT — derived methods cannot easily express aggregation.
-     *
-     * @Query uses JPQL (Java Persistence Query Language) — queries Java entities,
-     * not database tables. "PricingRequest pr" references the Java class,
-     * not the table "pricing_requests".
-     *
-     * WHY THIS QUERY:
-     * This is used by our custom Micrometer Gauge metric:
-     *   pricing.requests.hourly.count → feeds into Grafana dashboards
-     *   Allows alerting: "If fewer than 100 pricing requests in last hour → ALERT"
-     */
-    @Query("SELECT COUNT(pr) FROM PricingRequest pr " +
-           "WHERE pr.createdAt BETWEEN :startTime AND :endTime")
-    Long countByCreatedAtBetween(
-        @Param("startTime") LocalDateTime startTime,
-        @Param("endTime") LocalDateTime endTime
-    );
-
-    /**
-     * Counts requests by status — used for pipeline monitoring.
-     * → "How many requests are stuck in PENDING state?" (should be near zero)
-     * Feeds the Grafana panel: "Pricing Request Status Distribution"
-     */
-    @Query("SELECT COUNT(pr) FROM PricingRequest pr WHERE pr.status = :status")
-    Long countByStatus(@Param("status") PricingRequest.PricingStatus status);
-
-    /**
-     * Average processing time — used for custom Micrometer Gauge.
-     * This is a business SLO metric: average processing should be < 200ms.
-     * If this creeps up, it indicates database/service degradation.
-     *
-     * Returns Optional<Double> because if there are no records, AVG returns null.
-     * Always handle Optional to avoid NullPointerException.
-     */
-    @Query("SELECT AVG(pr.processingTimeMs) FROM PricingRequest pr " +
-           "WHERE pr.createdAt > :since AND pr.status = com.bank.epricing.entity.PricingRequest.PricingStatus.CALCULATED")
-    Optional<Double> findAverageProcessingTimeSince(@Param("since") LocalDateTime since);
-
-    /**
      * Find by trace ID — CRITICAL FOR DEBUGGING.
      * When a customer reports a failed request with their traceId,
      * you can find the exact database record and cross-reference with
      * the distributed trace in Grafana Tempo.
-     *
-     * Returns Optional<PricingRequest> because a traceId may not exist
-     * (defensive programming — never assume data exists).
      */
     Optional<PricingRequest> findByTraceId(String traceId);
-
-    /**
-     * Revenue calculation — total loan value requested in a time period.
-     * Used in Grafana business metrics dashboard.
-     * Returns null if no records exist in the time range.
-     */
-    @Query("SELECT SUM(pr.loanAmount) FROM PricingRequest pr " +
-           "WHERE pr.createdAt BETWEEN :startTime AND :endTime " +
-           "AND pr.status IN (com.bank.epricing.entity.PricingRequest.PricingStatus.CALCULATED, com.bank.epricing.entity.PricingRequest.PricingStatus.APPROVED)")
-    Optional<BigDecimal> sumLoanAmountBetween(
-        @Param("startTime") LocalDateTime startTime,
-        @Param("endTime") LocalDateTime endTime
-    );
-
-    /**
-     * Count pricing requests grouped by product type since a given timestamp.
-     *
-     * WHY JPQL (not native SQL):
-     * The original native query used PostgreSQL-specific INTERVAL syntax
-     * which breaks on H2 (used for local development and tests).
-     * JPQL is database-agnostic — works on H2, PostgreSQL, and YugabyteDB.
-     *
-     * Usage: pass LocalDateTime.now().minusHours(24) as the 'since' parameter.
-     *
-     * @param since Lower bound timestamp to count from
-     */
-    @Query("SELECT pr.productType, COUNT(pr) FROM PricingRequest pr " +
-           "WHERE pr.createdAt > :since " +
-           "GROUP BY pr.productType")
-    List<Object[]> countByProductTypeSince(@Param("since") LocalDateTime since);
 }
+

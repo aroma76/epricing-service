@@ -68,6 +68,7 @@ public class HealthController {
 
         // Database connectivity check
         Map<String, String> db = new LinkedHashMap<>();
+        boolean dbHealthy = true;
         try (Connection conn = dataSource.getConnection()) {
             db.put("status", "UP");
             db.put("product", conn.getMetaData().getDatabaseProductName());
@@ -76,7 +77,8 @@ public class HealthController {
             log.error("Database health check failed | error={}", e.getMessage());
             db.put("status", "DOWN");
             db.put("error", e.getMessage());
-            health.put("status", "DEGRADED");
+            health.put("status", "DOWN");
+            dbHealthy = false;
         }
         health.put("database", db);
 
@@ -90,14 +92,11 @@ public class HealthController {
         jvm.put("processors", rt.availableProcessors());
         health.put("jvm", jvm);
 
-        health.put("endpoints", Map.of(
-            "actuator", "http://localhost:8081/actuator",
-            "prometheus", "http://localhost:8081/actuator/prometheus",
-            "grafana", "http://localhost:3000",
-            "yugabytedb_ui", "http://localhost:15433"
-        ));
-
         log.info("Health check completed | status={}", health.get("status"));
+        if (!dbHealthy) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE).body(health);
+        }
         return ResponseEntity.ok(health);
     }
 }
+

@@ -139,11 +139,11 @@ services:
       SPRING_DATASOURCE_USERNAME: yugabyte
       SPRING_DATASOURCE_PASSWORD: yugabyte
       SPRING_FLYWAY_ENABLED: "false"
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       
       # Actuator OTLP push (metrics) — pushes to OTel Collector
       MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://otel-collector:4318/v1/metrics
-      MANAGEMENT_OTLP_TRACING_EXPORT_URL: http://otel-collector:4318/v1/traces
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://otel-collector:4318/v1/traces
       
       # Log file path (inside container) — Promtail reads from this volume
       LOGGING_FILE_PATH: /app/logs
@@ -348,10 +348,6 @@ services:
       # Mount the log directory from epricing-service
       # Promtail reads /var/log/epricing/ which maps to the epricing-logs volume
       - epricing-logs:/var/log/epricing:ro  # ro=read-only for security
-      # Mount Docker socket to read container labels (for service discovery)
-      # WHY /var/run/docker.sock: Promtail can auto-discover containers and
-      # use their labels as Loki labels (automated label extraction)
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       # Persistent positions file — prevents duplicate log shipping on restart
       - promtail-positions:/data
     

@@ -44,25 +44,5 @@ public interface PricingAuditRepository extends JpaRepository<PricingAuditLog, L
      * Links audit logs to distributed traces for complete observability.
      */
     List<PricingAuditLog> findByTraceIdOrderByCreatedAtAsc(String traceId);
-
-    /**
-     * Count error events in the last hour — feeds into error rate metric.
-     * If error count > threshold → trigger Grafana alert.
-     */
-    @Query("SELECT COUNT(a) FROM PricingAuditLog a " +
-           "WHERE a.outcome = 'FAILURE' AND a.createdAt > :since")
-    Long countFailuresSince(@Param("since") LocalDateTime since);
-
-    /**
-     * Find slow operations — used in performance dashboards.
-     * Any operation taking > 500ms is flagged for investigation.
-     */
-    @Query("SELECT a FROM PricingAuditLog a " +
-           "WHERE a.durationMs > :thresholdMs " +
-           "AND a.createdAt > :since " +
-           "ORDER BY a.durationMs DESC")
-    List<PricingAuditLog> findSlowOperations(
-        @Param("thresholdMs") Long thresholdMs,
-        @Param("since") LocalDateTime since
-    );
 }
+
