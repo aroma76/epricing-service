@@ -380,4 +380,19 @@ Modern cloud-native and Kubernetes banking infrastructure relies on a 3-tier res
   - **Per-Container CPU %**: `sum(rate(container_cpu_usage_seconds_total[5m])) by (name) * 100`
   - **Container RAM Usage**: `sum(container_memory_working_set_bytes) by (name)`
 
+---
+
+### 9. Temporal & Dynatrace Integration
+
+#### Temporal (Durable Workflow Orchestration)
+- **Engine**: Runs as a standalone service in `docker-compose.yml` (`temporalio/cli:latest`) exposing gRPC (`:7233`) and Web UI (`:8233`).
+- **Workflow**: `LoanPricingWorkflow` manages the end-to-end pricing lifecycle (quote calculation, 7-day rate lock duration, approval/rejection signals, and automatic expiration).
+- **Activities**: `PricingActivities` invokes `PricingService` for calculations and `PricingAuditRepository` for immutable regulatory audit records.
+- **REST APIs**: `TemporalPricingController` provides endpoints at `/api/v1/workflow/pricing/*` to initiate workflows, inspect snapshots, and dispatch asynchronous signals.
+
+#### Dynatrace (Enterprise APM & AI Observability)
+- **OTel Pipeline Ingestion**: The OpenTelemetry Collector in `otel-collector-config.yml` includes an `otlphttp/dynatrace` exporter mapping traces and metrics directly to Dynatrace via OTLP over HTTP (`/api/v2/otlp`).
+- **Zero-Code Instrumentation**: Leverages the OpenTelemetry SDK with semantic resource attributes (`service.name`, `service.namespace`, `deployment.environment`) for automatic topology discovery and Davis AI root-cause analysis.
+- **Dual-Export**: Works concurrently with the open-source LGTM stack (Prometheus, Grafana, Loki, Tempo).
+
 

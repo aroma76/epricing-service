@@ -103,6 +103,15 @@ exporters:
     tls:
       insecure: true
 
+  # Dynatrace Exporter (OTLP over HTTP)
+  # WHY: Ingests traces and metrics into Dynatrace PurePath and Davis AI engine.
+  # Dual-exports telemetry alongside local Tempo and Prometheus without modifying Java code.
+  # In production, set DYNATRACE_ENV_URL (e.g. https://{id}.live.dynatrace.com) and DYNATRACE_API_TOKEN.
+  # otlphttp/dynatrace:
+  #   endpoint: "${env:DYNATRACE_ENV_URL}/api/v2/otlp"
+  #   headers:
+  #     Authorization: "Api-Token ${env:DYNATRACE_API_TOKEN}"
+
   # Loki exporter for logs received via OTLP
   # (If your app sends logs via OTLP, they go to Loki here)
   # We use Promtail for log collection, so this is optional

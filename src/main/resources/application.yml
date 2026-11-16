@@ -262,6 +262,23 @@ epricing:
   # Product/risk-team configurable; defaults to 7 days (tighter than the previous hardcoded 30)
   rate-valid-days: ${RATE_VALID_DAYS:7}
 
+  # ═══════════════════════════════════════════════════════════════
+  # TEMPORAL — Durable Workflow Orchestration
+  # ═══════════════════════════════════════════════════════════════
+  temporal:
+    enabled: ${TEMPORAL_ENABLED:false}
+    target: ${TEMPORAL_TARGET:localhost:7233}
+    namespace: ${TEMPORAL_NAMESPACE:default}
+    task-queue: ${TEMPORAL_TASK_QUEUE:epricing-pricing-queue}
+
+  # ═══════════════════════════════════════════════════════════════
+  # DYNATRACE — Enterprise APM & Distributed Tracing
+  # ═══════════════════════════════════════════════════════════════
+  dynatrace:
+    enabled: ${DYNATRACE_ENABLED:false}
+    environment-url: ${DYNATRACE_ENV_URL:}
+    api-token: ${DYNATRACE_API_TOKEN:}
+
 ---
 # ═══════════════════════════════════════════════════════════════════
 # IN-MEMORY PROFILE FOR LOCAL STANDALONE RUNS (NO DOCKER NEEDED)
