@@ -1,73 +1,65 @@
 # PricingAuditService
 
-**Package:** `com.bank.epricing.service`
-**File:** [`PricingAuditService.java`](../../src/main/java/com/bank/epricing/service/PricingAuditService.java)
+**Package:** `com.bank.epricing.service`  
+**File:** [`PricingAuditService.java`](file:///c:/Users/Sonux/Desktop/epricing-service/src/main/java/com/bank/epricing/service/PricingAuditService.java)  
 **Stereotype:** `@Service`
 
 ---
 
 ## Purpose
 
-`PricingAuditService` writes **immutable audit log entries** for every pricing operation. It is deliberately decoupled from the main request path in two ways:
+`PricingAuditService` writes **immutable audit log entries** for every pricing operation. It is decoupled from the main request path in two ways:
 
-1. **Asynchronous execution** — runs on a separate thread pool so it never adds latency to customer-facing API responses.
-2. **Independent transaction** — uses `@Transactional(propagation = REQUIRES_NEW)` so audit records are persisted even if the main business transaction rolls back.
+1. **Durable Temporal Activities** — Workflow-driven audit events (rate lock approvals, rejections, expirations) are executed via Temporal Activities (`PricingActivitiesImpl`), ensuring retries and durability without holding JVM threads.
+2. **Independent transaction** — uses `@Transactional(propagation = REQUIRES_NEW)` so technical failure records are persisted even if the main business transaction rolls back.
 
 ---
 
 ## Design Principles
 
-### Why Async?
+### Why Temporal Activities Over In-JVM `@Async`?
 
-In a high-throughput banking API, synchronous audit logging would add DB write latency to every response. At 1000 TPS, even a 10ms audit write adds 10 seconds of aggregate latency per second. By offloading to a separate thread (from the `epricingAsyncExecutor` pool), the request thread is unblocked immediately after the pricing calculation completes.
+In standard Spring Boot, `@Async` thread pools write audit logs in background JVM threads. However:
+- If the server restarts or crashes, queued in-memory audit logs are permanently lost.
+- Sizing thread pools is error-prone and can exhaust memory during load spikes.
+
+With **Temporal Activities**:
+- Audit events are dispatched to Temporal task queues and executed durably.
+- If the worker crashes, Temporal restarts the activity on another worker or when the service recovers.
+- Retries with exponential backoff are automatic.
 
 ### Why `REQUIRES_NEW`?
 
-Scenario: A pricing calculation succeeds and saves to the main DB. Then some downstream operation fails and the main transaction rolls back. The audit record **must still exist** to satisfy regulatory requirements.
+Scenario: A pricing calculation fails due to an unexpected technical exception and the main transaction rolls back. A record of the failure **must still exist** so that support engineers and Grafana dashboards can inspect the error.
 
-`REQUIRES_NEW` suspends the calling thread's transaction (if any) and opens a brand-new, independent transaction. This guarantee ensures audit records are always written, even when the main business transaction fails.
+`REQUIRES_NEW` suspends the calling thread's transaction (if any) and opens a brand-new, independent transaction. This guarantee ensures audit and failure records are always written, even when the main business transaction fails.
 
 ```mermaid
 sequenceDiagram
-    participant MainThread as Main Thread (PricingService)
-    participant AsyncThread as Async Thread (epricingAsyncExecutor)
-    participant DB
+    participant Main as PricingService
+    participant Temporal as Temporal Worker (Activities)
+    participant DB as YugabyteDB
 
-    MainThread->>DB: BEGIN TX (main)
-    MainThread->>DB: INSERT pricing_request (PENDING)
-    MainThread->>DB: INSERT pricing_request (CALCULATED)
-    MainThread->>AsyncThread: logAsync(auditEntry) — @Async returns immediately
-    MainThread->>DB: COMMIT main TX
-    AsyncThread->>DB: BEGIN TX (REQUIRES_NEW)
-    AsyncThread->>DB: INSERT pricing_audit_log
-    AsyncThread->>DB: COMMIT audit TX
+    Main->>DB: calculateAndPersistPricing()
+    Main->>Temporal: Workflow coordinates rate lock & signals
+    Temporal->>DB: recordQuoteApproval() / recordQuoteExpiration()
+    Temporal->>DB: COMMIT activity TX
 ```
 
 ---
 
-## Methods
-
-### `logAsync(PricingAuditLog auditLog) → void`
+## Technical Failure Recording
 
 ```java
-@Async("epricingAsyncExecutor")
 @Transactional(propagation = Propagation.REQUIRES_NEW)
-public void logAsync(PricingAuditLog auditLog) {
-    auditRepository.save(auditLog);
+public void recordTechnicalFailure(PricingRequestDto requestDto, String errorMessage,
+                                   String requestIp, String traceId) {
+    // Persists ERROR status record in isolated transaction
 }
 ```
 
-- `@Async("epricingAsyncExecutor")` — executes on the `epricingAsyncExecutor` thread pool defined in `WebConfig`. Without the named executor, Spring would use `SimpleAsyncTaskExecutor` (a new thread per call — no pooling).
 - `@Transactional(propagation = REQUIRES_NEW)` — always opens a new DB transaction.
-- Returns `void` — fire-and-forget pattern. `PricingService` does not wait for the result.
-
----
-
-## Thread Pool Configuration
-
-The async executor is configured in [`WebConfig.java`](../../src/main/java/com/bank/epricing/config/WebConfig.java):
-
-| Setting | Value | Reason |
+- Saves the error message directly so L1 support can diagnose failures without logging into the database.
 |---|---|---|
 | `corePoolSize` | 5 | Always-on threads ready to accept audit tasks |
 | `maxPoolSize` | 20 | Max threads under heavy burst (I/O-bound) |

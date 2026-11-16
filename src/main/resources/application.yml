@@ -247,12 +247,6 @@ epricing:
       business-loan: 1.30
       personal-loan: 1.50
       education-loan: 1.05
-  # Async configuration
-  async:
-    core-pool-size: 5
-    max-pool-size: 20
-    queue-capacity: 100
-    thread-name-prefix: epricing-async-
   # CORS allowed origins — MUST be set via CORS_ALLOWED_ORIGINS env var in all environments.
   # No wildcard default. If not set, CORS is denied for all cross-origin requests.
   # Example: CORS_ALLOWED_ORIGINS=https://grafana.bank.com,https://portal.bank.com

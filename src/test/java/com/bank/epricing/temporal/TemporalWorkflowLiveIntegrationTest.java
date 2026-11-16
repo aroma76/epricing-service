@@ -58,6 +58,11 @@ class TemporalWorkflowLiveIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+            isTemporalServerReachable(),
+            "Temporal server is not running on localhost:7233 - skipping live integration test"
+        );
+
         taskQueue = "live-pricing-queue-" + UUID.randomUUID().toString().substring(0, 8);
         serviceStubs = WorkflowServiceStubs.newServiceStubs(
             WorkflowServiceStubsOptions.newBuilder()
@@ -146,5 +151,14 @@ class TemporalWorkflowLiveIntegrationTest {
         assertEquals("CUST009999", result.getCustomerId());
         assertNotNull(result.getQuote());
         assertEquals(new BigDecimal("7.75"), result.getQuote().getInterestRatePA());
+    }
+
+    private static boolean isTemporalServerReachable() {
+        try (java.net.Socket socket = new java.net.Socket()) {
+            socket.connect(new java.net.InetSocketAddress("localhost", 7233), 400);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
