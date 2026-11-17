@@ -14,6 +14,20 @@
     "operations",
     "CRMNXT"
   ],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "epricing"
+      ],
+      "targetBlank": false,
+      "title": "ePricing Observability (L1-L4)",
+      "type": "dashboards"
+    }
+  ],
   "time": {
     "from": "now-30m",
     "to": "now"
@@ -1662,6 +1676,16 @@
               {
                 "id": "custom.width",
                 "value": 260
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View Trace in Grafana Tempo",
+                    "url": "/explore?left=%5B%22now-1h%22,%22now%22,%22tempo-uid%22,%7B%22query%22:%22${__value.text}%22%7D%5D",
+                    "targetBlank": true
+                  }
+                ]
               }
             ]
           }
@@ -1823,6 +1847,16 @@
               {
                 "id": "custom.width",
                 "value": 260
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "View Trace in Grafana Tempo",
+                    "url": "/explore?left=%5B%22now-1h%22,%22now%22,%22tempo-uid%22,%7B%22query%22:%22${__value.text}%22%7D%5D",
+                    "targetBlank": true
+                  }
+                ]
               }
             ]
           },

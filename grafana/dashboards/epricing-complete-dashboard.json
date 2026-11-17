@@ -13,6 +13,20 @@
     "observability",
     "complete"
   ],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "epricing"
+      ],
+      "targetBlank": false,
+      "title": "ePricing Observability (L1-L4)",
+      "type": "dashboards"
+    }
+  ],
   "time": {
     "from": "now-1h",
     "to": "now"
