@@ -176,6 +176,7 @@ docker-compose up --build
 | Logging | [LoggingStrategy.md](./logging/LoggingStrategy.md) |
 | Monitoring | [Prometheus.md](./monitoring/Prometheus.md), [Grafana.md](./monitoring/Grafana.md), [Loki.md](./monitoring/Loki.md), [OpenTelemetry.md](./monitoring/OpenTelemetry.md), [AlertingRules.md](./monitoring/AlertingRules.md), [Alertmanager.md](./monitoring/Alertmanager.md) |
 | **L1 Dashboard** | **[L1_Dashboard.md](./monitoring/L1_Dashboard.md)** — CRMNXT-style ops dashboard, Integration Jobs table, error capture flow |
+| **Docker Containers Guide** | **[CONTAINERS_GUIDE.md](./docker/CONTAINERS_GUIDE.md)** — Comprehensive deep dive into all 16 platform containers, networks, volumes, and ports |
 | Docker | [Dockerfile.md](./docker/Dockerfile.md), [DockerCompose.md](./docker/DockerCompose.md) |
 | Utilities | [PricingCalculator.md](./utilities/PricingCalculator.md) |
 | Metrics | [PricingMetrics.md](./monitoring/PricingMetrics.md) |

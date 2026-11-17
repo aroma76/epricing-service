@@ -1,13 +1,14 @@
 # Docker Compose — Observability Stack Orchestration
 
-**File:** [`docker-compose.yml`](../../docker-compose.yml)
-**Command:** `docker-compose up --build`
+**File:** [`docker-compose.yml`](../../docker-compose.yml)  
+**Command:** `docker-compose up --build`  
+**Detailed Container Deep-Dive:** See **[`CONTAINERS_GUIDE.md`](./CONTAINERS_GUIDE.md)** for a complete study breakdown of all 16 containers.
 
 ---
 
 ## Purpose
 
-`docker-compose.yml` defines the complete observability stack as a single declarative file. One command starts all 9 services with proper networking, volumes, and dependencies.
+`docker-compose.yml` defines the complete observability stack as a single declarative file. One command starts all 16 services with proper networking, volumes, and dependencies.
 
 ---
 
@@ -15,15 +16,22 @@
 
 | Service | Image | Ports | Purpose |
 |---|---|---|---|
-| `epricing-service` | Built from Dockerfile | `8080`, `8081` | Spring Boot application |
+| `yugabytedb` | `yugabytedb/yugabyte:2.20.1.0-b97` | `5433, 7000, 9000, 15433` | Distributed SQL database (PostgreSQL-compatible) |
+| `epricing-service` | Built from Dockerfile | `8080`, `8089` | Core Spring Boot application & Actuator |
 | `prometheus` | `prom/prometheus:v2.53.0` | `9090` | Metrics time-series database |
 | `grafana` | `grafana/grafana:11.1.0` | `3000` | Dashboards and visualization |
 | `loki` | `grafana/loki:3.1.0` | `3100` | Log aggregation |
 | `promtail` | `grafana/promtail:3.1.0` | — | Log shipper (reads files → Loki) |
+| `tempo` | `grafana/tempo:2.5.0` | `3200` | Distributed tracing backend |
 | `otel-collector` | `otel/opentelemetry-collector-contrib:0.107.0` | `4317`, `4318`, `8888`, `8889` | Telemetry pipeline |
 | `traffic-generator` | `alpine/curl:latest` | — | Automatic traffic simulation |
-| `cadvisor` | `gcr.io/cadvisor/cadvisor:v0.49.1` | `8082` | Container resource metrics |
+| `cadvisor` | `gcr.io/cadvisor/cadvisor:v0.49.1` | `8085` | Container resource metrics |
 | `node-exporter` | `prom/node-exporter:v1.8.1` | `9100` | Host OS metrics |
+| `alertmanager` | `prom/alertmanager:v0.27.0` | `9093` | Alert routing, grouping & deduplication |
+| `webhook-logger` | `python:3.11-alpine` | `5001` | Local alert notification receiver |
+| `temporal-db` | `postgres:15-alpine` | `5432` | Workflow engine persistence database |
+| `temporal` | `temporalio/auto-setup:1.24.1` | `7233` | Durable workflow engine |
+| `temporal-ui` | `temporalio/ui:2.26.0` | `8233` | Temporal workflow web console |
 
 ---
 
@@ -51,10 +59,15 @@ The custom `/16` subnet prevents IP conflicts with other Docker Compose stacks.
 
 ```yaml
 volumes:
-  prometheus-data:   # Prometheus TSDB — metric history persists container restarts
-  grafana-data:      # Grafana dashboards, settings, users
-  loki-data:         # Loki log chunks and index
-  epricing-logs:     # Shared log volume: epricing-service writes, promtail reads
+  yugabyte-data:        # YugabyteDB Distributed SQL persistent storage
+  prometheus-data:      # Prometheus TSDB — metric history persists container restarts
+  grafana-data:         # Grafana dashboards, settings, users
+  loki-data:            # Loki log chunks and index
+  epricing-logs:        # Shared log volume: epricing-service writes, promtail reads
+  alertmanager-data:    # Alertmanager silences and notification state
+  tempo-data:           # Grafana Tempo distributed trace storage
+  promtail-positions:   # Promtail read positions (deduplication across restarts)
+  temporal-pg-data:     # Temporal PostgreSQL persistence
 ```
 
 Without named volumes, all data is lost on `docker-compose down`.
