@@ -1,0 +1,113 @@
+# Temporal Durable Workflow Orchestration
+
+**Package:** `com.bank.epricing.temporal`  
+**Configuration File:** [`TemporalConfig.java`](file:///c:/Users/Sonux/Desktop/epricing-service/src/main/java/com/bank/epricing/temporal/config/TemporalConfig.java)  
+**Workflow Interface:** [`LoanPricingWorkflow.java`](file:///c:/Users/Sonux/Desktop/epricing-service/src/main/java/com/bank/epricing/temporal/workflow/LoanPricingWorkflow.java)  
+**Activities Interface:** [`PricingActivities.java`](file:///c:/Users/Sonux/Desktop/epricing-service/src/main/java/com/bank/epricing/temporal/activity/PricingActivities.java)  
+**Temporal Web UI:** `http://localhost:8233`  
+**Temporal gRPC Server:** `localhost:7233`
+
+---
+
+## 1. Overview & Business Value
+
+In retail banking, loan pricing is not just a single calculation — it involves a **multi-day customer lifecycle**:
+1. **Quote Generation**: The system evaluates eligibility, computes the interest rate and EMI, and quotes an offer.
+2. **Rate Lock Guarantee**: The bank guarantees the quoted interest rate for a specific duration (e.g. 7 days).
+3. **Customer Decision**: The customer reviews the offer and either accepts (approves) or rejects it.
+4. **Auto-Expiration**: If the 7-day validity window elapses without a customer decision, the quote automatically expires.
+
+Historically, microservices attempted to manage this with database polling cron jobs, message queues, and in-JVM `@Async` thread pools. This led to:
+- **Thread Exhaustion**: Long-running threads held in memory.
+- **Lost Quotes**: Server restarts or crashes during a rate lock caused in-flight applications to disappear.
+- **Race Conditions**: Parallel approvals or status checks collided in the database.
+
+**Temporal** solves this by treating workflows as **durable, deterministic state machines**.
+
+---
+
+## 2. Architecture & Lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Customer / Portal
+    participant API as TemporalPricingController
+    participant Engine as Temporal Server (:7233)
+    participant Worker as Temporal Worker
+    participant Activities as PricingActivitiesImpl
+    participant DB as YugabyteDB
+
+    Customer->>API: POST /api/v1/temporal/pricing
+    API->>Engine: start(LoanPricingWorkflow)
+    API-->>Customer: 202 Accepted (workflowId)
+
+    Engine->>Worker: Execute Workflow Method
+    Worker->>Activities: calculateAndPersistPricing(request)
+    Activities->>DB: INSERT pricing_requests (CALCULATED)
+    Activities-->>Worker: quoteResult
+
+    Worker->>Engine: Workflow.await(7 days or customer signal)
+    Note over Worker,Engine: Zero threads consumed! Worker sleeps durably.
+
+    alt Customer Approves within 7 days
+        Customer->>API: POST /api/v1/temporal/pricing/{id}/approve
+        API->>Engine: Signal: approveQuote()
+        Engine->>Worker: Resume Workflow with approval
+        Worker->>Activities: recordQuoteApproval(quoteId, customerId)
+        Activities->>DB: INSERT pricing_audit_log (RATE_APPROVED)
+    else Customer Rejects
+        Customer->>API: POST /api/v1/temporal/pricing/{id}/reject
+        API->>Engine: Signal: rejectQuote(reason)
+        Worker->>Activities: recordQuoteRejection(quoteId, customerId, reason)
+        Activities->>DB: INSERT pricing_audit_log (RATE_REJECTED)
+    else 7 Days Elapse (Timer Expires)
+        Engine->>Worker: Wake up on timeout
+        Worker->>Activities: recordQuoteExpiration(quoteId, customerId)
+        Activities->>DB: INSERT pricing_audit_log (RATE_EXPIRED)
+    end
+```
+
+---
+
+## 3. Workflow Implementation Details
+
+### Determinism Rules
+Temporal workflow methods (`LoanPricingWorkflowImpl`) must be **100% deterministic** to allow replay during worker failure recovery:
+- Use `Workflow.currentTimeMillis()` or activity timestamps (never `System.currentTimeMillis()` or `LocalDateTime.now()` directly in workflow code).
+- Use `Workflow.sleep()` or `Workflow.await()` instead of `Thread.sleep()`.
+- Use `Workflow.newActivityStub(...)` to run database, network, and I/O operations inside Activities.
+
+### Activity Retry Policies
+Activities are configured with automatic exponential backoff:
+```java
+ActivityOptions options = ActivityOptions.newBuilder()
+    .setStartToCloseTimeout(Duration.ofSeconds(10))
+    .setRetryOptions(RetryOptions.newBuilder()
+        .setInitialInterval(Duration.ofSeconds(1))
+        .setBackoffCoefficient(2.0)
+        .setMaximumAttempts(4)
+        .build())
+    .build();
+```
+
+---
+
+## 4. REST API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/v1/temporal/pricing` | Starts a new `LoanPricingWorkflow` execution asynchronously. Returns `workflowId`. |
+| `GET` | `/api/v1/temporal/pricing/{workflowId}/status` | Queries workflow status (`INITIALIZING`, `QUOTED`, `APPROVED`, `REJECTED`, `EXPIRED`). |
+| `GET` | `/api/v1/temporal/pricing/{workflowId}/result` | Retrieves finalized quote and outcome snapshot. |
+| `POST` | `/api/v1/temporal/pricing/{workflowId}/approve` | Dispatches approval signal to the running workflow. |
+| `POST` | `/api/v1/temporal/pricing/{workflowId}/reject` | Dispatches rejection signal with reason. |
+
+---
+
+## 5. Local Inspection & Verification
+
+When running the stack with Docker:
+1. Open the **Temporal Web UI** at **`http://localhost:8233`**.
+2. Select namespace `default`.
+3. View running workflows, execution history, timers, input payloads, and activity retries in real time.

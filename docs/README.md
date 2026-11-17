@@ -131,6 +131,7 @@ docker-compose up --build
 | **L1 Operations Dashboard** | **http://localhost:3000 → Bank ePricing Monitoring → ePricing L1 Operations Dashboard** |
 | Loki | http://localhost:3100 |
 | **Alertmanager** | **http://localhost:9093** |
+| **Temporal Web UI** | **http://localhost:8233** |
 | cAdvisor | http://localhost:8082 |
 | Node Exporter | http://localhost:9100 |
 
@@ -145,10 +146,15 @@ docker-compose up --build
 
 | Method | URL | Description |
 |---|---|---|
-| `POST` | `/api/v1/pricing` | Calculate loan pricing |
+| `POST` | `/api/v1/pricing` | Calculate loan pricing (direct synchronous) |
 | `GET` | `/api/v1/pricing?customerId=X` | Get pricing history |
 | `GET` | `/api/v1/pricing/{id}` | Get pricing by ID |
 | `GET` | `/api/v1/health` | Custom health check |
+| `POST` | `/api/v1/temporal/pricing` | Start durable loan pricing workflow |
+| `GET` | `/api/v1/temporal/pricing/{id}/status` | Query live workflow status |
+| `POST` | `/api/v1/temporal/pricing/{id}/approve` | Send customer rate-approval signal |
+| `POST` | `/api/v1/temporal/pricing/{id}/reject` | Send quote-rejection signal |
+| `GET` | `/api/v1/temporal/pricing/{id}/result` | Get finalized workflow outcome |
 
 ---
 
@@ -158,6 +164,7 @@ docker-compose up --build
 |---|---|
 | **Architecture (HLD & LLD)** | **[ARCHITECTURE_DIAGRAMS_HLD_LLD.md](./architecture/ARCHITECTURE_DIAGRAMS_HLD_LLD.md)** — High-level platform architecture + Low-level class & sequence diagrams |
 | System Overview | [SystemOverview.md](./architecture/SystemOverview.md) |
+| **Workflows** | **[TemporalWorkflows.md](./workflows/TemporalWorkflows.md)** — Durable loan pricing workflow, 7-day rate lock, signals & queries |
 | Services | [PricingService.md](./services/PricingService.md), [PricingAuditService.md](./services/PricingAuditService.md) |
 | Controllers | [PricingController.md](./controllers/PricingController.md), [HealthController.md](./controllers/HealthController.md) |
 | Entities | [PricingRequest.md](./entities/PricingRequest.md), [PricingAuditLog.md](./entities/PricingAuditLog.md) |
