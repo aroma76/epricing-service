@@ -162,6 +162,7 @@ docker-compose up --build
 
 | Category | Document |
 |---|---|
+| **Complete Study Guide** | **[STUDY_GUIDE.md](./STUDY_GUIDE.md)** — Comprehensive master study material: end-to-end request lifecycle, pricing calculation math, YugabyteDB persistence, Temporal durable rate lock, observability pipeline, and L1–L4 dashboard differences |
 | **Architecture (HLD & LLD)** | **[ARCHITECTURE_DIAGRAMS_HLD_LLD.md](./architecture/ARCHITECTURE_DIAGRAMS_HLD_LLD.md)** — High-level platform architecture + Low-level class & sequence diagrams |
 | System Overview | [SystemOverview.md](./architecture/SystemOverview.md) |
 | **Workflows** | **[TemporalWorkflows.md](./workflows/TemporalWorkflows.md)** — Durable loan pricing workflow, 7-day rate lock, signals & queries |
