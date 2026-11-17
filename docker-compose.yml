@@ -154,11 +154,6 @@ services:
       TEMPORAL_TARGET: "temporal:7233"
       TEMPORAL_NAMESPACE: "default"
       TEMPORAL_TASK_QUEUE: "epricing-pricing-queue"
-
-      # Dynatrace Enterprise APM Integration
-      DYNATRACE_ENABLED: "${DYNATRACE_ENABLED:-false}"
-      DYNATRACE_ENV_URL: "${DYNATRACE_ENV_URL:-}"
-      DYNATRACE_API_TOKEN: "${DYNATRACE_API_TOKEN:-}"
     
     volumes:
       # Mount the shared log volume so promtail can read logs
@@ -441,10 +436,6 @@ services:
       - ./otel-collector-config.yml:/etc/otelcol-contrib/config.yaml:ro
     
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
-    
-    environment:
-      - DYNATRACE_ENV_URL=${DYNATRACE_ENV_URL:-}
-      - DYNATRACE_API_TOKEN=${DYNATRACE_API_TOKEN:-}
     
     networks:
       - epricing-network

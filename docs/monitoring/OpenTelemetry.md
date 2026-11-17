@@ -32,14 +32,12 @@ graph LR
         Resource["Resource Processor"]
         PrometheusExp["Prometheus Exporter\n:8889"]
         TempoExp["otlp/tempo Exporter"]
-        DtExp["otlphttp/dynatrace Exporter"]
         DebugExp["Debug Exporter\n(collector logs)"]
     end
 
-    subgraph Storage & APM
+    subgraph Storage
         Prometheus["Prometheus :9090"]
         Tempo["Grafana Tempo (Traces)"]
-        Dynatrace["Dynatrace SaaS / ActiveGate\n(Davis AI + PurePath)"]
     end
 
     MicrometerTracing --> OTLPExporter
@@ -50,11 +48,9 @@ graph LR
     MemLimit --> Resource
     Resource --> PrometheusExp
     Resource --> TempoExp
-    Resource --> DtExp
     Resource --> DebugExp
     PrometheusExp --> Prometheus
     TempoExp --> Tempo
-    DtExp --> Dynatrace
 ```
 
 ---
@@ -186,16 +182,11 @@ exporters:
     endpoint: tempo:4317       # Local Grafana Tempo trace store
     tls:
       insecure: true
-
-  otlphttp/dynatrace:
-    endpoint: "${env:DYNATRACE_ENV_URL}/api/v2/otlp"
-    headers:
-      Authorization: "Api-Token ${env:DYNATRACE_API_TOKEN}"
 ```
 
 The **Prometheus exporter** re-exposes metrics received via OTLP in Prometheus text format. Prometheus scrapes `:8889` (job: `otel-metrics-from-collector`).
 
-The **Dynatrace exporter** pushes telemetry directly to Dynatrace's enterprise APM engine via standard OTLP/HTTP. For full details on Davis AI, PurePath, and token configuration, see [Dynatrace.md](./Dynatrace.md).
+The **Tempo exporter** pushes distributed traces directly to Grafana Tempo for trace visualization in Grafana.
 
 ### Pipelines
 

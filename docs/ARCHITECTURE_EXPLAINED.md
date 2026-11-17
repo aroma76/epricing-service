@@ -382,21 +382,12 @@ Modern cloud-native and Kubernetes banking infrastructure relies on a 3-tier res
 
 ---
 
-### 9. Temporal & Dynatrace Integration
+### 9. Temporal Durable Workflow Orchestration
 
-#### Temporal (Durable Workflow Orchestration)
 - **Engine**: Runs as a standalone service in `docker-compose.yml` (`temporalio/auto-setup:1.24.1` backed by PostgreSQL) exposing gRPC (`:7233`) and Web UI (`:8233`).
 - **Workflow**: `LoanPricingWorkflow` manages the end-to-end pricing lifecycle (quote calculation, 7-day rate lock duration, approval/rejection signals, and automatic expiration) without consuming local JVM worker threads.
 - **Activities**: `PricingActivities` invokes `PricingService` for calculations and `PricingAuditRepository` for immutable regulatory audit records.
 - **REST APIs**: `TemporalPricingController` provides endpoints at `/api/v1/workflow/pricing/*` to initiate workflows, inspect snapshots, and dispatch asynchronous signals.
 - **Lean Architecture**: Replaced the custom in-JVM Spring `@Async` thread pool (`ThreadPoolTaskExecutor`), eliminating JVM thread exhaustion and unrecovered task loss on server crashes.
-
-#### Dynatrace (Enterprise APM & AI Observability)
-- **Vendor-Neutral Ingestion**: Spring Boot emits standard OpenTelemetry spans and metrics (no proprietary OneAgent JAR required in the service container).
-- **Collector Pipeline**: The OpenTelemetry Collector (`otel-collector-config.yml`) receives OTLP telemetry on port `4318`, applies memory limiting and batching, and dual-exports simultaneously to:
-  1. Local Open-Source Stack: Grafana Tempo (traces) and Prometheus (metrics).
-  2. Enterprise Dynatrace: Via `otlphttp/dynatrace` pushing to `https://{your-environment-id}.live.dynatrace.com/api/v2/otlp`.
-- **PurePath® & Davis® AI**: Dynatrace stitches incoming OTLP spans into end-to-end PurePath transaction traces. Davis AI monitors baseline response times and automatically groups related anomalies into single Root-Cause Problem tickets.
-- **Detailed Reference**: See [docs/monitoring/Dynatrace.md](file:///c:/Users/Sonux/Desktop/epricing-service/docs/monitoring/Dynatrace.md) for full configuration and token setup.
 
 

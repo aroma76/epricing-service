@@ -265,14 +265,6 @@ epricing:
     namespace: ${TEMPORAL_NAMESPACE:default}
     task-queue: ${TEMPORAL_TASK_QUEUE:epricing-pricing-queue}
 
-  # ═══════════════════════════════════════════════════════════════
-  # DYNATRACE — Enterprise APM & Distributed Tracing
-  # ═══════════════════════════════════════════════════════════════
-  dynatrace:
-    enabled: ${DYNATRACE_ENABLED:false}
-    environment-url: ${DYNATRACE_ENV_URL:}
-    api-token: ${DYNATRACE_API_TOKEN:}
-
 ---
 # ═══════════════════════════════════════════════════════════════════
 # IN-MEMORY PROFILE FOR LOCAL STANDALONE RUNS (NO DOCKER NEEDED)
