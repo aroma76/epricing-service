@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Complete Observability Dashboard",
   "uid": "epricing-complete",
-  "version": 4,
+  "version": 10,
   "panels": [
     {
       "id": 1,
@@ -615,7 +615,8 @@
     {
       "id": 21,
       "title": "Requests by Product Type",
-      "type": "barchart",
+      "description": "Total pricing requests grouped by loan product type",
+      "type": "bargauge",
       "gridPos": {
         "h": 8,
         "w": 10,
@@ -627,35 +628,30 @@
         "uid": "prometheus-uid"
       },
       "options": {
-        "orientation": "vertical",
-        "showValue": "always",
-        "barWidth": 0.55,
-        "groupWidth": 0.7,
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "single"
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
         }
       },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "decimals": 0,
           "color": {
             "mode": "palette-classic"
-          },
-          "custom": {
-            "gradientMode": "opacity",
-            "fillOpacity": 85,
-            "lineWidth": 1
           }
-        }
+        },
+        "overrides": []
       },
       "targets": [
         {
-          "expr": "pricing_product_requests_total{application=\"epricing-service\"}",
+          "expr": "sum by (product) (pricing_product_requests_total{application=\"epricing-service\"})",
           "legendFormat": "{{product}}",
+          "instant": true,
           "refId": "A"
         }
       ]

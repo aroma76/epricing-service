@@ -36,7 +36,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Log Analysis Dashboard",
   "uid": "epricing-logs",
-  "version": 2,
+  "version": 5,
   "panels": [
 
     { "id": 1, "type": "row", "title": "Log Volume Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false },
@@ -135,12 +135,40 @@
     { "id": 40, "type": "row", "title": "Errors by Type — Prometheus", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 40 }, "collapsed": false },
 
     {
-      "id": 41, "title": "All Error Types (Cumulative)",
-      "type": "barchart", "gridPos": { "h": 8, "w": 24, "x": 0, "y": 41 },
+      "id": 41,
+      "title": "All Error Types (Cumulative)",
+      "description": "Cumulative count of pricing errors by error type",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 41 },
       "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
-      "options": { "orientation": "horizontal", "legend": { "displayMode": "list", "placement": "right" } },
-      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } } },
-      "targets": [{ "expr": "sum by (error_type) (pricing_errors_total{application=\"epricing-service\"})", "legendFormat": "{{error_type}}", "refId": "A" }]
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (error_type) (pricing_errors_total{application=\"epricing-service\"})",
+          "legendFormat": "{{error_type}}",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
     }
 
   ]
