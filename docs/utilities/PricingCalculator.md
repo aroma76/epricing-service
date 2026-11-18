@@ -82,11 +82,11 @@ EMI = P × r × (1 + r)^n  /  ((1 + r)^n − 1)
 
 Where:
   P = principal (loan amount)
-  r = monthly interest rate = annualRate / 12 / 100
+  r = monthly interest rate = annualRate / 1200
   n = tenure in months
 ```
 
-**Implementation detail:** Uses `BigDecimal` arithmetic with `MathContext.DECIMAL64` for financial precision. Intermediate calculations use 10 decimal places; final result is rounded to 2 decimal places using `HALF_UP` rounding.
+**Implementation detail:** Uses `BigDecimal` arithmetic with `MathContext.DECIMAL128` (34 decimal digits of precision) to prevent premature scale truncation during compounding. Throws `IllegalArgumentException` if `tenureMonths <= 0`. If `principal <= 0`, returns `0.00`. If `annualRatePercent == 0`, calculates simple `P / n`. Final result is rounded to 2 decimal places using `HALF_UP` rounding.
 
 ```java
 BigDecimal emi = pricingCalculator.calculateEmi(
@@ -95,28 +95,31 @@ BigDecimal emi = pricingCalculator.calculateEmi(
 // Returns: 12398.57
 ```
 
-**Edge case — zero interest rate:** Returns `principal / tenureMonths` (simple division, no compound interest formula needed).
-
 ---
 
 ### `validateEligibility(String customerId, Integer creditScore, BigDecimal loanAmount, BigDecimal annualIncome) → void`
 
-Enforces **business rule gates** before pricing. Throws specific exception subtypes:
+Enforces baseline **business rule gates** before interest rate calculation:
 
 | Rule | Check | Exception thrown |
 |---|---|---|
-| Minimum credit score | `creditScore < 650` | `InsufficientCreditScoreException` |
-| Maximum loan-to-income | `loanAmount > annualIncome × 0.60` | `LoanAmountExceedsEligibilityException` |
+| Minimum credit score | `creditScore < 650` | `InsufficientCreditScoreException` (HTTP 422) |
+| Baseline max loan cap | `loanAmount > annualIncome × 10` | `LoanAmountExceedsEligibilityException` (HTTP 422) |
+
+---
+
+### `validateFoir(String customerId, BigDecimal emiAmount, BigDecimal annualIncome) → void`
+
+Validates regulatory **FOIR (Fixed Obligation to Income Ratio)** under RBI retail lending guidelines:
+
+| Rule | Check | Exception thrown |
+|---|---|---|
+| 50% Monthly Debt Cap | `emiAmount > (annualIncome / 12) × 0.50` | `FoirExceededException` (HTTP 422) |
 
 ```java
-// Throws InsufficientCreditScoreException (HTTP 422)
-pricingCalculator.validateEligibility("CUST001", 620, new BigDecimal("500000"), new BigDecimal("1200000"));
-
-// Passes silently
-pricingCalculator.validateEligibility("CUST001", 750, new BigDecimal("500000"), new BigDecimal("1200000"));
+// Throws FoirExceededException if computed monthly EMI exceeds 50% of monthly income:
+pricingCalculator.validateFoir("CUST001", new BigDecimal("45000"), new BigDecimal("900000"));
 ```
-
-**Null handling:** If `creditScore` is null, it defaults to a `MEDIUM` risk category but is NOT rejected at this validation stage — null credit score is treated as an unknown (medium) risk.
 
 ---
 

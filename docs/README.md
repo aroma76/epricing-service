@@ -150,11 +150,11 @@ docker-compose up --build
 | `GET` | `/api/v1/pricing?customerId=X` | Get pricing history |
 | `GET` | `/api/v1/pricing/{id}` | Get pricing by ID |
 | `GET` | `/api/v1/health` | Custom health check |
-| `POST` | `/api/v1/temporal/pricing` | Start durable loan pricing workflow |
-| `GET` | `/api/v1/temporal/pricing/{id}/status` | Query live workflow status |
-| `POST` | `/api/v1/temporal/pricing/{id}/approve` | Send customer rate-approval signal |
-| `POST` | `/api/v1/temporal/pricing/{id}/reject` | Send quote-rejection signal |
-| `GET` | `/api/v1/temporal/pricing/{id}/result` | Get finalized workflow outcome |
+| `POST` | `/api/v1/workflow/pricing/start` | Start durable loan pricing workflow |
+| `GET` | `/api/v1/workflow/pricing/{id}/status` | Query live workflow status |
+| `POST` | `/api/v1/workflow/pricing/{id}/approve` | Send customer rate-approval signal |
+| `POST` | `/api/v1/workflow/pricing/{id}/reject` | Send quote-rejection signal |
+| `GET` | `/api/v1/workflow/pricing/{id}` | Get finalized workflow outcome snapshot |
 
 ---
 

@@ -38,7 +38,7 @@ sequenceDiagram
     participant Activities as PricingActivitiesImpl
     participant DB as YugabyteDB
 
-    Customer->>API: POST /api/v1/temporal/pricing
+    Customer->>API: POST /api/v1/workflow/pricing/start
     API->>Engine: start(LoanPricingWorkflow)
     API-->>Customer: 202 Accepted (workflowId)
 
@@ -51,20 +51,20 @@ sequenceDiagram
     Note over Worker,Engine: Zero threads consumed! Worker sleeps durably.
 
     alt Customer Approves within 7 days
-        Customer->>API: POST /api/v1/temporal/pricing/{id}/approve
+        Customer->>API: POST /api/v1/workflow/pricing/{id}/approve
         API->>Engine: Signal: approveQuote()
         Engine->>Worker: Resume Workflow with approval
         Worker->>Activities: recordQuoteApproval(quoteId, customerId)
-        Activities->>DB: INSERT pricing_audit_log (RATE_APPROVED)
+        Activities->>DB: UPDATE pricing_requests (APPROVED) & INSERT pricing_audit_logs (RATE_APPROVED)
     else Customer Rejects
-        Customer->>API: POST /api/v1/temporal/pricing/{id}/reject
+        Customer->>API: POST /api/v1/workflow/pricing/{id}/reject
         API->>Engine: Signal: rejectQuote(reason)
         Worker->>Activities: recordQuoteRejection(quoteId, customerId, reason)
-        Activities->>DB: INSERT pricing_audit_log (RATE_REJECTED)
+        Activities->>DB: UPDATE pricing_requests (REJECTED) & INSERT pricing_audit_logs (RATE_REJECTED)
     else 7 Days Elapse (Timer Expires)
         Engine->>Worker: Wake up on timeout
         Worker->>Activities: recordQuoteExpiration(quoteId, customerId)
-        Activities->>DB: INSERT pricing_audit_log (RATE_EXPIRED)
+        Activities->>DB: UPDATE pricing_requests (EXPIRED) & INSERT pricing_audit_logs (RATE_EXPIRED)
     end
 ```
 
@@ -79,14 +79,22 @@ Temporal workflow methods (`LoanPricingWorkflowImpl`) must be **100% determinist
 - Use `Workflow.newActivityStub(...)` to run database, network, and I/O operations inside Activities.
 
 ### Activity Retry Policies
-Activities are configured with automatic exponential backoff:
+Activities are configured with automatic exponential backoff and explicit non-retryable business exception filters:
 ```java
 ActivityOptions options = ActivityOptions.newBuilder()
-    .setStartToCloseTimeout(Duration.ofSeconds(10))
+    .setStartToCloseTimeout(Duration.ofSeconds(30))
     .setRetryOptions(RetryOptions.newBuilder()
         .setInitialInterval(Duration.ofSeconds(1))
         .setBackoffCoefficient(2.0)
-        .setMaximumAttempts(4)
+        .setMaximumInterval(Duration.ofSeconds(10))
+        .setMaximumAttempts(5)
+        .setDoNotRetry(
+            PricingException.class.getName(),
+            PricingException.InsufficientCreditScoreException.class.getName(),
+            PricingException.LoanAmountExceedsEligibilityException.class.getName(),
+            PricingException.FoirExceededException.class.getName(),
+            PricingException.UnsupportedProductTypeException.class.getName()
+        )
         .build())
     .build();
 ```
@@ -97,11 +105,10 @@ ActivityOptions options = ActivityOptions.newBuilder()
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/v1/temporal/pricing` | Starts a new `LoanPricingWorkflow` execution asynchronously. Returns `workflowId`. |
-| `GET` | `/api/v1/temporal/pricing/{workflowId}/status` | Queries workflow status (`INITIALIZING`, `QUOTED`, `APPROVED`, `REJECTED`, `EXPIRED`). |
-| `GET` | `/api/v1/temporal/pricing/{workflowId}/result` | Retrieves finalized quote and outcome snapshot. |
-| `POST` | `/api/v1/temporal/pricing/{workflowId}/approve` | Dispatches approval signal to the running workflow. |
-| `POST` | `/api/v1/temporal/pricing/{workflowId}/reject` | Dispatches rejection signal with reason. |
+| `POST` | `/api/v1/workflow/pricing/start` | Starts a new `LoanPricingWorkflow` execution asynchronously. Returns `workflowId` and initial snapshot. |
+| `GET` | `/api/v1/workflow/pricing/{workflowId}` | Queries workflow status (`INITIALIZING`, `QUOTED`, `APPROVED`, `REJECTED`, `EXPIRED`, `PROCESSING`, `FAILED`) and result snapshot. |
+| `POST` | `/api/v1/workflow/pricing/{workflowId}/approve` | Dispatches approval signal to the running workflow. |
+| `POST` | `/api/v1/workflow/pricing/{workflowId}/reject` | Dispatches rejection signal with optional reason. |
 
 ---
 

@@ -42,31 +42,24 @@ Each audit record includes:
 
 ---
 
-## Async Design (Why It Matters)
+## Audit Design & Compliance
+
+Regulatory compliance mandates that audit records must never be lost in a JVM crash. Therefore, successful calculations write the `PricingRequest` and `PricingAuditLog` atomically, while business rejections and technical failures run synchronously in isolated `REQUIRES_NEW` transactions:
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant PricingService
-    participant DB as Main DB TX
-    participant AsyncThread as Async Thread Pool
-    participant AuditDB as Audit TX (REQUIRES_NEW)
+    participant DB as Main DB TX (pricing_requests)
+    participant AuditDB as Audit Trail (pricing_audit_logs)
 
     Client->>PricingService: POST /pricing
-    PricingService->>DB: BEGIN TX
-    PricingService->>DB: INSERT pricing_request (PENDING)
-    PricingService->>DB: INSERT pricing_request (CALCULATED)
-    PricingService->>AsyncThread: logAsync(auditEntry) → returns immediately
+    PricingService->>DB: calculatePricing() [BEGIN TX]
+    PricingService->>DB: savePricingWithAudit()
+    PricingService->>AuditDB: INSERT pricing_requests & pricing_audit_logs (Atomic)
     PricingService->>DB: COMMIT main TX
-    PricingService-->>Client: 201 Created (fast response)
-    
-    Note over AsyncThread,AuditDB: Happens independently
-    AsyncThread->>AuditDB: BEGIN TX (REQUIRES_NEW)
-    AsyncThread->>AuditDB: INSERT pricing_audit_log
-    AsyncThread->>AuditDB: COMMIT audit TX
+    PricingService-->>Client: 201 Created (with traceId & audit trail)
 ```
-
-**Client sees fast response.** Audit writing does not block the API.
 
 ---
 

@@ -94,6 +94,32 @@ public class DatabaseMigrationInitializer implements InitializingBean {
                 }
 
                 if (!alreadyApplied) {
+                    if (filename.startsWith("V6")) {
+                        String dbProduct = conn.getMetaData().getDatabaseProductName().toLowerCase();
+                        if (!dbProduct.contains("postgres") && !dbProduct.contains("yugabyte")) {
+                            log.info("Skipping V6 role migration on non-Postgres/Yugabyte database: {}", dbProduct);
+                            try (PreparedStatement insertStmt = conn.prepareStatement(
+                                    "INSERT INTO schema_history (version, description, script) VALUES (?, ?, ?)")) {
+                                insertStmt.setString(1, version);
+                                insertStmt.setString(2, description);
+                                insertStmt.setString(3, filename);
+                                insertStmt.executeUpdate();
+                            }
+                            continue;
+                        }
+                        // For PostgreSQL / YugabyteDB, ensure role exists without nested PL/pgSQL block
+                        try (PreparedStatement checkRole = conn.prepareStatement("SELECT 1 FROM pg_roles WHERE rolname = 'grafana_reader'")) {
+                            try (ResultSet rs = checkRole.executeQuery()) {
+                                if (!rs.next()) {
+                                    try (Statement createStmt = conn.createStatement()) {
+                                        createStmt.execute("CREATE ROLE grafana_reader WITH LOGIN PASSWORD 'grafana_reader_pass'");
+                                        log.info("Created database role 'grafana_reader'");
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     log.info("Applying database migration: {} - {}", filename, description);
                     boolean originalAutoCommit = conn.getAutoCommit();
                     try {

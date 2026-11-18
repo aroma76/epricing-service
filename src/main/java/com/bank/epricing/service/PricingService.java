@@ -238,7 +238,7 @@ public class PricingService {
 
             PricingRequest savedRequest;
             try (Scope dbScope = dbSpan.makeCurrent()) {
-                long currentDuration = System.currentTimeMillis() - overallStartTime;
+                long totalDuration = System.currentTimeMillis() - overallStartTime;
                 PricingRequest entity = PricingRequest.builder()
                     .customerId(requestDto.getCustomerId())
                     .productType(requestDto.getProductType())
@@ -253,7 +253,7 @@ public class PricingService {
                     .calculatedRate(interestRate)
                     .emiAmount(emi)
                     .status(PricingRequest.PricingStatus.CALCULATED)
-                    .processingTimeMs(currentDuration)
+                    .processingTimeMs(totalDuration)
                     .requestIp(requestIp)
                     .traceId(traceId)
                     .build();

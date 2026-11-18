@@ -11,10 +11,10 @@
 `PricingService` is the **central business orchestrator** of the ePricing system. It:
 
 1. Accepts raw DTO input from `PricingController`.
-2. Validates customer eligibility (credit score, loan-to-income).
-3. Delegates mathematical pricing to `PricingCalculator`.
-4. Persists the pricing request to the database (via `PricingRepository`).
-5. Dispatches an asynchronous audit log entry (via `PricingAuditService`).
+2. Validates customer eligibility (credit score, baseline income multiplier).
+3. Delegates mathematical pricing and EMI calculation to `PricingCalculator`.
+4. Enforces regulatory FOIR (Fixed Obligation to Income Ratio) using computed EMI.
+5. Persists the pricing request and audit record atomically to the database (via `PricingAuditService.savePricingWithAudit`).
 6. Records observability data: OTel spans, Micrometer metrics, structured log events.
 
 ---
@@ -64,15 +64,17 @@ flowchart TD
     G -->|Credit score < 650| H[Throw InsufficientCreditScoreException]
     G -->|Eligible| I[PricingCalculator.calculateInterestRate]
     I --> J[PricingCalculator.calculateEmi]
-    J --> K[Compute totalPayable and totalInterest]
-    K --> L[Update entity to CALCULATED status]
-    L --> M[Save CALCULATED to DB]
-    M --> N[Trigger auditService.logAsync ASYNC]
-    N --> O[Log PRICING_COMPLETED event]
+    J --> J2[PricingCalculator.validateFoir]
+    J2 -->|FOIR > 50%| H2[Throw FoirExceededException]
+    J2 -->|Compliant| K[Compute totalPayable and totalInterest]
+    K --> L[Build PricingRequest entity with CALCULATED status]
+    L --> M[Persist PricingRequest & AuditLog via savePricingWithAudit]
+    M --> O[Log PRICING_COMPLETED event]
     O --> P[Record metrics: success counter, timers]
     P --> Q[Return PricingResponseDto]
-    H --> R[Log PRICING_ERROR/REJECTED event]
-    R --> S[Record failure metric]
+    H --> R[Log PRICING_REJECTED event]
+    H2 --> R
+    R --> S[Record failure/rejection metric & auditRejection]
     S --> T[Close OTel span with ERROR]
     T --> U[Decrement active request gauge]
     U --> V[Re-throw exception]
@@ -81,11 +83,12 @@ flowchart TD
 **Business rules applied (delegated to `PricingCalculator`):**
 
 - Minimum credit score: 650
-- Maximum loan amount: 60% of annual income
+- Baseline max loan cap: 10× annual income
+- FOIR limit: Monthly EMI cannot exceed 50% of monthly income
 - Credit score adjustments: ±0.50% to ±1.50% on base rate
 - Large loan discount: −0.25% for amounts ≥ ₹50 lakh
 
-**Transaction behaviour:** The method is annotated `@Transactional`. Both `save(pendingRequest)` and `save(calculatedRequest)` run within a single DB transaction. If the second save fails, both are rolled back. The audit log runs in a **separate** transaction (`REQUIRES_NEW`) so it is never rolled back with the main TX.
+**Transaction behaviour:** The method is annotated `@Transactional(rollbackFor = Exception.class)`. The pricing calculation and audit log are saved atomically via `savePricingWithAudit`. Rejections and technical failures commit immediately using `REQUIRES_NEW` transactions so that regulatory audit records survive even when the main transaction is rolled back.
 
 ---
 
