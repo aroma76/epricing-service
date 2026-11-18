@@ -514,6 +514,22 @@ services:
             curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-error > /dev/null
           fi
 
+          # 5. Occasional Credit Score Rejection (every ~108 seconds / 18 steps)
+          # Credit score 580 is below the 650 underwriting threshold -> HTTP 422 PRICING_INSUFFICIENT_CREDIT_SCORE
+          if [ "$$((STEP % 18))" -eq 0 ]; then
+            curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+              -H "Content-Type: application/json" \
+              -d "{\"customer_id\":\"CUST009988\",\"product_type\":\"PERSONAL_LOAN\",\"loan_amount\":500000,\"loan_tenure_months\":36,\"credit_score\":580,\"annual_income\":600000}" > /dev/null
+          fi
+
+          # 6. Occasional FOIR / Eligibility Rejection (every ~168 seconds / 28 steps)
+          # Loan amount ₹80L exceeds 10x annual income (₹3L) & EMI exceeds 50% income -> HTTP 422 PRICING_FOIR_EXCEEDED
+          if [ "$$((STEP % 28))" -eq 0 ]; then
+            curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+              -H "Content-Type: application/json" \
+              -d "{\"customer_id\":\"CUST009977\",\"product_type\":\"HOME_LOAN\",\"loan_amount\":8000000,\"loan_tenure_months\":180,\"credit_score\":740,\"annual_income\":300000}" > /dev/null
+          fi
+
           sleep 6
         done
     networks:
