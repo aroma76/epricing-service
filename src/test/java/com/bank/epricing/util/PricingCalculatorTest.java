@@ -200,4 +200,26 @@ class PricingCalculatorTest {
             pricingCalculator.validateFoir("CUST001234", BigDecimal.ZERO, new BigDecimal("1200000"))
         );
     }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when annualRatePercent is null or negative in calculateEmi")
+    void testCalculateEmi_NullOrNegativeRate() {
+        assertThrows(IllegalArgumentException.class, () ->
+            pricingCalculator.calculateEmi(new BigDecimal("1000000"), null, 120)
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+            pricingCalculator.calculateEmi(new BigDecimal("1000000"), new BigDecimal("-1.5"), 120)
+        );
+    }
+
+    @Test
+    @DisplayName("Should throw UnsupportedProductTypeException when productType is null or blank")
+    void testCalculateInterestRate_NullOrBlankProduct() {
+        assertThrows(PricingException.UnsupportedProductTypeException.class, () ->
+            pricingCalculator.calculateInterestRate(null, 750, new BigDecimal("1000000"))
+        );
+        assertThrows(PricingException.UnsupportedProductTypeException.class, () ->
+            pricingCalculator.calculateInterestRate("   ", 750, new BigDecimal("1000000"))
+        );
+    }
 }

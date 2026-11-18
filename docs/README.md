@@ -115,7 +115,7 @@ epricing-service/
 ```bash
 mvn test
 ```
-*Executes all 55 automated unit and integration tests across `ApplicationContextBootstrapTest` (3 @SpringBootTest context & live port tests), `PricingCalculatorTest` (18), `PricingServiceTest` (4), `PricingControllerTest` (7), `LoanPricingWorkflowTest` (4 in-memory Temporal tests), `TemporalWorkflowLiveIntegrationTest` (1), `TemporalPricingControllerTest` (5), `TemporalPricingServiceTest` (1), `DatabaseMigrationInitializerTest` (4), `PricingPersistenceAtomicityTest` (2), `StructuredLoggerTest` (4), and `HealthControllerTest` (2).*
+*Executes all 57 automated unit and integration tests across `ApplicationContextBootstrapTest` (3 @SpringBootTest context & live port tests), `PricingCalculatorTest` (20), `PricingServiceTest` (4), `PricingControllerTest` (7), `LoanPricingWorkflowTest` (4 in-memory Temporal tests), `TemporalWorkflowLiveIntegrationTest` (1), `TemporalPricingControllerTest` (5), `TemporalPricingServiceTest` (1), `DatabaseMigrationInitializerTest` (4), `PricingPersistenceAtomicityTest` (2), `StructuredLoggerTest` (4), and `HealthControllerTest` (2).*
 
 ### Local (IDE/Maven)
 ```bash

@@ -42,7 +42,7 @@ This project represents a simplified retail banking **ePricing (Electronic Prici
      - Database operations & errors (`DB_OPERATION`, `DATABASE_ERROR`)
 
 4. **Automated Unit & Controller Testing**:
-   - Comprehensive JUnit 5 test suite (`ApplicationContextBootstrapTest`, `PricingCalculatorTest`, `PricingServiceTest`, `PricingControllerTest`, `TemporalPricingControllerTest`, `TemporalPricingServiceTest`, `LoanPricingWorkflowTest`, `TemporalWorkflowLiveIntegrationTest`, `DatabaseMigrationInitializerTest`, `PricingPersistenceAtomicityTest`, `StructuredLoggerTest`, `HealthControllerTest`) covering mathematical logic, service orchestration, Bean Validation, in-memory Temporal workflow simulation, and live context bootstrap — 55 tests total, all passing.
+   - Comprehensive JUnit 5 test suite (`ApplicationContextBootstrapTest`, `PricingCalculatorTest`, `PricingServiceTest`, `PricingControllerTest`, `TemporalPricingControllerTest`, `TemporalPricingServiceTest`, `LoanPricingWorkflowTest`, `TemporalWorkflowLiveIntegrationTest`, `DatabaseMigrationInitializerTest`, `PricingPersistenceAtomicityTest`, `StructuredLoggerTest`, `HealthControllerTest`) covering mathematical logic, service orchestration, Bean Validation, in-memory Temporal workflow simulation, and live context bootstrap — 57 tests total, all passing.
 
 5. **Enterprise Hardening & Resilience**:
    - Dynamic application versioning via `BuildProperties` (auto-read from Maven `build-info.properties`).

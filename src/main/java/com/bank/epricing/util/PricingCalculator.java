@@ -153,6 +153,9 @@ public class PricingCalculator {
         if (tenureMonths <= 0) {
             throw new IllegalArgumentException("Loan tenure must be greater than zero months");
         }
+        if (annualRatePercent == null || annualRatePercent.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Annual interest rate must be non-null and non-negative");
+        }
         if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
             return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
@@ -264,6 +267,9 @@ public class PricingCalculator {
     // ─── PRIVATE HELPERS ──────────────────────────────────────────────────
 
     private BigDecimal getProductMultiplier(String productType) {
+        if (productType == null || productType.isBlank()) {
+            throw new PricingException.UnsupportedProductTypeException(productType);
+        }
         return switch (productType.toUpperCase()) {
             case "HOME_LOAN" -> homeLoanMultiplier;
             case "AUTO_LOAN" -> autoLoanMultiplier;
