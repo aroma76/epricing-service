@@ -7,8 +7,6 @@
   "refresh": "30s",
   "schemaVersion": 39,
   "tags": [
-    "epricing",
-    "banking",
     "L4",
     "infrastructure",
     "sre",
@@ -22,7 +20,12 @@
       "icon": "dashboard",
       "includeVars": true,
       "keepTime": true,
-      "tags": ["epricing"],
+      "tags": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
       "targetBlank": false,
       "title": "ePricing Observability (L1-L4)",
       "type": "dashboards"

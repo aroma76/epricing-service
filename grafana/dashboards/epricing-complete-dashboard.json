@@ -9,8 +9,6 @@
   "refresh": "15s",
   "schemaVersion": 39,
   "tags": [
-    "epricing",
-    "banking",
     "L2",
     "observability",
     "engineering",
@@ -25,7 +23,10 @@
       "includeVars": true,
       "keepTime": true,
       "tags": [
-        "epricing"
+        "L1",
+        "L2",
+        "L3",
+        "L4"
       ],
       "targetBlank": false,
       "title": "ePricing Observability (L1-L4)",

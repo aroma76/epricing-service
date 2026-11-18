@@ -7,8 +7,6 @@
   "refresh": "15s",
   "schemaVersion": 39,
   "tags": [
-    "epricing",
-    "banking",
     "L3",
     "logs",
     "loki",
@@ -22,7 +20,12 @@
       "icon": "dashboard",
       "includeVars": true,
       "keepTime": true,
-      "tags": ["epricing"],
+      "tags": [
+        "L1",
+        "L2",
+        "L3",
+        "L4"
+      ],
       "targetBlank": false,
       "title": "ePricing Observability (L1-L4)",
       "type": "dashboards"

@@ -455,8 +455,10 @@ services:
   traffic-generator:
     image: alpine/curl:latest
     container_name: traffic-generator
-    command: >
-      sh -c '
+    entrypoint:
+      - "sh"
+      - "-c"
+      - |
         echo "Starting realistic background traffic simulator for Grafana (cadence: 6s)..."
         sleep 15
         STEP=0
@@ -514,7 +516,6 @@ services:
 
           sleep 6
         done
-      '
     networks:
       - epricing-network
     depends_on:
