@@ -36,7 +36,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Log Analysis Dashboard",
   "uid": "epricing-logs",
-  "version": 6,
+  "version": 7,
   "panels": [
 
     { "id": 1, "type": "row", "title": "Log Volume Overview", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false },
@@ -139,7 +139,7 @@
       "title": "All Error Types (Cumulative)",
       "description": "Cumulative count of pricing errors by error type",
       "type": "bargauge",
-      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 41 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 41 },
       "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
       "options": {
         "displayMode": "gradient",
@@ -173,43 +173,30 @@
 
     {
       "id": 42,
-      "title": "Error Distribution (% Share)",
-      "description": "Proportional breakdown of cumulative errors by error type",
-      "type": "piechart",
-      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 41 },
+      "title": "Error Rate Over Time",
+      "description": "Rate of pricing errors per second by error type",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 41 },
       "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
       "options": {
-        "pieType": "donut",
-        "reduceOptions": {
-          "values": false,
-          "calcs": ["lastNotNull"],
-          "fields": ""
-        },
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "values": ["value", "percent"],
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single"
-        }
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "color": {
-            "mode": "palette-classic"
+          "unit": "reqps",
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
           }
         },
         "overrides": []
       },
       "targets": [
         {
-          "expr": "sum by (error_type) (pricing_errors_total{application=\"epricing-service\"})",
+          "expr": "sum by (error_type) (rate(pricing_errors_total{application=\"epricing-service\"}[1m]))",
           "legendFormat": "{{error_type}}",
-          "instant": true,
           "refId": "A"
         }
       ]
