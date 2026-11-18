@@ -88,6 +88,10 @@ public class PricingAuditService {
                 ? errorMessage
                 : (errorCode != null ? errorCode : "Business eligibility rejection");
 
+            String safeReason = (displayReason != null && displayReason.length() > 500)
+                ? displayReason.substring(0, 497) + "..."
+                : displayReason;
+
             // 1. Persist a PricingRequest record with status REJECTED and full error message first
             // so we obtain its generated ID for the audit log
             PricingRequest rejectedRecord = PricingRequest.builder()
@@ -99,7 +103,7 @@ public class PricingAuditService {
                 .annualIncome(requestDto.getAnnualIncome())
                 .loanPurpose(requestDto.getLoanPurpose())
                 .status(PricingRequest.PricingStatus.REJECTED)
-                .errorMessage(displayReason)
+                .errorMessage(safeReason)
                 .requestIp(requestIp)
                 .traceId(traceId)
                 .build();

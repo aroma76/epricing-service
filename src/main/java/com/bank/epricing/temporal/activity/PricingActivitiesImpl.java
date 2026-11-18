@@ -78,7 +78,10 @@ public class PricingActivitiesImpl implements PricingActivities {
         if (reqId != null) {
             pricingRepository.findById(reqId).ifPresent(req -> {
                 req.setStatus(PricingRequest.PricingStatus.REJECTED);
-                req.setErrorMessage(reason);
+                String safeReason = (reason != null && reason.length() > 500)
+                    ? reason.substring(0, 497) + "..."
+                    : reason;
+                req.setErrorMessage(safeReason);
                 pricingRepository.save(req);
                 log.info("Updated pricing_requests status to REJECTED | requestId={}", reqId);
             });

@@ -242,17 +242,22 @@ public class PricingCalculator {
      * monthly income.
      */
     public void validateFoir(String customerId, BigDecimal emiAmount, BigDecimal annualIncome) {
-        if (annualIncome != null && emiAmount != null) {
-            BigDecimal monthlyIncome = annualIncome.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-            BigDecimal maxPermissibleEmi = monthlyIncome.multiply(new BigDecimal("0.50")).setScale(2,
-                    RoundingMode.HALF_UP);
+        if (annualIncome == null || annualIncome.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Annual income must be greater than zero for FOIR validation");
+        }
+        if (emiAmount == null || emiAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("EMI amount must be greater than zero for FOIR validation");
+        }
 
-            if (emiAmount.compareTo(maxPermissibleEmi) > 0) {
-                throw new PricingException.FoirExceededException(
-                        customerId,
-                        emiAmount,
-                        maxPermissibleEmi);
-            }
+        BigDecimal monthlyIncome = annualIncome.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+        BigDecimal maxPermissibleEmi = monthlyIncome.multiply(new BigDecimal("0.50")).setScale(2,
+                RoundingMode.HALF_UP);
+
+        if (emiAmount.compareTo(maxPermissibleEmi) > 0) {
+            throw new PricingException.FoirExceededException(
+                    customerId,
+                    emiAmount,
+                    maxPermissibleEmi);
         }
     }
 

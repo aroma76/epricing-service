@@ -532,13 +532,16 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: cadvisor
+    command:
+      - "-docker_only=true"
+      - "-raw_cgroup_prefix_whitelist=/docker/"
     ports:
       - "8085:8080"  # Map host 8085 to container 8080 (changed from 8082 to avoid conflict with Dapr)
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     networks:
       - epricing-network

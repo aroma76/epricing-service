@@ -178,4 +178,26 @@ class PricingCalculatorTest {
         );
         assertEquals(new BigDecimal("24.00"), rate);
     }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when annual income is null or zero in FOIR validation")
+    void testValidateFoir_NullOrZeroIncome() {
+        assertThrows(IllegalArgumentException.class, () ->
+            pricingCalculator.validateFoir("CUST001234", new BigDecimal("25000"), null)
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+            pricingCalculator.validateFoir("CUST001234", new BigDecimal("25000"), BigDecimal.ZERO)
+        );
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when EMI is null or zero in FOIR validation")
+    void testValidateFoir_NullOrZeroEmi() {
+        assertThrows(IllegalArgumentException.class, () ->
+            pricingCalculator.validateFoir("CUST001234", null, new BigDecimal("1200000"))
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+            pricingCalculator.validateFoir("CUST001234", BigDecimal.ZERO, new BigDecimal("1200000"))
+        );
+    }
 }
