@@ -1,0 +1,47 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 02-configmap.yml — Enterprise ePricing Application Configuration
+# ═══════════════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: epricing-config
+  namespace: epricing
+  labels:
+    app.kubernetes.io/name: epricing-service
+    app.kubernetes.io/component: configuration
+    app.kubernetes.io/part-of: bank-digital-onboarding
+data:
+  # Spring runtime profile
+  SPRING_PROFILES_ACTIVE: "k8s"
+
+  # Server ports (split business vs management traffic)
+  SERVER_PORT: "8080"
+  MANAGEMENT_SERVER_PORT: "8081"
+
+  # Database configuration (YugabyteDB / PostgreSQL)
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://yugabyte-ysql.database.svc.cluster.local:5433/epricingdb"
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.postgresql.Driver"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
+  SPRING_FLYWAY_ENABLED: "false"
+
+  # Temporal durable workflow orchestration
+  TEMPORAL_SERVICE_ADDRESS: "temporal-frontend.temporal.svc.cluster.local:7233"
+  TEMPORAL_NAMESPACE: "default"
+  TEMPORAL_TASK_QUEUE: "epricing-task-queue"
+
+  # OpenTelemetry distributed tracing and metrics
+  OTEL_SERVICE_NAME: "epricing-service"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.monitoring.svc.cluster.local:4318"
+  OTEL_EXPORTER_OTLP_PROTOCOL: "http/protobuf"
+  OTEL_METRICS_EXPORTER: "none"
+  OTEL_LOGS_EXPORTER: "none"
+
+  # Core pricing domain business parameters
+  EPRICING_BASE_RATE: "8.50"
+  EPRICING_RATE_VALID_DAYS: "7"
+  EPRICING_LARGE_LOAN_DISCOUNT: "0.25"
+  EPRICING_LARGE_LOAN_THRESHOLD: "5000000"
+
+  # Logging & Auditing
+  LOGGING_LEVEL_COM_BANK_EPRICING: "INFO"
+  LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: "WARN"

@@ -77,20 +77,29 @@ epricing-service/
 │   ├── repository/                        # Spring Data JPA repositories
 │   ├── service/                           # Business logic services
 │   └── util/                              # Pure utility/calculator classes
-├── docs/                                  # This documentation
+├── docs/                                  # Study guides, architecture, container manuals
+├── k8s/                                   # Production Kubernetes manifests (00-07)
+│   ├── 00-namespace.yml                   # Restricted PodSecurity, Quota, LimitRange
+│   ├── 01-rbac.yml                        # ServiceAccount, App & Dev Least-Privilege Roles
+│   ├── 02-configmap.yml                   # Application runtime properties & endpoints
+│   ├── 03-secrets.yml                     # Datasource credentials template
+│   ├── 04-deployment.yml                  # 3-replica HA Deployment, non-root, read-only FS
+│   ├── 05-service.yml                     # ClusterIP routing (8080 app, 8081 management)
+│   ├── 06-hpa.yml                         # HorizontalPodAutoscaler (CPU 70%, Memory 80%)
+│   └── 07-pdb.yml                         # PodDisruptionBudget (minAvailable: 2)
 ├── grafana/
 │   ├── dashboards/
-│   │   ├── epricing-complete-dashboard.json          # L3 — 15-panel deep observability
-│   │   ├── epricing-l1-operations-dashboard.json     # L1 — CRMNXT-style ops dashboard (NEW)
-│   │   ├── log-analysis-dashboard.json               # L2 — Error/warning log analysis
-│   │   └── container-nodes-pods-utilization.json     # L4 — CPU/RAM/disk infra
+│   │   ├── epricing-l1-operations-dashboard.json     # L1 — CRMNXT-style ops & rate-lock dashboard
+│   │   ├── epricing-complete-dashboard.json          # L2 — Complete Observability & JVM dashboard
+│   │   ├── log-analysis-dashboard.json               # L3 — Error/warning & audit trail logs
+│   │   └── container-nodes-pods-utilization.json     # L4 — CPU/RAM/disk container utilization
 │   └── provisioning/                                 # Auto-provisioned datasources + dashboards
-│       └── datasources/datasources.yml               # Prometheus + Loki + YugabyteDB (NEW)
+│       └── datasources/datasources.yml               # Prometheus + Loki + Tempo + YugabyteDB
 ├── prometheus/alerts/                     # Prometheus alerting rules (7 rules)
 ├── webhook-logger/
 │   └── server.py                          # Local alert receiver (prints to console)
 ├── Dockerfile                             # Multi-stage container build
-├── docker-compose.yml                     # Full observability stack (11 services)
+├── docker-compose.yml                     # Full observability stack (16 containers)
 ├── prometheus.yml                         # Prometheus scrape config + Alertmanager link
 ├── alertmanager.yml                       # Alert routing — webhook / email / Slack
 ├── loki-config.yml                        # Loki storage config
@@ -106,7 +115,7 @@ epricing-service/
 ```bash
 mvn test
 ```
-*Executes all 17 automated tests across `PricingCalculatorTest` (6), `PricingServiceTest` (4), and `PricingControllerTest` (7) covering 200, 201, 400, 404, 422.*
+*Executes all 49 automated unit and integration tests across `PricingCalculatorTest` (16), `PricingServiceTest` (4), `PricingControllerTest` (7), `LoanPricingWorkflowTest` (4 in-memory Temporal tests), `TemporalWorkflowLiveIntegrationTest` (1), `TemporalPricingControllerTest` (4), `TemporalPricingServiceTest` (1), `DatabaseMigrationInitializerTest` (4), `PricingPersistenceAtomicityTest` (2), `StructuredLoggerTest` (4), and `HealthControllerTest` (2).*
 
 ### Local (IDE/Maven)
 ```bash

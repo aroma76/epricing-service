@@ -6,7 +6,16 @@
   "id": null,
   "refresh": "15s",
   "schemaVersion": 39,
-  "tags": ["epricing", "logs", "loki", "audit"],
+  "tags": [
+    "epricing",
+    "banking",
+    "L3",
+    "logs",
+    "loki",
+    "developers",
+    "audit-trail",
+    "tempo"
+  ],
   "links": [
     {
       "asDropdown": false,

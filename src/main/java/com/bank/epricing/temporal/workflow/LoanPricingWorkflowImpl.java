@@ -76,7 +76,10 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
                 workflowId, e.getMessage());
             status = "REJECTED";
             result.setStatus(status);
-            result.setRejectionReason(e.getMessage() != null ? e.getMessage() : "Pricing calculation rejected");
+            String failureReason = (e.getCause() != null && e.getCause().getMessage() != null && !e.getCause().getMessage().isBlank())
+                ? e.getCause().getMessage()
+                : (e.getMessage() != null ? e.getMessage() : "Pricing calculation rejected");
+            result.setRejectionReason(failureReason);
             result.setUpdatedAt(java.time.Instant.ofEpochMilli(Workflow.currentTimeMillis()).toString());
             return result;
         }

@@ -10,8 +10,13 @@
   "schemaVersion": 39,
   "tags": [
     "epricing",
+    "banking",
+    "L2",
     "observability",
-    "complete"
+    "engineering",
+    "prometheus",
+    "jvm",
+    "sla"
   ],
   "links": [
     {

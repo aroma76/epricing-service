@@ -6,7 +6,16 @@
   "id": null,
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["epricing", "infrastructure", "containers", "cadvisor"],
+  "tags": [
+    "epricing",
+    "banking",
+    "L4",
+    "infrastructure",
+    "sre",
+    "containers",
+    "cadvisor",
+    "node-exporter"
+  ],
   "links": [
     {
       "asDropdown": false,

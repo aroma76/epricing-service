@@ -10,9 +10,12 @@
   "schemaVersion": 39,
   "tags": [
     "epricing",
+    "banking",
     "L1",
     "operations",
-    "CRMNXT"
+    "crmnxt",
+    "yugabytedb",
+    "rate-lock"
   ],
   "links": [
     {

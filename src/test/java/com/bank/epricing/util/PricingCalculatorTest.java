@@ -4,6 +4,7 @@ import com.bank.epricing.exception.PricingException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 
@@ -114,5 +115,67 @@ class PricingCalculatorTest {
         assertDoesNotThrow(() ->
             pricingCalculator.validateFoir("CUST001234", new BigDecimal("40000"), new BigDecimal("1200000"))
         );
+    }
+
+    @Test
+    @DisplayName("Should not apply large loan discount at exactly 50 Lakhs threshold boundary")
+    void testCalculateInterestRate_50LakhExactBoundary_NoDiscount() {
+        // Base rate: 8.50 * 1.0 = 8.50, Credit score 760 (-0.50) -> 8.00%.
+        // Exactly 5,000,000 does not exceed 50 Lakhs, so no -0.25% discount.
+        BigDecimal rate = pricingCalculator.calculateInterestRate(
+            "HOME_LOAN", 760, new BigDecimal("5000000")
+        );
+        assertEquals(new BigDecimal("8.00"), rate);
+    }
+
+    @Test
+    @DisplayName("Should apply large loan discount for amounts strictly above 50 Lakhs boundary (50,00,001)")
+    void testCalculateInterestRate_Above50LakhBoundary_ReceivesDiscount() {
+        // Base rate: 8.50 * 1.0 = 8.50, Credit score 760 (-0.50) -> 8.00 - 0.25 = 7.75%
+        BigDecimal rate = pricingCalculator.calculateInterestRate(
+            "HOME_LOAN", 760, new BigDecimal("5000001")
+        );
+        assertEquals(new BigDecimal("7.75"), rate);
+    }
+
+    @Test
+    @DisplayName("Should throw UnsupportedProductTypeException for unknown loan product")
+    void testCalculateInterestRate_UnsupportedProductType() {
+        assertThrows(PricingException.UnsupportedProductTypeException.class, () ->
+            pricingCalculator.calculateInterestRate("GOLD_LOAN", 750, new BigDecimal("1000000"))
+        );
+    }
+
+    @Test
+    @DisplayName("Should throw LoanAmountExceedsEligibilityException when loan exceeds 10x annual income")
+    void testValidateEligibility_Exceeds10xIncome() {
+        // Annual income = 1,000,000 -> Max eligible = 10,000,000. Requested = 12,000,000.
+        assertThrows(PricingException.LoanAmountExceedsEligibilityException.class, () ->
+            pricingCalculator.validateEligibility("CUST001234", 750, new BigDecimal("12000000"), new BigDecimal("1000000"))
+        );
+    }
+
+    @Test
+    @DisplayName("Should clamp interest rate to 7.00% regulatory floor when formula evaluates lower")
+    void testCalculateInterestRate_ClampedToFloor() {
+        // Artificially lower baseRate to 5.00 to force sub-7% calculation
+        ReflectionTestUtils.setField(pricingCalculator, "baseRate", new BigDecimal("5.00"));
+        // 5.00 - 1.00 (excellent credit) - 0.25 (large loan) = 3.75% -> clamped to 7.00%
+        BigDecimal rate = pricingCalculator.calculateInterestRate(
+            "HOME_LOAN", 820, new BigDecimal("6000000")
+        );
+        assertEquals(new BigDecimal("7.00"), rate);
+    }
+
+    @Test
+    @DisplayName("Should clamp interest rate to 24.00% regulatory ceiling when formula evaluates higher")
+    void testCalculateInterestRate_ClampedToCeiling() {
+        // Artificially raise baseRate to 20.00
+        ReflectionTestUtils.setField(pricingCalculator, "baseRate", new BigDecimal("20.00"));
+        // 20.00 * 1.50 (personal loan) = 30.00 + 1.50 (poor credit) = 31.50% -> clamped to 24.00%
+        BigDecimal rate = pricingCalculator.calculateInterestRate(
+            "PERSONAL_LOAN", 600, new BigDecimal("1000000")
+        );
+        assertEquals(new BigDecimal("24.00"), rate);
     }
 }

@@ -75,47 +75,6 @@ public class PricingAuditService {
     }
 
     /**
-     * Records a successful pricing calculation.
-     *
-     * COMPLIANCE: This method is SYNCHRONOUS (no @Async).
-     * Audit records for successful transactions are regulatory records and must
-     * be committed atomically with the pricing request, not fire-and-forget.
-     * @Transactional(REQUIRES_NEW) creates an independent transaction that
-     * commits even if the caller's transaction is rolled back.
-     */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void recordSuccess(PricingRequest savedRequest, String requestIp, String traceId) {
-        try {
-            PricingAuditLog auditLog = PricingAuditLog.builder()
-                .pricingRequestId(savedRequest.getId())
-                .customerId(savedRequest.getCustomerId())
-                .action("PRICING_CALCULATED")
-                .description(String.format(
-                    "Interest rate %.2f%% p.a. calculated for %s loan. " +
-                    "Risk category: %s",
-                    savedRequest.getCalculatedRate(),
-                    savedRequest.getProductType(),
-                    savedRequest.getRiskCategory() != null ? savedRequest.getRiskCategory() : "STANDARD"
-                ))
-                .performedBy("system:pricing-engine")
-                .outcome("SUCCESS")
-                .requestIp(requestIp)
-                .traceId(traceId)
-                .durationMs(savedRequest.getProcessingTimeMs())
-                .build();
-
-            auditRepository.save(auditLog);
-            log.debug("Audit record saved | pricingRequestId={} | traceId={}", savedRequest.getId(), traceId);
-        } catch (Exception e) {
-            // NEVER let audit log failure propagate to the caller.
-            // The business operation succeeded — don't fail it because of audit.
-            // In production, this would trigger an alert to fix the audit service.
-            log.error("Failed to save audit log | pricingRequestId={} | error={}",
-                savedRequest.getId(), e.getMessage(), e);
-        }
-    }
-
-    /**
      * Records a business rejection event with both the human-readable error message and the error code.
      *
      * COMPLIANCE: This method is SYNCHRONOUS (no @Async).

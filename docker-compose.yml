@@ -460,8 +460,8 @@ services:
         while true; do
           STEP=$$((STEP + 1))
 
-          # 1. Normal Banking Traffic: Rotate product types
-          MOD=$$((STEP % 4))
+          # 1. Normal Banking Traffic: Rotate product types (All 5 supported products)
+          MOD=$$((STEP % 5))
           if [ "$$MOD" -eq 0 ]; then
             curl -s -X POST http://epricing-service:8080/api/v1/pricing \
               -H "Content-Type: application/json" \
@@ -474,10 +474,14 @@ services:
             curl -s -X POST http://epricing-service:8080/api/v1/pricing \
               -H "Content-Type: application/json" \
               -d "{\"customer_id\":\"CUST003456\",\"product_type\":\"PERSONAL_LOAN\",\"loan_amount\":300000,\"loan_tenure_months\":36,\"credit_score\":750,\"annual_income\":900000}" > /dev/null
-          else
+          elif [ "$$MOD" -eq 3 ]; then
             curl -s -X POST http://epricing-service:8080/api/v1/pricing \
               -H "Content-Type: application/json" \
               -d "{\"customer_id\":\"CUST004567\",\"product_type\":\"EDUCATION_LOAN\",\"loan_amount\":1500000,\"loan_tenure_months\":84,\"credit_score\":710,\"annual_income\":1500000}" > /dev/null
+          else
+            curl -s -X POST http://epricing-service:8080/api/v1/pricing \
+              -H "Content-Type: application/json" \
+              -d "{\"customer_id\":\"CUST005678\",\"product_type\":\"BUSINESS_LOAN\",\"loan_amount\":3500000,\"loan_tenure_months\":60,\"credit_score\":740,\"annual_income\":4800000}" > /dev/null
           fi
 
           # 2. Occasional Slow Request (every ~90 seconds / 15 steps)
@@ -485,7 +489,18 @@ services:
             curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-slow > /dev/null
           fi
 
-          # 3. Occasional Simulated Error (every ~150 seconds / 25 steps)
+          # 3. Occasional Temporal Rate-Lock Workflow Trigger & Query (every ~120 seconds / 20 steps)
+          if [ "$$((STEP % 20))" -eq 0 ]; then
+            WF_RESP=$$(curl -s -X POST "http://epricing-service:8080/api/v1/workflow/pricing/calculate?rateValidDays=7" \
+              -H "Content-Type: application/json" \
+              -d "{\"customer_id\":\"CUST_WF_$${STEP}\",\"product_type\":\"HOME_LOAN\",\"loan_amount\":4500000,\"loan_tenure_months\":180,\"credit_score\":760,\"annual_income\":2000000}")
+            WF_ID=$$(echo "$$WF_RESP" | grep -o '"workflow_id":"[^"]*' | cut -d'"' -f4)
+            if [ -n "$$WF_ID" ]; then
+              curl -s "http://epricing-service:8080/api/v1/workflow/pricing/status/$$WF_ID" > /dev/null
+            fi
+          fi
+
+          # 4. Occasional Simulated Error (every ~150 seconds / 25 steps)
           if [ "$$((STEP % 25))" -eq 0 ]; then
             curl -s http://epricing-service:8080/api/v1/metrics-demo/simulate-error > /dev/null
           fi

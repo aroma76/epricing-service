@@ -1,0 +1,17 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 07-pdb.yml — Pod Disruption Budget (High Availability)
+# ═══════════════════════════════════════════════════════════════════════════
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: epricing-service-pdb
+  namespace: epricing
+  labels:
+    app.kubernetes.io/name: epricing-service
+    app.kubernetes.io/component: high-availability
+    app.kubernetes.io/part-of: bank-digital-onboarding
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: epricing-service
