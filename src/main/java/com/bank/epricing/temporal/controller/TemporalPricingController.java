@@ -94,4 +94,18 @@ public class TemporalPricingController {
         PricingWorkflowResult result = temporalPricingService.getWorkflowResult(workflowId);
         return ResponseEntity.ok(result);
     }
+
+    /**
+     * Query quick status string of a workflow.
+     */
+    @GetMapping("/{workflowId}/status")
+    public ResponseEntity<Map<String, String>> getQuickWorkflowStatus(
+            @PathVariable("workflowId") String workflowId) {
+
+        String status = temporalPricingService.getWorkflowStatus(workflowId);
+        return ResponseEntity.ok(Map.of(
+            "workflow_id", workflowId,
+            "status", status
+        ));
+    }
 }

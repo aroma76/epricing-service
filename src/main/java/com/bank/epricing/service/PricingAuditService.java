@@ -167,9 +167,12 @@ public class PricingAuditService {
     public void recordTechnicalFailure(PricingRequestDto requestDto, String errorMessage,
                                        String requestIp, String traceId) {
         try {
-            String safeError = (errorMessage != null && !errorMessage.isBlank())
+            String rawError = (errorMessage != null && !errorMessage.isBlank())
                 ? errorMessage
                 : "Unknown technical error";
+            String safeError = rawError.length() > 1997 ? rawError.substring(0, 1997) + "..." : rawError;
+            String safeAuditDesc = rawError.length() > 450 ? rawError.substring(0, 447) + "..." : rawError;
+
             String customerId = (requestDto != null && requestDto.getCustomerId() != null && !requestDto.getCustomerId().isBlank())
                 ? requestDto.getCustomerId()
                 : "UNKNOWN";
@@ -207,7 +210,7 @@ public class PricingAuditService {
                 .pricingRequestId(reqId)
                 .customerId(customerId)
                 .action("TECHNICAL_FAILURE")
-                .description("Technical failure occurred: " + safeError)
+                .description("Technical failure occurred: " + safeAuditDesc)
                 .performedBy("system:pricing-engine")
                 .outcome("ERROR")
                 .requestIp(requestIp)

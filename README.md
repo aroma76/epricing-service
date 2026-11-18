@@ -42,7 +42,7 @@ This project represents a simplified retail banking **ePricing (Electronic Prici
      - Database operations & errors (`DB_OPERATION`, `DATABASE_ERROR`)
 
 4. **Automated Unit & Controller Testing**:
-   - Comprehensive JUnit 5 test suite (`PricingCalculatorTest`, `PricingServiceTest`, `PricingControllerTest`) covering mathematical logic, service orchestration, Bean Validation, and HTTP edge cases (400 validation failure, 404 not found, 422 insufficient credit score) — 17 tests total, all passing.
+   - Comprehensive JUnit 5 test suite (`ApplicationContextBootstrapTest`, `PricingCalculatorTest`, `PricingServiceTest`, `PricingControllerTest`, `TemporalPricingControllerTest`, `TemporalPricingServiceTest`, `LoanPricingWorkflowTest`, `TemporalWorkflowLiveIntegrationTest`, `DatabaseMigrationInitializerTest`, `PricingPersistenceAtomicityTest`, `StructuredLoggerTest`, `HealthControllerTest`) covering mathematical logic, service orchestration, Bean Validation, in-memory Temporal workflow simulation, and live context bootstrap — 55 tests total, all passing.
 
 5. **Enterprise Hardening & Resilience**:
    - Dynamic application versioning via `BuildProperties` (auto-read from Maven `build-info.properties`).
@@ -54,24 +54,25 @@ This project represents a simplified retail banking **ePricing (Electronic Prici
    - **Actuator lockdown**: Restricted to `health`, `info`, `prometheus`, `metrics` only. Sensitive endpoints (`env`, `configprops`, `threaddump`) removed.
    - **DB credentials fail-fast**: No default fallback — application refuses to start if `DB_USERNAME`/`DB_PASSWORD` are not set in the environment.
    - **PII masked in all logs**: Customer IDs masked (`CUST****1234`), exact loan amounts replaced with range labels (`1L-10L`). No customer financial data stored in Loki.
-   - **Synchronous audit trail**: `recordSuccess()` and `recordRejection()` run synchronously — regulatory audit records cannot be silently lost in a JVM crash.
+   - **Synchronous audit trail**: Regulatory audit records run synchronously with atomic rollback bounds (`@Transactional(rollbackFor = Exception.class)`).
    - **Proxy-aware IP capture**: `PricingController` reads `X-Forwarded-For` header to capture the real client IP, not the load balancer IP.
-   - **FOIR check enforced**: `annualIncome` is now `@NotNull` — income eligibility check cannot be silently bypassed.
-   - **Rate validity configurable**: `rateValidUntil` now driven by `epricing.rate-valid-days` config (default: 7 days).
-   - **Enum cleanup**: Removed unused `PENDING` and `APPROVED` statuses that implied an unbuilt approval workflow.
+   - **FOIR check enforced**: `annualIncome` is validated dynamically against calculated EMI with positive value guards.
+   - **Rate validity configurable**: `rateValidUntil` driven by `epricing.rate-valid-days` config (default: 7 days) and guaranteed by Temporal durable workflows.
+   - **Durable Approval Workflow**: Temporal durable workflow manages the complete quote lifecycle (`QUOTED`, `APPROVED`, `REJECTED`, `EXPIRED`) with rate-lock guarantees.
    > See [`docs/compliance/COMPLIANCE_FIXES.md`](docs/compliance/COMPLIANCE_FIXES.md) for a full learning guide on every issue and fix.
 
 7. **Container → Nodes → Pods Utilization Monitoring**:
    - Added **cAdvisor** (`cadvisor:8080`) to capture container-level CPU %, memory working set, disk I/O, and throttling metrics.
    - Added **Node Exporter** (`node-exporter:9100`) to expose host / node hardware utilization (Node CPU idle %, memory available %, filesystem size).
-   - Created dedicated **Grafana Dashboard** (`container-nodes-pods-utilization.json`) visualizing Node, Pod, and Container utilization.
-
+   - Created dedicated **Grafana Dashboard** (`container-nodes-pods-utilization.json`) visualizing Node, Pod, and Container utilization with PromQL fallbacks for Windows WSL2.
 
 ---
 
-## Why It Changed
+## Architecture & Technology Stack
 
-- **Beginner-Friendly Clarity**: Kept the architecture clean and simple (single Spring Boot app, H2 database) without introducing unnecessary enterprise complexity like Kafka, Redis, or Kubernetes.
+- **Distributed Enterprise SQL**: Powered by **YugabyteDB** (YSQL/PostgreSQL wire-compatible) distributed cluster with connection pooling, transactional atomicity, and read-replica role isolation (`grafana_reader`).
+- **Durable Workflow Engine**: Powered by **Temporal** for resilient 7-day rate-lock timers, queryable workflow snapshots, and human-in-the-loop approval/rejection signals.
+- **Production Kubernetes Ready**: Complete production manifest suite in `k8s/` (`00-namespace.yml` through `07-pdb.yml`) with HPA, PodDisruptionBudget, and readiness/liveness probes.
 - **Realistic Banking Context**: Transformed generic pricing placeholders into a realistic retail banking loan ePricing system (Home Loan, Auto Loan, Personal Loan, Business Loan, Education Loan).
 - **Production Observability Practices**: Solved the "blind system" problem by correlating Metrics, Logs, and Traces via `traceId` so an intern or engineer can diagnose issues instantly in Grafana.
 

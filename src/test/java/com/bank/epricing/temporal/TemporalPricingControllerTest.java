@@ -60,6 +60,11 @@ class TemporalPricingControllerTest {
         public PricingWorkflowResult getWorkflowResult(String workflowId) {
             return mockResult;
         }
+
+        @Override
+        public String getWorkflowStatus(String workflowId) {
+            return mockResult != null ? mockResult.getStatus() : "UNKNOWN";
+        }
     }
 
     @BeforeEach
@@ -143,5 +148,23 @@ class TemporalPricingControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.workflow_id").value("wf-123"))
             .andExpect(jsonPath("$.status").value("APPROVED"));
+    }
+
+    @Test
+    @DisplayName("GET /workflow/pricing/{workflowId}/status returns quick workflow status string")
+    void testGetQuickWorkflowStatus() throws Exception {
+        PricingWorkflowResult result = new PricingWorkflowResult(
+            "wf-123",
+            "CUST001234",
+            "HOME_LOAN",
+            "QUOTED",
+            null
+        );
+        stubService.mockResult = result;
+
+        mockMvc.perform(get("/workflow/pricing/wf-123/status"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.workflow_id").value("wf-123"))
+            .andExpect(jsonPath("$.status").value("QUOTED"));
     }
 }

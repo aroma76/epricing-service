@@ -25,9 +25,11 @@ data:
   SPRING_FLYWAY_ENABLED: "false"
 
   # Temporal durable workflow orchestration
+  TEMPORAL_ENABLED: "true"
+  TEMPORAL_TARGET: "temporal-frontend.temporal.svc.cluster.local:7233"
   TEMPORAL_SERVICE_ADDRESS: "temporal-frontend.temporal.svc.cluster.local:7233"
   TEMPORAL_NAMESPACE: "default"
-  TEMPORAL_TASK_QUEUE: "epricing-task-queue"
+  TEMPORAL_TASK_QUEUE: "epricing-pricing-queue"
 
   # OpenTelemetry distributed tracing and metrics
   OTEL_SERVICE_NAME: "epricing-service"

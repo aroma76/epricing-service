@@ -119,6 +119,116 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorResponse);
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadable(
+        org.springframework.http.converter.HttpMessageNotReadableException ex,
+        WebRequest request
+    ) {
+        meterRegistry.counter(
+            "pricing.errors.total",
+            "error_type", "MALFORMED_REQUEST_BODY",
+            "http_status", "400"
+        ).increment();
+
+        log.warn("Malformed JSON payload | message={} | path={}",
+            ex.getMessage(),
+            request.getDescription(false)
+        );
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .timestamp(LocalDateTime.now())
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+            .errorCode("MALFORMED_REQUEST_BODY")
+            .message("Malformed JSON request body or missing required payload.")
+            .path(request.getDescription(false).replace("uri=", ""))
+            .traceId(Span.current().getSpanContext().getTraceId())
+            .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(
+        org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex,
+        WebRequest request
+    ) {
+        meterRegistry.counter(
+            "pricing.errors.total",
+            "error_type", "ARGUMENT_TYPE_MISMATCH",
+            "http_status", "400"
+        ).increment();
+
+        log.warn("Method argument type mismatch | parameter={} | value={} | path={}",
+            ex.getName(), ex.getValue(), request.getDescription(false));
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .timestamp(LocalDateTime.now())
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+            .errorCode("ARGUMENT_TYPE_MISMATCH")
+            .message(String.format("Parameter '%s' has invalid value '%s'", ex.getName(), ex.getValue()))
+            .path(request.getDescription(false).replace("uri=", ""))
+            .traceId(Span.current().getSpanContext().getTraceId())
+            .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(
+        org.springframework.web.HttpRequestMethodNotSupportedException ex,
+        WebRequest request
+    ) {
+        meterRegistry.counter(
+            "pricing.errors.total",
+            "error_type", "METHOD_NOT_ALLOWED",
+            "http_status", "405"
+        ).increment();
+
+        log.warn("HTTP method not supported | method={} | supported={} | path={}",
+            ex.getMethod(), ex.getSupportedHttpMethods(), request.getDescription(false));
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .timestamp(LocalDateTime.now())
+            .status(HttpStatus.METHOD_NOT_ALLOWED.value())
+            .error(HttpStatus.METHOD_NOT_ALLOWED.getReasonPhrase())
+            .errorCode("METHOD_NOT_ALLOWED")
+            .message(String.format("HTTP method '%s' not supported for this endpoint.", ex.getMethod()))
+            .path(request.getDescription(false).replace("uri=", ""))
+            .traceId(Span.current().getSpanContext().getTraceId())
+            .build();
+
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(errorResponse);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+        IllegalArgumentException ex,
+        WebRequest request
+    ) {
+        meterRegistry.counter(
+            "pricing.errors.total",
+            "error_type", "INVALID_ARGUMENT",
+            "http_status", "400"
+        ).increment();
+
+        log.warn("Invalid argument | message={} | path={}",
+            ex.getMessage(), request.getDescription(false));
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+            .timestamp(LocalDateTime.now())
+            .status(HttpStatus.BAD_REQUEST.value())
+            .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+            .errorCode("INVALID_ARGUMENT")
+            .message(ex.getMessage())
+            .path(request.getDescription(false).replace("uri=", ""))
+            .traceId(Span.current().getSpanContext().getTraceId())
+            .build();
+
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoResourceFound(
         org.springframework.web.servlet.resource.NoResourceFoundException ex,
