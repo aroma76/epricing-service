@@ -71,7 +71,7 @@ graph TD
     CALC["PricingCalculator\n(Pure Math — no DB, no HTTP)"]
     REPO["PricingRepository\n(JPA → HikariCP → YugabyteDB)"]
     AUDIT["PricingAuditService\n(Separate TX: REQUIRES_NEW)"]
-    YUGO["YugabyteDB :5433\npricing_requests\npricing_audit_log"]
+    YUGO["YugabyteDB :5433\npricing_requests\npricing_audit_logs"]
     METRICS["PricingMetrics\n(Micrometer Counters/Timers)"]
     ACTUATOR["/actuator/prometheus\n(Port 8081)"]
     LOGFILE["/app/logs/epricing-service.log\n(JSON format)"]
@@ -462,12 +462,12 @@ CREATE INDEX idx_pricing_status   ON pricing_requests(status);       -- fast fil
 
 Without indexes, `SELECT * FROM pricing_requests WHERE customer_id = 'CUST001234'` would scan every row in the table. With the index, YugabyteDB jumps directly to the matching rows in microseconds.
 
-### Table 2: `pricing_audit_log`
+### Table 2: `pricing_audit_logs`
 
 This table is **append-only**. Rows are never updated or deleted. It records every significant event in the pricing lifecycle.
 
 ```sql
-CREATE TABLE pricing_audit_log (
+CREATE TABLE pricing_audit_logs (
     id                 BIGSERIAL PRIMARY KEY,
     pricing_request_id BIGINT         NOT NULL,  -- FK to pricing_requests.id
     event_type         VARCHAR(50)    NOT NULL,  -- "PRICING_CALCULATED", "REJECTED", "WORKFLOW_APPROVED"
@@ -524,7 +524,7 @@ public void recordSuccess(PricingRequest entity) {
 -- Flyway V6: Creates a read-only database user for Grafana
 CREATE ROLE grafana_reader WITH LOGIN PASSWORD 'grafana_readonly_pass';
 GRANT CONNECT ON DATABASE epricingdb TO grafana_reader;
-GRANT SELECT ON pricing_requests, pricing_audit_log TO grafana_reader;
+GRANT SELECT ON pricing_requests, pricing_audit_logs TO grafana_reader;
 -- NOT granted: INSERT, UPDATE, DELETE, DROP, CREATE
 ```
 
@@ -579,7 +579,7 @@ Temporal Server stores this workflow in its DB.
 LoanPricingWorkflow runs Activity: calculateAndPersistPricing()
   → PricingService.calculatePricing() → rate = 11.75%
   → Saves to pricing_requests table: status = CALCULATED
-  → Saves to pricing_audit_log: event_type = WORKFLOW_PRICING_CALCULATED
+  → Saves to pricing_audit_logs: event_type = WORKFLOW_PRICING_CALCULATED
 
 Workflow now WAITS (Workflow.await with 7-day timeout)
 Priya's status is "Quote given, waiting for decision"
@@ -593,7 +593,7 @@ Body: { approvedBy: "PRIYA_SELF_SERVICE", notes: "Accepting at 11.75%" }
 Temporal receives a SIGNAL (approveQuote signal)
 Workflow wakes up from its await()
 Runs: recordQuoteApproval(workflowId, notes)
-  → Saves to pricing_audit_log: event_type = QUOTE_APPROVED
+  → Saves to pricing_audit_logs: event_type = QUOTE_APPROVED
   → pricing_requests status updated to APPROVED
   → Workflow completes
 ```
@@ -603,7 +603,7 @@ Runs: recordQuoteApproval(workflowId, notes)
 Temporal's timer fires (7 days elapsed)
 Workflow.await() returns false (timeout, not signal)
 Runs: recordQuoteExpiration(workflowId)
-  → Saves to pricing_audit_log: event_type = QUOTE_EXPIRED
+  → Saves to pricing_audit_logs: event_type = QUOTE_EXPIRED
   → pricing_requests status updated to EXPIRED
   → Workflow completes
 ```
@@ -1246,9 +1246,9 @@ RBI mandates that:
 2. Audit records cannot be modified (append-only)
 3. Audit records must be retained for 7 years
 
-The `pricing_audit_log` table satisfies these:
+The `pricing_audit_logs` table satisfies these:
 - **Append-only:** No `UPDATE` or `DELETE` methods exist in `PricingAuditRepository`
-- **Database-level enforcement:** `grafana_reader` only has `SELECT`. Application user does not have `DELETE` on `pricing_audit_log`
+- **Database-level enforcement:** `grafana_reader` only has `SELECT`. Application user does not have `DELETE` on `pricing_audit_logs`
 - **REQUIRES_NEW transaction:** Audit records commit independently. Even if the main transaction fails and rolls back, the audit of the *attempt* is preserved.
 
 ### CORS Configuration (Fail-Closed)
@@ -1335,7 +1335,7 @@ Now that you understand the project, here is a recommended study order for going
 After studying this guide, you should be able to answer:
 
 1. "Walk me through what happens when a customer applies for a home loan."
-2. "Why do we have two separate database tables — `pricing_requests` and `pricing_audit_log`?"
+2. "Why do we have two separate database tables — `pricing_requests` and `pricing_audit_logs`?"
 3. "What is REQUIRES_NEW and why is it used for the audit service?"
 4. "If a 5XX error happens in production, how would you investigate it using the dashboards?"
 5. "What is label cardinality and why does it matter for Prometheus?"

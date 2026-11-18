@@ -21,10 +21,14 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 /**
- * DatabaseMigrationInitializer — Enterprise Distributed Schema Migration Runner.
- * Executes versioned SQL migrations (V1..Vn) sequentially and tracks applied scripts
- * in schema_history. Implements InitializingBean and configures EntityManagerFactory
- * dependency to ensure migrations complete BEFORE Hibernate validates the schema.
+ * DatabaseMigrationInitializer — Enterprise Distributed Schema Migration
+ * Runner.
+ * Executes versioned SQL migrations (V1..Vn) sequentially and tracks applied
+ * scripts
+ * in schema_history. Implements InitializingBean and configures
+ * EntityManagerFactory
+ * dependency to ensure migrations complete BEFORE Hibernate validates the
+ * schema.
  */
 @Component("databaseMigrationInitializer")
 public class DatabaseMigrationInitializer implements InitializingBean {
@@ -48,30 +52,23 @@ public class DatabaseMigrationInitializer implements InitializingBean {
             // 1. Ensure schema_history table exists
             try (PreparedStatement stmt = conn.prepareStatement(
                     "CREATE TABLE IF NOT EXISTS schema_history (" +
-                    "  version VARCHAR(50) PRIMARY KEY," +
-                    "  description VARCHAR(200) NOT NULL," +
-                    "  script VARCHAR(200) NOT NULL," +
-                    "  installed_on TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP" +
-                    ")")) {
+                            "  version VARCHAR(50) PRIMARY KEY," +
+                            "  description VARCHAR(200) NOT NULL," +
+                            "  script VARCHAR(200) NOT NULL," +
+                            "  installed_on TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP" +
+                            ")")) {
                 stmt.execute();
             }
 
             // 2. Discover all migration scripts under db/migration/
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
             Resource[] resources = resolver.getResources("classpath:db/migration/V*.sql");
-            Arrays.sort(resources, Comparator.comparingInt(r -> {
-                String name = r.getFilename();
-                if (name == null || !name.startsWith("V")) return 0;
-                try {
-                    return Integer.parseInt(name.substring(1).split("__")[0]);
-                } catch (Exception e) {
-                    return 0;
-                }
-            }));
+            Arrays.sort(resources, Comparator.comparing(Resource::getFilename));
 
             for (Resource resource : resources) {
                 String filename = resource.getFilename();
-                if (filename == null) continue;
+                if (filename == null)
+                    continue;
 
                 String version = filename.split("__")[0];
                 String description = filename.substring(version.length() + 2).replace(".sql", "").replace("_", " ");
@@ -125,7 +122,8 @@ public class DatabaseMigrationInitializer implements InitializingBean {
     public static class DatabaseMigrationJpaDependencyConfig implements BeanFactoryPostProcessor {
         @Override
         public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
-            String[] entityManagerFactoryNames = beanFactory.getBeanNamesForType(jakarta.persistence.EntityManagerFactory.class, true, false);
+            String[] entityManagerFactoryNames = beanFactory
+                    .getBeanNamesForType(jakarta.persistence.EntityManagerFactory.class, true, false);
             for (String beanName : entityManagerFactoryNames) {
                 BeanDefinition bd = beanFactory.getBeanDefinition(beanName);
                 String[] currentDependsOn = bd.getDependsOn();
