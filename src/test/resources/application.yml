@@ -12,3 +12,20 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+
+server:
+  port: 0
+
+epricing:
+  temporal:
+    enabled: false
+  cors:
+    allowed-origins: "http://localhost:3000"
+
+otel:
+  traces:
+    exporter: none
+  metrics:
+    exporter: none
+  logs:
+    exporter: none

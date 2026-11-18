@@ -72,7 +72,7 @@ public class MetricsDemoController {
 
         Map<String, Object> grafanaInfo = new LinkedHashMap<>();
         grafanaInfo.put("url", "http://localhost:3000");
-        grafanaInfo.put("default_credentials", "admin/admin");
+        grafanaInfo.put("default_credentials", "admin / Bank@grafana123");
         grafanaInfo.put("dashboards", List.of("JVM Overview", "Application Metrics", "Business Metrics"));
         summary.put("grafana", grafanaInfo);
 

@@ -133,13 +133,14 @@ scrape_configs:
           service_type: 'infrastructure'
 
   # ─── JOB 3B: OTel Collector Bridged Application Metrics ───────────────────
-  # The OTel Collector exposes application metrics forwarded via OTLP on port 8889
+  # The OTel Collector exposes application metrics forwarded via OTLP on port 8889.
+  # Tagged with application 'epricing-service-bridge' to avoid metric double-counting with Job 1.
   - job_name: 'otel-collector-metrics'
     scrape_interval: 15s
     static_configs:
       - targets: ['otel-collector:8889']
         labels:
-          application: 'epricing-service'
+          application: 'epricing-service-bridge'
           source: 'otel-collector'
 
   # ─── JOB 4: cAdvisor Container Metrics ───────────────────────────────────

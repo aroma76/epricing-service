@@ -154,6 +154,9 @@ services:
       TEMPORAL_TARGET: "temporal:7233"
       TEMPORAL_NAMESPACE: "default"
       TEMPORAL_TASK_QUEUE: "epricing-pricing-queue"
+
+      # CORS Allowed Origins for Grafana and Local Testing
+      CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080"
     
     volumes:
       # Mount the shared log volume so promtail can read logs
@@ -491,12 +494,16 @@ services:
 
           # 3. Occasional Temporal Rate-Lock Workflow Trigger & Query (every ~120 seconds / 20 steps)
           if [ "$$((STEP % 20))" -eq 0 ]; then
-            WF_RESP=$$(curl -s -X POST "http://epricing-service:8080/api/v1/workflow/pricing/calculate?rateValidDays=7" \
+            WF_RESP=$$(curl -s -X POST "http://epricing-service:8080/api/v1/workflow/pricing/start" \
               -H "Content-Type: application/json" \
               -d "{\"customer_id\":\"CUST_WF_$${STEP}\",\"product_type\":\"HOME_LOAN\",\"loan_amount\":4500000,\"loan_tenure_months\":180,\"credit_score\":760,\"annual_income\":2000000}")
             WF_ID=$$(echo "$$WF_RESP" | grep -o '"workflow_id":"[^"]*' | cut -d'"' -f4)
             if [ -n "$$WF_ID" ]; then
-              curl -s "http://epricing-service:8080/api/v1/workflow/pricing/status/$$WF_ID" > /dev/null
+              curl -s "http://epricing-service:8080/api/v1/workflow/pricing/$$WF_ID" > /dev/null
+              # Occasionally approve quote (every 60 steps)
+              if [ "$$((STEP % 60))" -eq 0 ]; then
+                curl -s -X POST "http://epricing-service:8080/api/v1/workflow/pricing/$$WF_ID/approve" > /dev/null
+              fi
             fi
           fi
 

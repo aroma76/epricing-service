@@ -37,7 +37,7 @@ public class PricingRequest {
 
     @Column(name = "loan_amount", nullable = false, precision = 15, scale = 2)
     @NotNull(message = "Loan amount cannot be null")
-    @DecimalMin(value = "1000.00", message = "Minimum loan amount is ₹1,000")
+    @DecimalMin(value = "10000.00", message = "Minimum loan amount is ₹10,000")
     @DecimalMax(value = "100000000.00", message = "Maximum loan amount is ₹10 crore")
     private BigDecimal loanAmount;
 

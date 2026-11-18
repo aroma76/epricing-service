@@ -174,7 +174,7 @@ public class PricingAuditService {
                 : "UNKNOWN";
             java.math.BigDecimal loanAmount = (requestDto != null && requestDto.getLoanAmount() != null)
                 ? requestDto.getLoanAmount()
-                : new java.math.BigDecimal("1000.00");
+                : new java.math.BigDecimal("10000.00");
             Integer loanTenureMonths = (requestDto != null && requestDto.getLoanTenureMonths() != null)
                 ? requestDto.getLoanTenureMonths()
                 : 12;
