@@ -63,7 +63,15 @@ public class DatabaseMigrationInitializer implements InitializingBean {
             // 2. Discover all migration scripts under db/migration/
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
             Resource[] resources = resolver.getResources("classpath:db/migration/V*.sql");
-            Arrays.sort(resources, Comparator.comparing(Resource::getFilename));
+            Arrays.sort(resources, Comparator.comparingInt(r -> {
+                String name = r.getFilename();
+                if (name == null || !name.startsWith("V")) return 0;
+                try {
+                    return Integer.parseInt(name.substring(1).split("__")[0]);
+                } catch (Exception e) {
+                    return 0;
+                }
+            }));
 
             for (Resource resource : resources) {
                 String filename = resource.getFilename();

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Implementation of Temporal Pricing Activities.
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Component;
  * services.
  */
 @Component
+@Transactional(rollbackFor = Exception.class)
 public class PricingActivitiesImpl implements PricingActivities {
 
     private static final Logger log = LoggerFactory.getLogger(PricingActivitiesImpl.class);

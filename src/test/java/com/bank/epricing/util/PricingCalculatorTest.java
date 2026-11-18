@@ -97,11 +97,11 @@ class PricingCalculatorTest {
     }
 
     @Test
-    @DisplayName("Should throw LoanAmountExceedsEligibilityException when EMI exceeds 50% FOIR cap")
+    @DisplayName("Should throw FoirExceededException when EMI exceeds 50% FOIR cap")
     void testValidateFoir_BreachesCap() {
         // Monthly income = 200,000 / 12 = 16,666.67. 50% cap = 8,333.34
         // Proposed EMI = 10,000 > 8,333.34
-        assertThrows(PricingException.LoanAmountExceedsEligibilityException.class, () ->
+        assertThrows(PricingException.FoirExceededException.class, () ->
             pricingCalculator.validateFoir("CUST001234", new BigDecimal("10000"), new BigDecimal("200000"))
         );
     }
