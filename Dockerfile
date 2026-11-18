@@ -70,5 +70,5 @@ ENV JAVA_OPTS="-XX:+UseContainerSupport \
                -Djava.security.egd=file:/dev/./urandom \
                -Dspring.profiles.active=docker"
 
-# Launch application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+# Launch application with exec to ensure SIGTERM reaches JVM process for graceful shutdown
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

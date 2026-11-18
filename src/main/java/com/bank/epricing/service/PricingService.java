@@ -104,6 +104,7 @@ public class PricingService {
      * "If pricing calculation succeeded but audit log failed → rollback both"
      * This prevents partial state (pricing without audit trail).
      */
+    @Transactional(rollbackFor = Exception.class)
     public PricingResponseDto calculatePricing(PricingRequestDto requestDto, String requestIp) {
 
         long overallStartTime = System.currentTimeMillis();
@@ -201,6 +202,24 @@ public class PricingService {
                 interestRate,
                 requestDto.getLoanTenureMonths()
             );
+
+            // ─── STEP 3b: Validate FOIR (Fixed Obligation to Income Ratio) ──
+            try {
+                pricingCalculator.validateFoir(
+                    requestDto.getCustomerId(),
+                    emi,
+                    requestDto.getAnnualIncome()
+                );
+            } catch (PricingException.LoanAmountExceedsEligibilityException e) {
+                pricingMetrics.recordPricingRejection();
+                structuredLogger.logPricingRejected(
+                    requestDto.getCustomerId(), requestDto.getProductType(),
+                    e.getMessage(), e.getErrorCode()
+                );
+                auditService.recordRejection(requestDto, e.getMessage(), e.getErrorCode(), requestIp,
+                    pricingSpan.getSpanContext().getTraceId());
+                throw e;
+            }
 
             // ─── STEP 4: Calculate derived values ─────────────────────────
             BigDecimal totalPayable = emi.multiply(BigDecimal.valueOf(requestDto.getLoanTenureMonths()));

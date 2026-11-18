@@ -510,6 +510,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Temporal In-Memory Testing SDK for deterministic workflow unit tests -->
+        <dependency>
+            <groupId>io.temporal</groupId>
+            <artifactId>temporal-testing</artifactId>
+            <version>${temporal.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>

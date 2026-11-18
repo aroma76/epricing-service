@@ -132,6 +132,16 @@ scrape_configs:
           application: 'otel-collector'
           service_type: 'infrastructure'
 
+  # ─── JOB 3B: OTel Collector Bridged Application Metrics ───────────────────
+  # The OTel Collector exposes application metrics forwarded via OTLP on port 8889
+  - job_name: 'otel-collector-metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['otel-collector:8889']
+        labels:
+          application: 'epricing-service'
+          source: 'otel-collector'
+
   # ─── JOB 4: cAdvisor Container Metrics ───────────────────────────────────
   # cAdvisor exports container CPU, memory, filesystem, and network utilization
   - job_name: 'cadvisor'

@@ -37,6 +37,13 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
                     .setBackoffCoefficient(2.0)
                     .setMaximumInterval(Duration.ofSeconds(10))
                     .setMaximumAttempts(5)
+                    .setDoNotRetry(
+                        com.bank.epricing.exception.PricingException.class.getName(),
+                        com.bank.epricing.exception.PricingException.InsufficientCreditScoreException.class.getName(),
+                        com.bank.epricing.exception.PricingException.LoanAmountExceedsEligibilityException.class.getName(),
+                        com.bank.epricing.exception.PricingException.FoirExceededException.class.getName(),
+                        com.bank.epricing.exception.PricingException.UnsupportedProductTypeException.class.getName()
+                    )
                     .build()
             )
             .build()
@@ -58,10 +65,21 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
         );
 
         // Step 1: Calculate and persist pricing quote
-        PricingResponseDto quote = activities.calculateAndPersistPricing(requestDto, requestIp);
-        status = "QUOTED";
-        result.setStatus(status);
-        result.setQuote(quote);
+        PricingResponseDto quote;
+        try {
+            quote = activities.calculateAndPersistPricing(requestDto, requestIp);
+            status = "QUOTED";
+            result.setStatus(status);
+            result.setQuote(quote);
+        } catch (Exception e) {
+            log.warn("Pricing calculation failed/rejected in workflow | workflowId={} | error={}",
+                workflowId, e.getMessage());
+            status = "REJECTED";
+            result.setStatus(status);
+            result.setRejectionReason(e.getMessage() != null ? e.getMessage() : "Pricing calculation rejected");
+            result.setUpdatedAt(java.time.Instant.ofEpochMilli(Workflow.currentTimeMillis()).toString());
+            return result;
+        }
 
         String quoteId = quote.getRequestId() != null
             ? quote.getRequestId().toString()
@@ -73,20 +91,24 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
 
         boolean decisionMade = Workflow.await(Duration.ofDays(days), () -> approved || rejected);
 
+        String decisionTime = java.time.Instant.ofEpochMilli(Workflow.currentTimeMillis()).toString();
         if (approved) {
             status = "APPROVED";
             result.setStatus(status);
+            result.setUpdatedAt(decisionTime);
             activities.recordQuoteApproval(quoteId, requestDto.getCustomerId());
             log.info("Pricing offer approved by customer | workflowId={}", workflowId);
         } else if (rejected) {
             status = "REJECTED";
             result.setStatus(status);
             result.setRejectionReason(rejectionReason);
+            result.setUpdatedAt(decisionTime);
             activities.recordQuoteRejection(quoteId, requestDto.getCustomerId(), rejectionReason);
             log.info("Pricing offer rejected by customer | workflowId={} | reason={}", workflowId, rejectionReason);
         } else {
             status = "EXPIRED";
             result.setStatus(status);
+            result.setUpdatedAt(decisionTime);
             activities.recordQuoteExpiration(quoteId, requestDto.getCustomerId());
             log.info("Pricing offer expired after {} days | workflowId={}", days, workflowId);
         }
@@ -96,8 +118,8 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
 
     @Override
     public void approveQuote() {
-        if (!"QUOTED".equals(status)) {
-            log.warn("Cannot approve quote in state: {}", status);
+        if (!"QUOTED".equals(status) || approved || rejected) {
+            log.warn("Cannot approve quote in state: {} (approved={}, rejected={})", status, approved, rejected);
             return;
         }
         this.approved = true;
@@ -105,8 +127,8 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
 
     @Override
     public void rejectQuote(String reason) {
-        if (!"QUOTED".equals(status)) {
-            log.warn("Cannot reject quote in state: {}", status);
+        if (!"QUOTED".equals(status) || approved || rejected) {
+            log.warn("Cannot reject quote in state: {} (approved={}, rejected={})", status, approved, rejected);
             return;
         }
         this.rejected = true;

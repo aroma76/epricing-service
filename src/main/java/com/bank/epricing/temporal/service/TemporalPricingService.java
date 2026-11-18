@@ -107,6 +107,25 @@ public class TemporalPricingService {
             return workflow.getStatus();
         } catch (Exception e) {
             log.warn("Workflow status query failed for workflowId={}: {}", workflowId, e.getMessage());
+            try {
+                io.temporal.client.WorkflowExecutionDescription desc = workflowClient.get()
+                    .newUntypedWorkflowStub(workflowId)
+                    .describe();
+                io.temporal.api.enums.v1.WorkflowExecutionStatus execStatus = desc.getStatus();
+                if (execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING) {
+                    return "PROCESSING";
+                }
+                if (execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED) {
+                    return "COMPLETED";
+                }
+                if (execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED
+                        || execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED
+                        || execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TIMED_OUT) {
+                    return "FAILED";
+                }
+            } catch (Exception descEx) {
+                log.debug("Could not describe workflow execution for {}: {}", workflowId, descEx.getMessage());
+            }
             return "PROCESSING";
         }
     }
@@ -122,6 +141,24 @@ public class TemporalPricingService {
             return result != null ? result : new PricingWorkflowResult(workflowId, null, null, "PROCESSING", null);
         } catch (Exception e) {
             log.warn("Workflow result query failed for workflowId={}: {}", workflowId, e.getMessage());
+            try {
+                io.temporal.client.WorkflowExecutionDescription desc = workflowClient.get()
+                    .newUntypedWorkflowStub(workflowId)
+                    .describe();
+                io.temporal.api.enums.v1.WorkflowExecutionStatus execStatus = desc.getStatus();
+                if (execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING) {
+                    return new PricingWorkflowResult(workflowId, null, null, "PROCESSING", null);
+                }
+                if (execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED
+                        || execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED
+                        || execStatus == io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TIMED_OUT) {
+                    PricingWorkflowResult failedResult = new PricingWorkflowResult(workflowId, null, null, "FAILED", null);
+                    failedResult.setRejectionReason("Workflow execution ended with status: " + execStatus.name());
+                    return failedResult;
+                }
+            } catch (Exception descEx) {
+                log.debug("Could not describe workflow execution for {}: {}", workflowId, descEx.getMessage());
+            }
             return new PricingWorkflowResult(workflowId, null, null, "PROCESSING", null);
         }
     }

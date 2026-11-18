@@ -114,6 +114,7 @@ public class PricingRequest {
         CALCULATED,
         APPROVED,
         REJECTED,
+        EXPIRED,
         ERROR
     }
 

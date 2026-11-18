@@ -149,11 +149,17 @@ public class PricingCalculator {
      *   BigDecimal with HALF_UP rounding matches RBI-approved calculation standards.
      */
     public BigDecimal calculateEmi(BigDecimal principalAmount, BigDecimal annualRatePercent, int tenureMonths) {
+        if (tenureMonths <= 0) {
+            throw new IllegalArgumentException("Loan tenure must be greater than zero months");
+        }
+        if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
 
-        // Convert annual rate % to monthly decimal: 8.75% → 8.75/12/100 = 0.007292
+        // Convert annual rate % to monthly decimal: e.g. 8.75% → 8.75 / 1200 with MathContext.DECIMAL128
+        // Using single-step division preserves full 34 digits of precision without premature scale truncation
         BigDecimal monthlyRate = annualRatePercent
-            .divide(BigDecimal.valueOf(12), 10, RoundingMode.HALF_UP)  // /12
-            .divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP); // /100
+            .divide(new BigDecimal("1200"), MathContext.DECIMAL128);
 
         // If rate is 0 (hypothetically), EMI is simply P/n (no interest)
         if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
@@ -207,20 +213,33 @@ public class PricingCalculator {
             );
         }
 
-        // FOIR check: EMI should not exceed 50% of monthly income
-        // (FOIR = Fixed Obligation to Income Ratio — RBI guideline)
+        // Baseline eligibility check: loan amount cannot exceed 10x annual income (safety margin)
         if (annualIncome != null && loanAmount != null) {
-            BigDecimal monthlyIncome = annualIncome.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
-            BigDecimal maxEligibleLoan = monthlyIncome
-                .multiply(new BigDecimal("0.50"))  // 50% FOIR
-                .multiply(BigDecimal.valueOf(120)) // assuming 10 year max term for eligibility
-                .multiply(new BigDecimal("0.85")); // 85% of calculated max (safety margin)
-
+            BigDecimal maxEligibleLoan = annualIncome.multiply(BigDecimal.valueOf(10));
             if (loanAmount.compareTo(maxEligibleLoan) > 0) {
                 throw new PricingException.LoanAmountExceedsEligibilityException(
                     customerId,
                     loanAmount,
                     maxEligibleLoan
+                );
+            }
+        }
+    }
+
+    /**
+     * Validates FOIR (Fixed Obligation to Income Ratio) using actual computed EMI.
+     * Under RBI guidelines, monthly debt obligation should not exceed 50% of monthly income.
+     */
+    public void validateFoir(String customerId, BigDecimal emiAmount, BigDecimal annualIncome) {
+        if (annualIncome != null && emiAmount != null) {
+            BigDecimal monthlyIncome = annualIncome.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+            BigDecimal maxPermissibleEmi = monthlyIncome.multiply(new BigDecimal("0.50")).setScale(2, RoundingMode.HALF_UP);
+
+            if (emiAmount.compareTo(maxPermissibleEmi) > 0) {
+                throw new PricingException.FoirExceededException(
+                    customerId,
+                    emiAmount,
+                    maxPermissibleEmi
                 );
             }
         }

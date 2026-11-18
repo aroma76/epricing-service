@@ -59,7 +59,15 @@ public class DatabaseMigrationInitializer implements InitializingBean {
             // 2. Discover all migration scripts under db/migration/
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
             Resource[] resources = resolver.getResources("classpath:db/migration/V*.sql");
-            Arrays.sort(resources, Comparator.comparing(Resource::getFilename));
+            Arrays.sort(resources, Comparator.comparingInt(r -> {
+                String name = r.getFilename();
+                if (name == null || !name.startsWith("V")) return 0;
+                try {
+                    return Integer.parseInt(name.substring(1).split("__")[0]);
+                } catch (Exception e) {
+                    return 0;
+                }
+            }));
 
             for (Resource resource : resources) {
                 String filename = resource.getFilename();
@@ -82,27 +90,26 @@ public class DatabaseMigrationInitializer implements InitializingBean {
 
                 if (!alreadyApplied) {
                     log.info("Applying database migration: {} - {}", filename, description);
-                    if (filename.startsWith("V6")) {
-                        try (PreparedStatement roleCheck = conn.prepareStatement("SELECT 1 FROM pg_roles WHERE rolname = 'grafana_reader'")) {
-                            try (ResultSet rs = roleCheck.executeQuery()) {
-                                if (!rs.next()) {
-                                    try (Statement createStmt = conn.createStatement()) {
-                                        createStmt.execute("CREATE ROLE grafana_reader WITH LOGIN PASSWORD 'grafana_reader_pass'");
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    ScriptUtils.executeSqlScript(conn, resource);
+                    boolean originalAutoCommit = conn.getAutoCommit();
+                    try {
+                        conn.setAutoCommit(false);
+                        ScriptUtils.executeSqlScript(conn, resource);
 
-                    try (PreparedStatement insertStmt = conn.prepareStatement(
-                            "INSERT INTO schema_history (version, description, script) VALUES (?, ?, ?)")) {
-                        insertStmt.setString(1, version);
-                        insertStmt.setString(2, description);
-                        insertStmt.setString(3, filename);
-                        insertStmt.executeUpdate();
+                        try (PreparedStatement insertStmt = conn.prepareStatement(
+                                "INSERT INTO schema_history (version, description, script) VALUES (?, ?, ?)")) {
+                            insertStmt.setString(1, version);
+                            insertStmt.setString(2, description);
+                            insertStmt.setString(3, filename);
+                            insertStmt.executeUpdate();
+                        }
+                        conn.commit();
+                        log.info("Successfully applied database migration: {}", filename);
+                    } catch (Exception ex) {
+                        conn.rollback();
+                        throw ex;
+                    } finally {
+                        conn.setAutoCommit(originalAutoCommit);
                     }
-                    log.info("Successfully applied database migration: {}", filename);
                 } else {
                     log.debug("Database migration already applied: {}", filename);
                 }

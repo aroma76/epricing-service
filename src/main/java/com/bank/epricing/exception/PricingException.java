@@ -115,6 +115,28 @@ public class PricingException extends RuntimeException {
                 HttpStatus.UNPROCESSABLE_ENTITY
             );
         }
+
+        protected LoanAmountExceedsEligibilityException(String message, String errorCode, HttpStatus status) {
+            super(message, errorCode, status);
+        }
+    }
+
+    /**
+     * Thrown when the customer's FOIR (Fixed Obligation to Income Ratio) exceeds regulatory limits.
+     */
+    public static class FoirExceededException extends LoanAmountExceedsEligibilityException {
+        public FoirExceededException(String customerId, java.math.BigDecimal monthlyEmi, java.math.BigDecimal maxPermissibleEmi) {
+            super(
+                String.format(
+                    "Customer %s has computed monthly EMI of ₹%s which exceeds maximum permissible FOIR limit of ₹%s (50%% of monthly income)",
+                    customerId,
+                    monthlyEmi != null ? monthlyEmi.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00",
+                    maxPermissibleEmi != null ? maxPermissibleEmi.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00"
+                ),
+                "PRICING_FOIR_EXCEEDED",
+                HttpStatus.UNPROCESSABLE_ENTITY
+            );
+        }
     }
 
     /**

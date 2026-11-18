@@ -1421,7 +1421,7 @@
       },
       "targets": [
         {
-          "expr": "clamp_min(sum(increase(http_server_requests_seconds_bucket{application=\"epricing-service\",le=\"+Inf\"}[5m])) - sum(increase(http_server_requests_seconds_bucket{application=\"epricing-service\",le=\"2.147483647\"}[5m])), 0) or vector(0)",
+          "expr": "clamp_min(sum(increase(http_server_requests_seconds_bucket{application=\"epricing-service\",le=\"+Inf\"}[5m])) - sum(increase(http_server_requests_seconds_bucket{application=\"epricing-service\",le=\"2.0\"}[5m])), 0) or vector(0)",
           "legendFormat": ">2s",
           "refId": "A"
         }

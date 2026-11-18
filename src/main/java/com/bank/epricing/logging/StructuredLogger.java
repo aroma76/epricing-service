@@ -181,6 +181,9 @@ public class StructuredLogger {
      */
     public static String maskCustomerId(String customerId) {
         if (customerId == null || customerId.length() <= 4) return "****";
+        if (customerId.length() < 8) {
+            return customerId.substring(0, 2) + "****" + customerId.substring(customerId.length() - 2);
+        }
         return customerId.substring(0, 4) + "****" + customerId.substring(customerId.length() - 4);
     }
 

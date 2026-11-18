@@ -81,7 +81,7 @@ services:
   yugabytedb:
     image: yugabytedb/yugabyte:2.20.1.0-b97
     container_name: epricing-yugabytedb
-    command: [ "bash", "-c", "bin/yugabyted start --advertise_address=172.20.100.10 --base_dir=/var/lib/yugabyte --ui=false && sleep 10 && bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -c 'CREATE DATABASE epricingdb;' || true && tail -f /dev/null" ]
+    command: [ "bash", "-c", "bin/yugabyted start --advertise_address=172.20.100.10 --base_dir=/var/lib/yugabyte --ui=false && until bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -c 'SELECT 1;' > /dev/null 2>&1; do sleep 2; done && bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -c 'CREATE DATABASE epricingdb;' || true && tail -f /dev/null" ]
     ports:
       - "5433:5433"   # YSQL API port (PostgreSQL wire-compatible)
       - "7000:7000"   # Master Admin UI
@@ -97,10 +97,10 @@ services:
         ipv4_address: 172.20.100.10
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "bin/yugabyted status --base_dir=/var/lib/yugabyte"]
+      test: ["CMD-SHELL", "bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -d epricingdb -c 'SELECT 1;' || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 15
       start_period: 30s
 
   # ═══════════════════════════════════════════════════════════════════════
@@ -163,12 +163,14 @@ services:
     networks:
       - epricing-network
     
-    # Startup ordering — wait for OTel Collector & YugabyteDB before starting
+    # Startup ordering — wait for OTel Collector, YugabyteDB, and Temporal before starting
     depends_on:
       otel-collector:
         condition: service_started
       yugabytedb:
         condition: service_healthy
+      temporal:
+        condition: service_started
     
     # Resource limits — prevent the container from consuming all host resources
     # In production: right-size based on load testing results

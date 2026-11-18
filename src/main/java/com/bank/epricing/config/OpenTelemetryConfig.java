@@ -43,6 +43,9 @@ public class OpenTelemetryConfig {
     @Value("${otel.exporter.otlp.endpoint:http://localhost:4318}")
     private String otlpEndpoint;
 
+    @Value("${spring.profiles.active:local}")
+    private String activeProfile;
+
     @Bean
     public OpenTelemetry openTelemetry() {
         log.info("Initializing OpenTelemetry SDK | serviceName={} | endpoint={}",
@@ -57,7 +60,7 @@ public class OpenTelemetryConfig {
                 props.put("otel.exporter.otlp.protocol", "http/protobuf");
                 props.put("otel.traces.sampler", "parentbased_always_on");
                 props.put("otel.resource.attributes",
-                    "service.namespace=Bank,team.name=epricing,deployment.environment=local");
+                    "service.namespace=Bank,team.name=epricing,deployment.environment=" + activeProfile);
                 return props;
             })
             .build()

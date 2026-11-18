@@ -51,7 +51,7 @@ public class WebConfig implements WebMvcConfigurer {
         }
         String[] origins = corsAllowedOrigins.split(",");
         log.info("CORS configured | allowedOrigins={}", corsAllowedOrigins);
-        registry.addMapping("/api/**")
+        registry.addMapping("/**")
             .allowedOriginPatterns(origins)
             .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders(

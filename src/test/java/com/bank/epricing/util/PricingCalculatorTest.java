@@ -77,4 +77,42 @@ class PricingCalculatorTest {
             pricingCalculator.validateEligibility("CUST001234", 750, new BigDecimal("500000"), new BigDecimal("1200000"))
         );
     }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when EMI tenure is zero or negative")
+    void testCalculateEmi_ZeroOrNegativeTenure() {
+        assertThrows(IllegalArgumentException.class, () ->
+            pricingCalculator.calculateEmi(new BigDecimal("1000000"), new BigDecimal("8.50"), 0)
+        );
+        assertThrows(IllegalArgumentException.class, () ->
+            pricingCalculator.calculateEmi(new BigDecimal("1000000"), new BigDecimal("8.50"), -12)
+        );
+    }
+
+    @Test
+    @DisplayName("Should calculate EMI correctly with 0% interest rate")
+    void testCalculateEmi_ZeroRate() {
+        BigDecimal emi = pricingCalculator.calculateEmi(new BigDecimal("120000"), BigDecimal.ZERO, 12);
+        assertEquals(new BigDecimal("10000.00"), emi);
+    }
+
+    @Test
+    @DisplayName("Should throw LoanAmountExceedsEligibilityException when EMI exceeds 50% FOIR cap")
+    void testValidateFoir_BreachesCap() {
+        // Monthly income = 200,000 / 12 = 16,666.67. 50% cap = 8,333.34
+        // Proposed EMI = 10,000 > 8,333.34
+        assertThrows(PricingException.LoanAmountExceedsEligibilityException.class, () ->
+            pricingCalculator.validateFoir("CUST001234", new BigDecimal("10000"), new BigDecimal("200000"))
+        );
+    }
+
+    @Test
+    @DisplayName("Should pass FOIR validation when EMI is within 50% of monthly income")
+    void testValidateFoir_Valid() {
+        // Monthly income = 1,200,000 / 12 = 100,000. 50% cap = 50,000
+        // Proposed EMI = 40,000 <= 50,000
+        assertDoesNotThrow(() ->
+            pricingCalculator.validateFoir("CUST001234", new BigDecimal("40000"), new BigDecimal("1200000"))
+        );
+    }
 }

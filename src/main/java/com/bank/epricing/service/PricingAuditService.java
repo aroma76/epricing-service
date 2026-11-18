@@ -129,9 +129,28 @@ public class PricingAuditService {
                 ? errorMessage
                 : (errorCode != null ? errorCode : "Business eligibility rejection");
 
-            // PII masking: do not include exact loan amount or income in the description.
-            // Structured metadata field holds errorCode for querying without exposing PII.
+            // 1. Persist a PricingRequest record with status REJECTED and full error message first
+            // so we obtain its generated ID for the audit log
+            PricingRequest rejectedRecord = PricingRequest.builder()
+                .customerId(requestDto.getCustomerId())
+                .productType(requestDto.getProductType())
+                .loanAmount(requestDto.getLoanAmount())
+                .loanTenureMonths(requestDto.getLoanTenureMonths())
+                .creditScore(requestDto.getCreditScore())
+                .annualIncome(requestDto.getAnnualIncome())
+                .loanPurpose(requestDto.getLoanPurpose())
+                .status(PricingRequest.PricingStatus.REJECTED)
+                .errorMessage(displayReason)
+                .requestIp(requestIp)
+                .traceId(traceId)
+                .build();
+
+            PricingRequest savedRejected = pricingRepository.save(rejectedRecord);
+            Long reqId = savedRejected != null ? savedRejected.getId() : null;
+
+            // 2. Persist audit log linked directly to the rejected PricingRequest ID
             PricingAuditLog auditLog = PricingAuditLog.builder()
+                .pricingRequestId(reqId)
                 .customerId(requestDto.getCustomerId())
                 .action("PRICING_REJECTED")
                 .description(String.format(
@@ -151,24 +170,6 @@ public class PricingAuditService {
                 .build();
 
             auditRepository.save(auditLog);
-
-            // Persist a PricingRequest record with status REJECTED and full error message
-            // so Grafana's L1 Jobs table reflects business rejections live from DB
-            PricingRequest rejectedRecord = PricingRequest.builder()
-                .customerId(requestDto.getCustomerId())
-                .productType(requestDto.getProductType())
-                .loanAmount(requestDto.getLoanAmount())
-                .loanTenureMonths(requestDto.getLoanTenureMonths())
-                .creditScore(requestDto.getCreditScore())
-                .annualIncome(requestDto.getAnnualIncome())
-                .loanPurpose(requestDto.getLoanPurpose())
-                .status(PricingRequest.PricingStatus.REJECTED)
-                .errorMessage(displayReason)
-                .requestIp(requestIp)
-                .traceId(traceId)
-                .build();
-
-            pricingRepository.save(rejectedRecord);
         } catch (Exception e) {
             log.error("Failed to save rejection records | customerId={} | error={}",
                 StructuredLogger.maskCustomerId(requestDto.getCustomerId()), e.getMessage(), e);
@@ -236,7 +237,21 @@ public class PricingAuditService {
             }
 
             PricingRequest failedRecord = builder.build();
-            pricingRepository.save(failedRecord);
+            PricingRequest savedFailed = pricingRepository.save(failedRecord);
+            Long reqId = savedFailed != null ? savedFailed.getId() : null;
+
+            PricingAuditLog auditLog = PricingAuditLog.builder()
+                .pricingRequestId(reqId)
+                .customerId(customerId)
+                .action("TECHNICAL_FAILURE")
+                .description("Technical failure occurred: " + safeError)
+                .performedBy("system:pricing-engine")
+                .outcome("ERROR")
+                .requestIp(requestIp)
+                .traceId(traceId)
+                .build();
+            auditRepository.save(auditLog);
+
             log.info("Technical failure record saved | customerId={} | traceId={}",
                 StructuredLogger.maskCustomerId(customerId), traceId);
         } catch (Exception e) {
