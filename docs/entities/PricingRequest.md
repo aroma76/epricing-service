@@ -44,12 +44,14 @@ public class PricingRequest { ... }
 | `loanTenureMonths` | `loan_tenure_months` | `Integer` | `@NotNull` | Repayment period in months |
 | `creditScore` | `credit_score` | `Integer` | `@Min(300)`, `@Max(900)` | Applicant's CIBIL credit bureau score |
 | `annualIncome` | `annual_income` | `BigDecimal` | `@NotNull`, `@DecimalMin("100000")` | **Required.** Annual income in INR. Used for FOIR eligibility check |
+| `loanPurpose` | `loan_purpose` | `String(200)` | — | Stated borrower loan justification |
 | `calculatedRate` | `calculated_rate` | `BigDecimal` | precision(5,2) | Computed annual interest rate (%) |
 | `emiAmount` | `emi_amount` | `BigDecimal` | precision(15,2) | Monthly EMI amount in INR |
-| `totalPayableAmount` | `total_payable_amount` | `BigDecimal` | precision(18,2) | Principal + total interest |
-| `totalInterestPayable` | `total_interest_payable` | `BigDecimal` | precision(18,2) | Total interest over tenure |
-| `riskCategory` | `risk_category` | `String(20)` | — | Risk bucket (see below) |
+| `totalPayableAmount` | `total_payable_amount` | `BigDecimal` | precision(15,2) | Principal + total interest |
+| `totalInterestPayable` | `total_interest_payable` | `BigDecimal` | precision(15,2) | Total interest over tenure |
+| `riskCategory` | `risk_category` | `String(30)` | — | Risk bucket (see below) |
 | `status` | `status` | `Enum(PricingStatus)` | `@Enumerated(STRING)` | Current lifecycle status |
+| `errorMessage` | `error_message` | `String(2000)` | — | Failure or rejection error reason for Grafana triage (V5) |
 | `processingTimeMs` | `processing_time_ms` | `Long` | — | End-to-end calculation duration |
 | `requestIp` | `request_ip` | `String(45)` | — | Client IP address (supports IPv6) |
 | `traceId` | `trace_id` | `String(64)` | — | OTel trace ID for cross-signal correlation |

@@ -2,7 +2,7 @@
 
 **Base URL:** `http://localhost:8080/api/v1`
 **Content-Type:** `application/json`
-**Management URL:** `http://localhost:8081/actuator`
+**Management URL:** `http://localhost:8089/actuator` (host port 8089 maps to internal 8081)
 
 ---
 
@@ -213,6 +213,83 @@ GET /api/v1/health
 
 ---
 
+## Temporal Durable Workflow Endpoints (`/api/v1/workflow/pricing`)
+
+For loans requiring a guaranteed 7-day rate lock and asynchronous approval/rejection lifecycle, use the Temporal durable workflow API:
+
+### 1. POST /workflow/pricing/start — Start Durable Workflow
+Initiates a new `LoanPricingWorkflow` instance and returns immediately with a tracking identifier.
+
+```http
+POST /api/v1/workflow/pricing/start HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+
+{
+  "customer_id": "CUST001234",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000.00,
+  "loan_tenure_months": 240,
+  "credit_score": 780,
+  "annual_income": 2400000.00
+}
+```
+
+**Response (`202 Accepted`):**
+```json
+{
+  "workflow_id": "LP-CUST001234-1731999000",
+  "customer_id": "CUST001234",
+  "product_type": "HOME_LOAN",
+  "status": "QUOTED",
+  "quote": {
+    "request_id": 1042,
+    "calculated_rate": 8.00,
+    "emi_amount": 41822.00,
+    "total_payable_amount": 10037280.00,
+    "total_interest_payable": 5037280.00,
+    "risk_category": "LOW_MEDIUM",
+    "status": "CALCULATED"
+  }
+}
+```
+*Note: Also emits a `LoanPricingEvent` with status `CALCULATED` to Kafka.*
+
+### 2. GET /workflow/pricing/{workflowId} — Full State Snapshot
+Retrieves the complete workflow status (`INITIALIZING`, `QUOTED`, `APPROVED`, `REJECTED`, `EXPIRED`, `FAILED`) and calculation quote.
+
+### 3. GET /workflow/pricing/{workflowId}/status — Fast Status Query
+Quick status probe returning lightweight JSON:
+```json
+{
+  "workflowId": "LP-CUST001234-1731999000",
+  "status": "QUOTED"
+}
+```
+
+### 4. POST /workflow/pricing/{workflowId}/approve — Customer Approval Signal
+Signals borrower acceptance of quoted interest rate before the 7-day timer elapses.
+- Updates database status to `APPROVED`.
+- Inserts audit log with action `RATE_APPROVED`.
+- Emits `LoanPricingEvent` with status `APPROVED` to Kafka.
+
+### 5. POST /workflow/pricing/{workflowId}/reject — Customer Rejection Signal
+Signals borrower rejection (optional query parameter `?reason=...`).
+- Updates database status to `REJECTED`.
+- Inserts audit log with action `RATE_REJECTED`.
+- Emits `LoanPricingEvent` with status `REJECTED` to Kafka.
+
+---
+
+## Downstream Kafka Domain Event Side-Effects
+
+Both synchronous pricing (`POST /api/v1/pricing`) and Temporal workflow state changes trigger asynchronous domain events to Apache Kafka topic `loan-pricing-events`:
+- **Fail-Fast Protection**: Dispatches with `max.block.ms: 3000`. Broker unreachability does not block HTTP responses or fail database transactions.
+- **Traceparent Header**: Carries the W3C trace context to correlate downstream consumer spans in Grafana Tempo.
+- See [`docs/messaging/LoanPricingEventStreaming.md`](../messaging/LoanPricingEventStreaming.md) for full schema and consumer contracts.
+
+---
+
 ## Error Code Reference
 
 | Error Code | HTTP Status | Description |
@@ -251,11 +328,11 @@ curl "http://localhost:8080/api/v1/pricing/1"
 # Health check
 curl "http://localhost:8080/api/v1/health"
 
-# Actuator health
-curl "http://localhost:8081/actuator/health"
+# Actuator health (host port 8089)
+curl "http://localhost:8089/actuator/health"
 
-# Prometheus metrics
-curl "http://localhost:8081/actuator/prometheus"
+# Prometheus metrics (host port 8089)
+curl "http://localhost:8089/actuator/prometheus"
 ```
 
 ---

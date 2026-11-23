@@ -124,6 +124,7 @@ See [AlertingRules.md](./AlertingRules.md) for Prometheus alert rule documentati
 
 ## Cross-References
 
+- [AI_IN_PROMETHEUS_AND_GRAFANA.md](./AI_IN_PROMETHEUS_AND_GRAFANA.md) — AI, Grafana LLM App plugin, and machine learning
 - [Prometheus.md](./Prometheus.md) — metrics data source
 - [Loki.md](./Loki.md) — log data source
 - [OpenTelemetry.md](./OpenTelemetry.md) — trace data source (Tempo)

@@ -1,0 +1,2252 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ePricing Enterprise Microservice — Interactive Architecture & Engineering Showcase</title>
+  <!-- Tailwind CSS via official CDN with fallback -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (typeof tailwind === 'undefined') {
+      document.write('<script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"><\/script>');
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    }
+    .glass-card {
+      background: rgba(17, 24, 39, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card:hover {
+      border-color: rgba(99, 102, 241, 0.45);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px -5px rgba(0, 0, 0, 0.5), 0 0 15px -2px rgba(99, 102, 241, 0.25);
+    }
+    .tier-header-btn {
+      transition: all 0.2s ease;
+    }
+    .tier-header-btn:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 25px -4px rgba(16, 185, 129, 0.35);
+    }
+    .glow-indigo {
+      box-shadow: 0 0 25px -4px rgba(99, 102, 241, 0.35);
+    }
+    .glow-purple {
+      box-shadow: 0 0 25px -4px rgba(168, 85, 247, 0.35);
+    }
+    .glow-amber {
+      box-shadow: 0 0 25px -4px rgba(245, 158, 11, 0.35);
+    }
+    .glow-rose {
+      box-shadow: 0 0 25px -4px rgba(244, 63, 94, 0.35);
+    }
+
+    /* Modal Dialog per Modern Web Guidance */
+    dialog:modal {
+      overscroll-behavior: contain;
+    }
+    dialog::backdrop {
+      background: rgba(7, 11, 20, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      overflow: hidden;
+      overscroll-behavior: contain;
+    }
+
+    /* Animated Flow SVG Line & Particle Motion Styling */
+    @keyframes flowDashAnim {
+      to {
+        stroke-dashoffset: -32;
+      }
+    }
+    .flow-line {
+      stroke-dasharray: 6 6;
+      animation: flowDashAnim 1.2s linear infinite;
+    }
+    .flow-paused .flow-line {
+      animation-play-state: paused;
+    }
+    .flow-fast .flow-line {
+      animation: flowDashAnim 0.6s linear infinite;
+    }
+
+    /* SVG Packet Glow Filters */
+    .packet-dot {
+      transition: opacity 0.3s ease;
+    }
+    .flow-paused .packet-dot {
+      opacity: 0.3;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070b14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-[#070b14] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- ========================================================================= -->
+  <!-- TOP NAVIGATION HEADER -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-50 bg-[#070b14]/85 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20 font-bold text-white text-lg">
+          eP
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold tracking-tight text-white text-lg">ePricing Service</span>
+            <span class="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              v1.0.0-SNAPSHOT
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Tier-1 Core Banking Interest Rate & Risk Underwriting Platform</p>
+        </div>
+      </div>
+
+      <!-- Live Stack Stats Pill -->
+      <div class="flex items-center gap-3 text-xs font-mono">
+        <div class="hidden md:flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300">
+          <span class="text-emerald-400 font-bold">93</span> Tests Passing (1 Integration Standby)
+        </div>
+        
+        <!-- Stack Status Indicator Pill -->
+        <button onclick="switchTab('observability')" class="hidden lg:flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300 hover:border-slate-700 transition" title="Click to view 17 Docker Compose services">
+          <span id="header-stack-status-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          <span id="header-stack-status-text">17 Containers (Compose Standby)</span>
+        </button>
+
+        <a href="glassmorphism.html" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-indigo-300 border border-indigo-500/30 font-medium text-xs transition flex items-center gap-1.5 shadow-sm">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+          Design System
+        </a>
+        <a href="#simulator" onclick="switchTab('simulator')" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Try Simulator
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- HERO BANNER -->
+  <!-- ========================================================================= -->
+  <section class="relative overflow-hidden py-10 border-b border-slate-800/80 bg-gradient-to-b from-indigo-950/25 via-[#070b14] to-[#070b14]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="max-w-4xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium mb-3">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          Enterprise Banking Architecture & Interactive Topology Showcase
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-3 leading-tight">
+          Real-Time Loan Pricing & <br class="hidden sm:inline"/>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400">Durable 7-Day Orchestration</span>
+        </h1>
+        <p class="text-sm sm:text-base text-slate-300 mb-5 leading-relaxed max-w-3xl">
+          Engineered with <strong>Java 21 LTS</strong>, <strong>Spring Boot 3.3.4</strong>, <strong>YugabyteDB Distributed SQL</strong>, <strong>Temporal 1.24.1</strong> durable workflows, <strong>Apache Kafka 3.8 (KRaft)</strong> event streaming, and an enterprise 17-container OpenTelemetry observability fabric.
+        </p>
+
+        <!-- Fast Tech Tags -->
+        <div class="flex flex-wrap gap-2 text-xs font-mono">
+          <span class="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-emerald-300">✓ DECIMAL128 Math</span>
+          <span class="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-indigo-300">✓ Temporal 7-Day Wait (0% CPU)</span>
+          <span class="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-cyan-300">✓ YugabyteDB ACID</span>
+          <span class="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-amber-300">✓ Kafka KRaft Streaming</span>
+          <span class="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-purple-300">✓ Kimball Star Schema</span>
+          <span class="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-rose-300">✓ OTel Trace Correlation</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- INTERACTIVE NAVIGATION TABS -->
+  <!-- ========================================================================= -->
+  <div class="sticky top-16 z-40 bg-[#070b14]/90 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <nav class="flex space-x-1 sm:space-x-3 overflow-x-auto py-2.5 no-scrollbar" id="nav-tabs">
+        <button onclick="switchTab('architecture')" id="tab-architecture" class="tab-btn active px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 bg-indigo-600 text-white shadow-md shadow-indigo-600/20">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Architecture Topology (5 Tiers)
+        </button>
+        <button onclick="switchTab('simulator')" id="tab-simulator" class="tab-btn px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-900">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Live Pricing Simulator
+        </button>
+        <button onclick="switchTab('schema')" id="tab-schema" class="tab-btn px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-900">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+          Schema Mapping Manifesto
+        </button>
+        <button onclick="switchTab('temporal')" id="tab-temporal" class="tab-btn px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-900">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Temporal 7-Day Rate Lock
+        </button>
+        <button onclick="switchTab('observability')" id="tab-observability" class="tab-btn px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center gap-2 text-slate-400 hover:text-white hover:bg-slate-900">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Service Topology (17 Containers)
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN TAB CONTENT CONTAINER -->
+  <!-- ========================================================================= -->
+  <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: 5-TIER INTERACTIVE ARCHITECTURE CANVAS -->
+    <!-- ========================================================================= -->
+    <div id="content-architecture" class="tab-content block space-y-6">
+      
+      <!-- Flow Control & Filter Toolbar -->
+      <div class="glass-panel p-4 rounded-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>5-Tier Enterprise Distributed Topology Map</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">Interactive Wire Topology</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Filter data paths, animate transaction packets, or click any tier or node to inspect wire protocols, port maps, and resilience contracts.</p>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="setFlowFilter('all')" id="flow-btn-all" class="flow-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold transition bg-indigo-600 text-white shadow-sm">
+            All Flows
+          </button>
+          <button onclick="setFlowFilter('underwriting')" id="flow-btn-underwriting" class="flow-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium transition bg-slate-900 text-slate-300 border border-slate-800 hover:border-emerald-500/50">
+            1. Underwriting (REST)
+          </button>
+          <button onclick="setFlowFilter('persistence')" id="flow-btn-persistence" class="flow-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium transition bg-slate-900 text-slate-300 border border-slate-800 hover:border-cyan-500/50">
+            2. ACID Persistence (YSQL)
+          </button>
+          <button onclick="setFlowFilter('temporal')" id="flow-btn-temporal" class="flow-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium transition bg-slate-900 text-slate-300 border border-slate-800 hover:border-purple-500/50">
+            3. Rate-Lock (gRPC)
+          </button>
+          <button onclick="setFlowFilter('kafka')" id="flow-btn-kafka" class="flow-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium transition bg-slate-900 text-slate-300 border border-slate-800 hover:border-amber-500/50">
+            4. Events (Kafka)
+          </button>
+          <button onclick="setFlowFilter('telemetry')" id="flow-btn-telemetry" class="flow-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium transition bg-slate-900 text-slate-300 border border-slate-800 hover:border-rose-500/50">
+            5. SRE Mesh (OTel)
+          </button>
+          
+          <button onclick="togglePacketAnimation()" id="btn-toggle-packets" class="px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 text-emerald-400 border border-slate-800 hover:bg-slate-800 transition flex items-center gap-1.5" title="Toggle flowing SVG data packets">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Packets: ON
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Flow Description Banner -->
+      <div id="flow-explanation-banner" class="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs font-mono text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-start sm:items-center gap-2">
+          <span class="text-indigo-400 font-bold uppercase tracking-wider shrink-0">Active Flow Contract:</span>
+          <span id="flow-desc-text">Showing entire 5-tier architecture topology. Click individual flows above to isolate data paths or click any tier banner / node card to inspect full specifications.</span>
+        </div>
+        <span class="text-[11px] text-slate-500 shrink-0">Click tier headers or cards for full contracts</span>
+      </div>
+
+      <!-- Visual 5-Tier Architecture Grid & Topology Map -->
+      <div id="architecture-canvas-container" class="space-y-4 relative">
+        
+        <!-- ========================================================================= -->
+        <!-- TIER 1: CLIENT GATEWAY & TRAFFIC SIMULATOR -->
+        <!-- ========================================================================= -->
+        <div class="tier-section p-5 rounded-2xl glass-panel border border-slate-800 relative transition" id="tier-1-container">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-slate-800 gap-2 cursor-pointer tier-header-btn p-2 rounded-xl" onclick="openTierModal('tier-1')" title="Click to view Tier 1 Architecture & Specifications">
+            <div class="flex items-center gap-2.5">
+              <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">TIER 1</span>
+              <h3 class="font-bold text-white text-sm hover:text-emerald-400 transition">Client Gateway & Automated Traffic Ingestion</h3>
+            </div>
+            <div class="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+              <span class="text-emerald-400 font-semibold">HTTP/1.1 REST</span>
+              <span class="text-slate-600">|</span>
+              <span>Host Ports: 8080 (Client) / 8089 (Ops)</span>
+              <span class="text-indigo-400 font-semibold ml-1">Inspect Tier →</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- Traffic Generator Node -->
+            <div class="p-4 rounded-xl glass-card border-l-4 border-l-emerald-500 cursor-pointer node-card" id="node-traffic-generator" onclick="openNodeModal('traffic-generator')">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/20">alpine/curl:latest</span>
+                <span class="text-[11px] font-mono text-slate-400">Daemon Loop (Cadence: 6s)</span>
+              </div>
+              <h4 class="font-bold text-white text-sm mb-1">Automated Banking Traffic Simulator</h4>
+              <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                Simulates real-world loan applications: rotates 5 products, dispatches 75% prime approvals, 15% credit score &lt; 650 rejections, 10% FOIR &gt; 50% violations, and triggers Temporal rate locks.
+              </p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+                <span>POST /api/v1/pricing</span>
+                <span class="text-emerald-400 font-semibold flex items-center gap-1">Inspect Contract →</span>
+              </div>
+            </div>
+
+            <!-- Ingress Gateway Node -->
+            <div class="p-4 rounded-xl glass-card border-l-4 border-l-indigo-500 cursor-pointer node-card" id="node-gateway" onclick="openNodeModal('gateway')">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-mono font-bold text-indigo-400 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-500/20">REST INGRESS</span>
+                <span class="text-[11px] font-mono text-slate-400">Ports: 8080 (API) / 8089 (Actuator)</span>
+              </div>
+              <h4 class="font-bold text-white text-sm mb-1">ePricing Client Ingress Boundary</h4>
+              <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                Entrypoint for consumer loans, mortgage originations, and operational health checks. Handles W3C traceparent extraction, CORS security policies, and rate-limit guardrails.
+              </p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+                <span>GET /health/liveness • /readiness</span>
+                <span class="text-indigo-400 font-semibold flex items-center gap-1">Inspect Specs →</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- SVG INTERCONNECT BUS: TIER 1 -> TIER 2 WITH ANIMATED MOVING PACKETS -->
+        <!-- ========================================================================= -->
+        <div class="interconnect-canvas py-1 relative z-10" id="interconnect-1-2">
+          <svg class="w-full h-14" viewBox="0 0 1000 56" fill="none">
+            <defs>
+              <filter id="glow-emerald" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+            <!-- Vertical Conduit Lines -->
+            <path id="path-t1-t2-left" d="M 250 0 L 250 20 L 500 28 L 500 56" stroke="#10b981" stroke-width="2" class="flow-line flow-wire-underwriting" />
+            <path id="path-t1-t2-right" d="M 750 0 L 750 20 L 500 28 L 500 56" stroke="#10b981" stroke-width="2" class="flow-line flow-wire-underwriting" />
+            
+            <!-- Moving Data Packet Particles -->
+            <circle r="4" fill="#34d399" filter="url(#glow-emerald)" class="packet-dot packet-underwriting">
+              <animateMotion dur="1.8s" repeatCount="indefinite" path="M 250 0 L 250 20 L 500 28 L 500 56" />
+            </circle>
+            <circle r="4" fill="#34d399" filter="url(#glow-emerald)" class="packet-dot packet-underwriting">
+              <animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite" path="M 750 0 L 750 20 L 500 28 L 500 56" />
+            </circle>
+
+            <!-- Centered Protocol Badge -->
+            <g transform="translate(500, 28)">
+              <rect x="-140" y="-12" width="280" height="24" rx="12" fill="#0b1329" stroke="#10b981" stroke-width="1.2" />
+              <text x="0" y="4" text-anchor="middle" fill="#34d399" font-family="JetBrains Mono" font-size="11" font-weight="bold">
+                HTTP/1.1 REST • JSON Payload • Port 8080
+              </text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TIER 2: CORE BANKING MICROSERVICE -->
+        <!-- ========================================================================= -->
+        <div class="tier-section p-5 rounded-2xl glass-panel border border-indigo-500/40 glow-indigo relative transition" id="tier-2-container">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-slate-800 gap-2 cursor-pointer tier-header-btn p-2 rounded-xl" onclick="openTierModal('tier-2')" title="Click to view Tier 2 Architecture & Specifications">
+            <div class="flex items-center gap-2.5">
+              <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">TIER 2</span>
+              <h3 class="font-bold text-white text-sm hover:text-indigo-400 transition">Core Banking Pricing & Underwriting Microservice</h3>
+            </div>
+            <div class="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+              <span class="text-indigo-400 font-semibold">Java 21 LTS + Spring Boot 3.3.4</span>
+              <span class="text-slate-600">|</span>
+              <span>Memory: 1024MB / 2.0 CPUs</span>
+              <span class="text-indigo-400 font-semibold ml-1">Inspect Tier →</span>
+            </div>
+          </div>
+
+          <div class="p-5 rounded-xl glass-card border-l-4 border-l-indigo-500 cursor-pointer node-card" id="node-epricing" onclick="openNodeModal('epricing')">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div class="lg:col-span-2 space-y-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono font-bold text-indigo-400 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-500/20">epricing-service:1.0.0</span>
+                  <span class="text-xs font-mono text-emerald-400">● Stateless High-Throughput Worker</span>
+                </div>
+                <h4 class="font-bold text-white text-base">ePricing Core Execution Engine</h4>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Performs high-precision loan interest compounding using <code class="text-emerald-300 bg-slate-900 px-1 py-0.5 rounded font-mono">MathContext.DECIMAL128</code> (34 digits of precision). Evaluates dual-tier underwriting (10x income cap, 50% FOIR ceiling, 650 CIBIL threshold), orchestrates Temporal workflows, and emits Kafka domain events.
+                </p>
+                <div class="flex flex-wrap gap-2 text-[10px] font-mono pt-1">
+                  <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-indigo-300">Decoupled Liveness/Readiness</span>
+                  <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-300">Yugabyte Smart Driver</span>
+                  <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-purple-300">Temporal SDK 1.24</span>
+                  <span class="px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-amber-300">Kafka Fail-Fast (3000ms)</span>
+                </div>
+              </div>
+
+              <!-- Internal Sub-modules & Ports -->
+              <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2 text-xs font-mono">
+                <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-800 pb-1">Subsystem Interfaces</div>
+                <div class="flex justify-between text-slate-300">
+                  <span>API Port:</span>
+                  <span class="text-emerald-400 font-bold">8080 (REST)</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                  <span>Ops/Actuator:</span>
+                  <span class="text-indigo-400 font-bold">8089 -> 8081</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                  <span>OTel Exporter:</span>
+                  <span class="text-rose-400">HTTP :4318</span>
+                </div>
+                <div class="flex justify-between text-slate-300">
+                  <span>Network:</span>
+                  <span class="text-purple-400">epricing-network</span>
+                </div>
+                <div class="pt-1 text-right">
+                  <span class="text-indigo-400 font-semibold text-[11px]">Inspect Full Specification →</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- SVG INTERCONNECT BUS: TIER 2 FAN-OUT TO TIERS 3, 4, 5 (QUAD-BRANCH MESH) -->
+        <!-- ========================================================================= -->
+        <div class="interconnect-canvas py-1 relative z-10" id="interconnect-2-downstream">
+          <svg class="w-full h-24" viewBox="0 0 1000 96" fill="none">
+            <defs>
+              <filter id="glow-cyan" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <filter id="glow-purple" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <filter id="glow-amber" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+              <filter id="glow-rose" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
+
+            <!-- Quad Branch Outlines from Tier 2 -->
+            <!-- Branch 1: Leftmost to YugabyteDB (YSQL 5433) -->
+            <path id="path-t2-yugabyte" d="M 500 0 L 500 24 L 200 48 L 200 96" stroke="#38bdf8" stroke-width="2" class="flow-line flow-wire-persistence" />
+            
+            <!-- Branch 2: Center-Left to Temporal (gRPC 7233) -->
+            <path id="path-t2-temporal" d="M 500 0 L 500 24 L 400 48 L 400 96" stroke="#c084fc" stroke-width="2" class="flow-line flow-wire-temporal" />
+
+            <!-- Branch 3: Center-Right to Kafka KRaft (PLAINTEXT 9092) -->
+            <path id="path-t2-kafka" d="M 500 0 L 500 24 L 620 48 L 620 96" stroke="#fbbf24" stroke-width="2" class="flow-line flow-wire-kafka" />
+
+            <!-- Branch 4: Rightmost to OpenTelemetry Fabric (OTLP 4318) -->
+            <path id="path-t2-otel" d="M 500 0 L 500 24 L 820 48 L 820 96" stroke="#f43f5e" stroke-width="2" class="flow-line flow-wire-telemetry" />
+
+            <!-- Moving Data Packet Particles along all 4 paths -->
+            <circle r="4" fill="#38bdf8" filter="url(#glow-cyan)" class="packet-dot packet-persistence">
+              <animateMotion dur="2.0s" repeatCount="indefinite" path="M 500 0 L 500 24 L 200 48 L 200 96" />
+            </circle>
+
+            <circle r="4" fill="#c084fc" filter="url(#glow-purple)" class="packet-dot packet-temporal">
+              <animateMotion dur="2.0s" begin="0.5s" repeatCount="indefinite" path="M 500 0 L 500 24 L 400 48 L 400 96" />
+            </circle>
+
+            <circle r="4" fill="#fbbf24" filter="url(#glow-amber)" class="packet-dot packet-kafka">
+              <animateMotion dur="2.0s" begin="1.0s" repeatCount="indefinite" path="M 500 0 L 500 24 L 620 48 L 620 96" />
+            </circle>
+
+            <circle r="4" fill="#f43f5e" filter="url(#glow-rose)" class="packet-dot packet-telemetry">
+              <animateMotion dur="2.0s" begin="1.5s" repeatCount="indefinite" path="M 500 0 L 500 24 L 820 48 L 820 96" />
+            </circle>
+
+            <!-- Inline Wire Protocol Chips -->
+            <g transform="translate(195, 48)">
+              <rect x="-55" y="-10" width="110" height="20" rx="10" fill="#070e20" stroke="#38bdf8" stroke-width="1.2" />
+              <text x="0" y="4" text-anchor="middle" fill="#38bdf8" font-family="JetBrains Mono" font-size="9" font-weight="bold">YSQL :5433</text>
+            </g>
+
+            <g transform="translate(395, 48)">
+              <rect x="-55" y="-10" width="110" height="20" rx="10" fill="#150824" stroke="#c084fc" stroke-width="1.2" />
+              <text x="0" y="4" text-anchor="middle" fill="#c084fc" font-family="JetBrains Mono" font-size="9" font-weight="bold">gRPC :7233</text>
+            </g>
+
+            <g transform="translate(620, 48)">
+              <rect x="-55" y="-10" width="110" height="20" rx="10" fill="#201503" stroke="#fbbf24" stroke-width="1.2" />
+              <text x="0" y="4" text-anchor="middle" fill="#fbbf24" font-family="JetBrains Mono" font-size="9" font-weight="bold">KAFKA :9092</text>
+            </g>
+
+            <g transform="translate(820, 48)">
+              <rect x="-55" y="-10" width="110" height="20" rx="10" fill="#240713" stroke="#f43f5e" stroke-width="1.2" />
+              <text x="0" y="4" text-anchor="middle" fill="#f43f5e" font-family="JetBrains Mono" font-size="9" font-weight="bold">OTLP :4318</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TIER 3: DISTRIBUTED STATE & DURABLE ORCHESTRATION -->
+        <!-- ========================================================================= -->
+        <div class="tier-section p-5 rounded-2xl glass-panel border border-slate-800 relative transition" id="tier-3-container">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-slate-800 gap-2 cursor-pointer tier-header-btn p-2 rounded-xl" onclick="openTierModal('tier-3')" title="Click to view Tier 3 Architecture & Specifications">
+            <div class="flex items-center gap-2.5">
+              <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">TIER 3</span>
+              <h3 class="font-bold text-white text-sm hover:text-cyan-400 transition">Distributed State & Durable Orchestration</h3>
+            </div>
+            <div class="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+              <span class="text-cyan-400 font-semibold">Protocols: YSQL (Postgres wire) & gRPC Protobuf</span>
+              <span class="text-slate-600">|</span>
+              <span>Ports: 5433 (YSQL) / 7233 (gRPC)</span>
+              <span class="text-indigo-400 font-semibold ml-1">Inspect Tier →</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- YugabyteDB Distributed SQL Node -->
+            <div class="p-4 rounded-xl glass-card border-l-4 border-l-cyan-500 cursor-pointer node-card" id="node-yugabyte" onclick="openNodeModal('yugabyte')">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-mono font-bold text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/20">YUGABYTEDB 2.20</span>
+                <span class="text-[11px] font-mono text-slate-400">Host Port: 5433 / Web UI: 15433</span>
+              </div>
+              <h4 class="font-bold text-white text-sm mb-1">YugabyteDB Distributed SQL Cluster</h4>
+              <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                PostgreSQL wire-compatible ACID distributed database. Uses hash-sharded LSM storage engine to persist immutable <code class="text-cyan-300">pricing_audit_logs</code> and pricing transaction requests with zero data loss.
+              </p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+                <span>Smart Driver (load-balance=true)</span>
+                <span class="text-cyan-400 font-semibold flex items-center gap-1">Inspect Specs →</span>
+              </div>
+            </div>
+
+            <!-- Temporal Durable State Machine Node -->
+            <div class="p-4 rounded-xl glass-card border-l-4 border-l-purple-500 cursor-pointer node-card" id="node-temporal" onclick="openNodeModal('temporal')">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-mono font-bold text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-500/20">TEMPORAL 1.24.1</span>
+                <span class="text-[11px] font-mono text-slate-400">Host gRPC: 7233 / UI: 8233</span>
+              </div>
+              <h4 class="font-bold text-white text-sm mb-1">Temporal Durable State Machine</h4>
+              <p class="text-xs text-slate-300 leading-relaxed mb-3">
+                Provides guaranteed 7-day rate-lock durability via <code class="text-purple-300">Workflow.await()</code>. The workflow unloads completely to <code class="text-purple-300">temporal-db</code> (PostgreSQL 5432), consuming <strong>0 JVM threads and 0% CPU</strong> during the wait.
+              </p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-[11px] font-mono text-slate-400">
+                <span>Queue: epricing-pricing-queue</span>
+                <span class="text-purple-400 font-semibold flex items-center gap-1">Inspect Specs →</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- SVG INTERCONNECT BUS: TIER 3 -> TIER 4 KAFKA STREAMING CONNECTOR -->
+        <!-- ========================================================================= -->
+        <div class="interconnect-canvas py-1 relative z-10" id="interconnect-3-4">
+          <svg class="w-full h-12" viewBox="0 0 1000 48" fill="none">
+            <path id="path-t3-t4" d="M 500 0 L 500 48" stroke="#fbbf24" stroke-width="2" class="flow-line flow-wire-kafka" />
+            <circle r="4" fill="#fbbf24" filter="url(#glow-amber)" class="packet-dot packet-kafka">
+              <animateMotion dur="1.5s" repeatCount="indefinite" path="M 500 0 L 500 48" />
+            </circle>
+            <g transform="translate(500, 24)">
+              <rect x="-140" y="-10" width="280" height="20" rx="10" fill="#1c1303" stroke="#fbbf24" stroke-width="1.2" />
+              <text x="0" y="4" text-anchor="middle" fill="#fbbf24" font-family="JetBrains Mono" font-size="10" font-weight="bold">
+                Kafka Domain Events • Topic: loan-pricing-events
+              </text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TIER 4: EVENT STREAMING & MESSAGE BROKER -->
+        <!-- ========================================================================= -->
+        <div class="tier-section p-5 rounded-2xl glass-panel border border-slate-800 relative transition" id="tier-4-container">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-slate-800 gap-2 cursor-pointer tier-header-btn p-2 rounded-xl" onclick="openTierModal('tier-4')" title="Click to view Tier 4 Architecture & Specifications">
+            <div class="flex items-center gap-2.5">
+              <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">TIER 4</span>
+              <h3 class="font-bold text-white text-sm hover:text-amber-400 transition">Apache Kafka 3.8.0 KRaft Event Streaming</h3>
+            </div>
+            <div class="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+              <span class="text-amber-400 font-semibold">Protocol: Kafka Binary / PLAINTEXT</span>
+              <span class="text-slate-600">|</span>
+              <span>Host Port: 9092 / Internal: 29092</span>
+              <span class="text-indigo-400 font-semibold ml-1">Inspect Tier →</span>
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl glass-card border-l-4 border-l-amber-500 cursor-pointer node-card" id="node-kafka" onclick="openNodeModal('kafka')">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="text-xs font-mono font-bold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-500/20">epricing-kafka (KRaft Mode)</span>
+                  <span class="text-xs font-mono text-slate-400">Topic: loan-pricing-events (3 Partitions)</span>
+                </div>
+                <h4 class="font-bold text-white text-base">Real-Time Domain Event Streaming Broker</h4>
+                <p class="text-xs text-slate-300 leading-relaxed mt-1">
+                  KRaft consensus broker streaming <code class="text-amber-300">LoanPricingEvent</code> with W3C distributed trace propagation. Configured with a fail-fast <strong>3000ms max.block.ms</strong> timeout to guarantee Spring Boot threads never freeze during network partitioning.
+                </p>
+              </div>
+              <div class="sm:text-right shrink-0 pt-2 sm:pt-0">
+                <span class="text-amber-400 font-semibold text-xs font-mono flex items-center sm:justify-end gap-1">
+                  Inspect Kafka Producer Contract →
+                </span>
+                <span class="text-[10px] text-slate-500 font-mono block mt-1">Dual Listeners: PLAINTEXT / PLAINTEXT_HOST</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- SVG INTERCONNECT BUS: TIER 4 -> TIER 5 SRE OBSERVABILITY CONNECTOR -->
+        <!-- ========================================================================= -->
+        <div class="interconnect-canvas py-1 relative z-10" id="interconnect-4-5">
+          <svg class="w-full h-12" viewBox="0 0 1000 48" fill="none">
+            <path id="path-t4-t5" d="M 500 0 L 500 48" stroke="#f43f5e" stroke-width="2" class="flow-line flow-wire-telemetry" />
+            <circle r="4" fill="#f43f5e" filter="url(#glow-rose)" class="packet-dot packet-telemetry">
+              <animateMotion dur="1.5s" repeatCount="indefinite" path="M 500 0 L 500 48" />
+            </circle>
+            <g transform="translate(500, 24)">
+              <rect x="-150" y="-10" width="300" height="20" rx="10" fill="#240713" stroke="#f43f5e" stroke-width="1.2" />
+              <text x="0" y="4" text-anchor="middle" fill="#f43f5e" font-family="JetBrains Mono" font-size="10" font-weight="bold">
+                Telemetry Mesh • OTLP Traces, Metrics, Logs
+              </text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TIER 5: 17-CONTAINER OBSERVABILITY FABRIC (SRE MESH) -->
+        <!-- ========================================================================= -->
+        <div class="tier-section p-5 rounded-2xl glass-panel border border-slate-800 relative transition" id="tier-5-container">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-slate-800 gap-2 cursor-pointer tier-header-btn p-2 rounded-xl" onclick="openTierModal('tier-5')" title="Click to view Tier 5 Architecture & Specifications">
+            <div class="flex items-center gap-2.5">
+              <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">TIER 5</span>
+              <h3 class="font-bold text-white text-sm hover:text-rose-400 transition">Full 17-Container Observability Fabric (SRE Mesh)</h3>
+            </div>
+            <div class="text-[11px] font-mono text-slate-400 flex items-center gap-2">
+              <span class="text-rose-400 font-semibold">Protocols: OTLP / PromQL / LogQL / TraceQL</span>
+              <span class="text-slate-600">|</span>
+              <span>Single Pane of Glass: Grafana :3000</span>
+              <span class="text-indigo-400 font-semibold ml-1">Inspect Tier →</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            
+            <div class="p-3 rounded-xl glass-card cursor-pointer border-t-2 border-t-cyan-500 node-card" onclick="openNodeModal('otel-collector')">
+              <span class="text-[10px] font-mono text-cyan-400 font-bold block mb-1">OTEL GATEWAY</span>
+              <h5 class="font-bold text-white text-xs truncate">otel-collector</h5>
+              <p class="text-[10px] text-slate-400 mt-0.5">Ports 4317 / 4318</p>
+              <span class="text-[10px] text-cyan-400 font-mono block mt-2">OTLP Router →</span>
+            </div>
+
+            <div class="p-3 rounded-xl glass-card cursor-pointer border-t-2 border-t-purple-500 node-card" onclick="openNodeModal('tempo')">
+              <span class="text-[10px] font-mono text-purple-400 font-bold block mb-1">TRACING</span>
+              <h5 class="font-bold text-white text-xs truncate">grafana/tempo</h5>
+              <p class="text-[10px] text-slate-400 mt-0.5">Port 3200 (TraceQL)</p>
+              <span class="text-[10px] text-purple-400 font-mono block mt-2">Trace Storage →</span>
+            </div>
+
+            <div class="p-3 rounded-xl glass-card cursor-pointer border-t-2 border-t-amber-500 node-card" onclick="openNodeModal('prometheus')">
+              <span class="text-[10px] font-mono text-amber-400 font-bold block mb-1">METRICS TSDB</span>
+              <h5 class="font-bold text-white text-xs truncate">prometheus</h5>
+              <p class="text-[10px] text-slate-400 mt-0.5">Port 9090 (PromQL)</p>
+              <span class="text-[10px] text-amber-400 font-mono block mt-2">30-day TSDB →</span>
+            </div>
+
+            <div class="p-3 rounded-xl glass-card cursor-pointer border-t-2 border-t-indigo-500 node-card" onclick="openNodeModal('grafana')">
+              <span class="text-[10px] font-mono text-indigo-400 font-bold block mb-1">DASHBOARDS</span>
+              <h5 class="font-bold text-white text-xs truncate">grafana</h5>
+              <p class="text-[10px] text-slate-400 mt-0.5">Port 3000 (UI)</p>
+              <span class="text-[10px] text-indigo-400 font-mono block mt-2">Ops Views →</span>
+            </div>
+
+            <div class="p-3 rounded-xl glass-card cursor-pointer border-t-2 border-t-emerald-500 node-card" onclick="openNodeModal('loki')">
+              <span class="text-[10px] font-mono text-emerald-400 font-bold block mb-1">LOGGING</span>
+              <h5 class="font-bold text-white text-xs truncate">loki & promtail</h5>
+              <p class="text-[10px] text-slate-400 mt-0.5">Port 3100 (LogQL)</p>
+              <span class="text-[10px] text-emerald-400 font-mono block mt-2">JSON Indexer →</span>
+            </div>
+
+            <div class="p-3 rounded-xl glass-card cursor-pointer border-t-2 border-t-rose-500 node-card" onclick="openNodeModal('alertmanager')">
+              <span class="text-[10px] font-mono text-rose-400 font-bold block mb-1">ALERTING</span>
+              <h5 class="font-bold text-white text-xs truncate">alertmanager</h5>
+              <p class="text-[10px] text-slate-400 mt-0.5">Ports 9093 / 5001</p>
+              <span class="text-[10px] text-rose-400 font-mono block mt-2">Dedup & Route →</span>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: LIVE PRICING SIMULATOR -->
+    <!-- ========================================================================= -->
+    <div id="content-simulator" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>Interactive Loan Pricing Simulator</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">Live Mathematical Engine</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-400">Replicates the exact financial algorithm in <code class="text-indigo-300">PricingCalculator.java</code> with statutory bounds and FOIR checks.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Controls & Sliders (Col 1-7) -->
+        <div class="lg:col-span-7 glass-card p-6 rounded-2xl space-y-5">
+          
+          <!-- Product Type Selector -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Loan Product Type</label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button onclick="setProduct('HOME_LOAN')" id="prod-HOME_LOAN" class="prod-btn active p-3 rounded-xl border border-indigo-500 bg-indigo-600/20 text-indigo-300 font-semibold text-xs text-center transition">
+                Home Loan
+                <span class="block text-[10px] text-slate-400 font-mono mt-0.5">Base: 8.50% × 1.00</span>
+              </button>
+              <button onclick="setProduct('AUTO_LOAN')" id="prod-AUTO_LOAN" class="prod-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs text-center transition hover:border-slate-700">
+                Auto Loan
+                <span class="block text-[10px] text-slate-400 font-mono mt-0.5">Base: 8.50% × 1.20</span>
+              </button>
+              <button onclick="setProduct('PERSONAL_LOAN')" id="prod-PERSONAL_LOAN" class="prod-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs text-center transition hover:border-slate-700">
+                Personal Loan
+                <span class="block text-[10px] text-slate-400 font-mono mt-0.5">Base: 8.50% × 1.50</span>
+              </button>
+              <button onclick="setProduct('EDUCATION_LOAN')" id="prod-EDUCATION_LOAN" class="prod-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs text-center transition hover:border-slate-700">
+                Education Loan
+                <span class="block text-[10px] text-slate-400 font-mono mt-0.5">Base: 8.50% × 1.10</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Loan Amount Slider -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Loan Principal Amount</label>
+              <span id="readout-amount" class="text-sm font-bold font-mono text-emerald-400">₹25,00,000</span>
+            </div>
+            <input type="range" id="slider-amount" min="100000" max="10000000" step="50000" value="2500000" oninput="calculateLivePricing()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+              <span>₹1 Lakh</span>
+              <span>₹50 Lakh</span>
+              <span>₹1 Crore</span>
+            </div>
+          </div>
+
+          <!-- Tenure Slider -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Loan Tenure</label>
+              <span id="readout-tenure" class="text-sm font-bold font-mono text-indigo-400">120 Months (10 Years)</span>
+            </div>
+            <input type="range" id="slider-tenure" min="12" max="360" step="12" value="120" oninput="calculateLivePricing()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+              <span>12 Months (1 Yr)</span>
+              <span>180 Months (15 Yrs)</span>
+              <span>360 Months (30 Yrs)</span>
+            </div>
+          </div>
+
+          <!-- Credit Score (CIBIL) Slider -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Credit Score (CIBIL)</label>
+              <span id="readout-credit" class="text-sm font-bold font-mono text-cyan-400">780 — Prime Borrower</span>
+            </div>
+            <input type="range" id="slider-credit" min="300" max="900" step="5" value="780" oninput="calculateLivePricing()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+              <span class="text-rose-400">&lt;650 Rejection</span>
+              <span class="text-amber-400">650-749 Medium</span>
+              <span class="text-emerald-400">&ge;750 Prime Discount</span>
+            </div>
+          </div>
+
+          <!-- Annual Income Input -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Annual Income (FOIR Verification)</label>
+              <span id="readout-income" class="text-sm font-bold font-mono text-purple-400">₹12,00,000 / year</span>
+            </div>
+            <input type="range" id="slider-income" min="300000" max="5000000" step="50000" value="1200000" oninput="calculateLivePricing()" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500 mt-1">
+              <span>₹3 Lakh</span>
+              <span>₹25 Lakh</span>
+              <span>₹50 Lakh</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Real-Time Calculation Output Card (Col 8-12) -->
+        <div class="lg:col-span-5 flex flex-col gap-4">
+          <div id="output-box" class="glass-card p-6 rounded-2xl flex-grow flex flex-col justify-between border-t-4 border-t-emerald-500 glow-emerald">
+            <div>
+              <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <span class="text-xs font-mono text-slate-400">Underwriting Decision</span>
+                <span id="output-status" class="px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  APPROVED
+                </span>
+              </div>
+
+              <!-- Main EMI Number -->
+              <div class="py-5 text-center">
+                <span class="text-xs font-mono text-slate-400 uppercase tracking-wider block mb-1">Monthly Equated Installment (EMI)</span>
+                <span id="output-emi" class="text-4xl sm:text-5xl font-extrabold font-mono text-white tracking-tight">₹30,332</span>
+                <span id="output-rate-badge" class="inline-block mt-2 text-xs font-semibold font-mono px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-emerald-400">
+                  Interest Rate: 8.00% p.a.
+                </span>
+              </div>
+
+              <!-- Metrics Breakdown -->
+              <div class="space-y-2.5 text-xs font-mono bg-slate-950/60 p-4 rounded-xl border border-slate-800">
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Total Payable:</span>
+                  <span id="output-total" class="font-bold text-white">₹36,39,828</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Total Interest:</span>
+                  <span id="output-interest" class="font-bold text-amber-400">₹11,39,828</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">FOIR (Monthly EMI / Income):</span>
+                  <span id="output-foir" class="font-bold text-emerald-400">30.3% (Safe ≤ 50%)</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Loan to Income Ratio:</span>
+                  <span id="output-lti" class="font-bold text-indigo-400">2.08x (Safe ≤ 10x)</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Risk Category:</span>
+                  <span id="output-risk" class="font-bold text-emerald-400">LOW_RISK</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Underwriting explanation text -->
+            <div id="output-note" class="mt-4 p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/40 text-xs text-emerald-300">
+              Loan application approved. Interest rate derivation: Base (8.50%) × Multiplier (1.00) − Credit Discount (0.50%) = 8.00% p.a.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: SCHEMA MAPPING MANIFESTO -->
+    <!-- ========================================================================= -->
+    <div id="content-schema" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>Analytics Schema Mapping Manifesto</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-mono">Kimball Star-Schema</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-400">Source OLTP Tables & Kafka Streams → Enterprise Data Lakehouse (Google BigQuery / Apache Iceberg).</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-400 font-mono flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg cursor-pointer">
+            <span>PII Masking:</span>
+            <input type="checkbox" id="pii-toggle" checked onchange="togglePiiMasking()" class="accent-indigo-500 cursor-pointer">
+            <span id="pii-status" class="text-emerald-400 font-bold">ACTIVE (CUST****1234)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Star Schema Topology View -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="glass-card p-4 rounded-xl border-l-4 border-l-indigo-500">
+          <span class="text-[10px] font-mono text-indigo-400 block mb-1 uppercase font-bold">Dimension Table</span>
+          <h4 class="font-bold text-white text-base">dim_customer</h4>
+          <p class="text-xs text-slate-400 mt-1">Customer risk profiling, income brackets, and cryptographically hashed customer tokens for zero PII exposure.</p>
+          <div class="mt-3 text-[11px] font-mono text-slate-300 space-y-1 bg-slate-950/60 p-2.5 rounded-lg">
+            <div>PK customer_key (INT)</div>
+            <div id="pii-sample" class="text-emerald-400">customer_id: CUST****1234</div>
+            <div>income_bracket (VARCHAR)</div>
+            <div>credit_tier: PRIME</div>
+          </div>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl border-l-4 border-l-teal-500">
+          <span class="text-[10px] font-mono text-teal-400 block mb-1 uppercase font-bold">Dimension Table</span>
+          <h4 class="font-bold text-white text-base">dim_loan_product</h4>
+          <p class="text-xs text-slate-400 mt-1">Loan product catalog, regulatory risk multipliers, and base benchmark interest rates.</p>
+          <div class="mt-3 text-[11px] font-mono text-slate-300 space-y-1 bg-slate-950/60 p-2.5 rounded-lg">
+            <div>PK product_key (INT)</div>
+            <div>product_code (VARCHAR)</div>
+            <div>base_rate: 8.50%</div>
+            <div>regulatory_multiplier: 1.0 - 1.5</div>
+          </div>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl border-l-4 border-l-emerald-500">
+          <span class="text-[10px] font-mono text-emerald-400 block mb-1 uppercase font-bold">Fact Table (Grain: 1 Request)</span>
+          <h4 class="font-bold text-white text-base">fact_pricing_decisions</h4>
+          <p class="text-xs text-slate-400 mt-1">Core transactional fact tracking loan volume, calculated EMI, interest margins, FOIR ratios, and trace IDs.</p>
+          <div class="mt-3 text-[11px] font-mono text-slate-300 space-y-1 bg-slate-950/60 p-2.5 rounded-lg">
+            <div>PK pricing_decision_key (BIGINT)</div>
+            <div>FK customer_key, product_key</div>
+            <div>loan_amount: DECIMAL(15,2)</div>
+            <div>emi_amount: DECIMAL(15,2)</div>
+            <div>trace_id: VARCHAR(64)</div>
+          </div>
+        </div>
+
+        <div class="glass-card p-4 rounded-xl border-l-4 border-l-rose-500">
+          <span class="text-[10px] font-mono text-rose-400 block mb-1 uppercase font-bold">Fact Table (Grain: 1 Audit Event)</span>
+          <h4 class="font-bold text-white text-base">fact_audit_events</h4>
+          <p class="text-xs text-slate-400 mt-1">Immutable regulatory compliance stream mapping audit actions, outcomes, execution latencies, and user agents.</p>
+          <div class="mt-3 text-[11px] font-mono text-slate-300 space-y-1 bg-slate-950/60 p-2.5 rounded-lg">
+            <div>PK audit_event_key (BIGINT)</div>
+            <div>FK pricing_decision_key</div>
+            <div>action: PRICING_CALCULATED</div>
+            <div>outcome: SUCCESS / FAILURE</div>
+            <div>duration_ms: BIGINT</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Field-by-Field Transformation Table -->
+      <div class="glass-card p-6 rounded-2xl">
+        <h3 class="text-base font-bold text-white mb-3">Field-Level Mapping Manifesto & Cleanliness Specifications</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead>
+              <tr class="border-b border-slate-800 text-slate-400">
+                <th class="py-2.5 px-3">Target Table.Field</th>
+                <th class="py-2.5 px-3">Source Field / Logic</th>
+                <th class="py-2.5 px-3">Mapping Type</th>
+                <th class="py-2.5 px-3">Cleanliness & Standardization Rule</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+              <tr>
+                <td class="py-2.5 px-3 text-emerald-400 font-bold">fact_pricing_decisions.loan_amount</td>
+                <td class="py-2.5 px-3">pricing_requests.loan_amount</td>
+                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Direct</span></td>
+                <td class="py-2.5 px-3 text-slate-400">Cast to DECIMAL(15,2); reject negative or NaN amounts.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 text-emerald-400 font-bold">dim_customer.customer_hash_token</td>
+                <td class="py-2.5 px-3">SHA256(customer_id + SALT)</td>
+                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Derived</span></td>
+                <td class="py-2.5 px-3 text-slate-400">PII Tokenization. Plaintext ID is never loaded into Data Warehouse.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 text-emerald-400 font-bold">dim_customer.credit_risk_tier</td>
+                <td class="py-2.5 px-3">CASE credit_score &ge; 750 THEN 'PRIME' ...</td>
+                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Derived</span></td>
+                <td class="py-2.5 px-3 text-slate-400">Categorize 300-900 range into PRIME, NEAR_PRIME, SUBPRIME.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 text-emerald-400 font-bold">fact_pricing_decisions.foir_ratio</td>
+                <td class="py-2.5 px-3">emi_amount / (annual_income / 12)</td>
+                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Derived</span></td>
+                <td class="py-2.5 px-3 text-slate-400">Precomputed debt-to-income metric for instant risk dashboards.</td>
+              </tr>
+              <tr>
+                <td class="py-2.5 px-3 text-emerald-400 font-bold">fact_audit_events.trace_id</td>
+                <td class="py-2.5 px-3">pricing_audit_logs.trace_id</td>
+                <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Direct</span></td>
+                <td class="py-2.5 px-3 text-slate-400">Links warehouse rows directly to Grafana Tempo distributed trace graphs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: TEMPORAL 7-DAY DURABLE RATE LOCK -->
+    <!-- ========================================================================= -->
+    <div id="content-temporal" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>Temporal 7-Day Durable Rate-Lock State Machine</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20 font-mono">Durable Execution</span>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-400">Simulate how long-running multi-day workflows wait in Temporal without blocking threads or consuming CPU.</p>
+        </div>
+      </div>
+
+      <!-- Interactive Stepper -->
+      <div class="glass-card p-6 rounded-2xl space-y-6">
+        <div class="flex items-center justify-between max-w-4xl mx-auto">
+          <div class="flex flex-col items-center">
+            <div id="step-1-circle" class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-lg shadow-indigo-600/30">1</div>
+            <span class="text-xs font-semibold mt-2 text-white">Start Workflow</span>
+          </div>
+          <div class="flex-grow h-1 bg-slate-800 mx-2" id="line-1"></div>
+          <div class="flex flex-col items-center">
+            <div id="step-2-circle" class="w-10 h-10 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm">2</div>
+            <span class="text-xs font-semibold mt-2 text-slate-400">Quote Persisted</span>
+          </div>
+          <div class="flex-grow h-1 bg-slate-800 mx-2" id="line-2"></div>
+          <div class="flex flex-col items-center">
+            <div id="step-3-circle" class="w-10 h-10 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm">3</div>
+            <span class="text-xs font-semibold mt-2 text-slate-400">7-Day Durable Wait</span>
+          </div>
+          <div class="flex-grow h-1 bg-slate-800 mx-2" id="line-3"></div>
+          <div class="flex flex-col items-center">
+            <div id="step-4-circle" class="w-10 h-10 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm">4</div>
+            <span class="text-xs font-semibold mt-2 text-slate-400">Customer Decision</span>
+          </div>
+        </div>
+
+        <!-- Stepper Detail Box -->
+        <div id="temporal-step-box" class="bg-slate-950/70 border border-slate-800 p-5 rounded-xl space-y-3 font-mono text-xs">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <span class="text-indigo-400 font-bold">STATE: INITIALIZING</span>
+            <span class="text-slate-400">WorkflowID: PRICING-WF-CUST123456-9812</span>
+          </div>
+          <p class="text-slate-300 leading-relaxed">
+            Client sends <code>POST /api/v1/workflow/pricing/start</code> with loan application payload. Temporal client dispatches workflow execution to Task Queue <code>epricing-pricing-queue</code>.
+          </p>
+          <div class="flex gap-2 pt-2">
+            <button onclick="advanceTemporalStep(2)" class="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-xs font-medium">Next: Calculate Quote →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ========================================================================= -->
+    <!-- TAB 5: DOCKER COMPOSE SPECIFICATION & SERVICE TOPOLOGY (17 CONTAINERS) -->
+    <!-- ========================================================================= -->
+    <div id="content-observability" class="tab-content hidden space-y-6">
+      
+      <!-- Dedicated Transparency & Engineering Honesty Disclosure Card -->
+      <div class="p-5 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/30 border border-amber-500/40 text-xs text-slate-300 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-500/20 pb-2.5">
+          <div class="flex items-center gap-2.5">
+            <span class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </span>
+            <span class="font-bold text-white text-sm">Transparency Disclosure: Why Were Containers Previously Shown as "Online"?</span>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-amber-300 border border-amber-500/20 w-fit">
+            Specification Honesty
+          </span>
+        </div>
+        <p class="text-slate-300 leading-relaxed text-xs">
+          <strong>Why container cards previously showed "healthy" with green pulsing dots:</strong> The initial showcase prototype rendered hardcoded mock telemetry badges to demonstrate how the production operations dashboard appears when the full infrastructure is active.
+        </p>
+        <p class="text-slate-300 leading-relaxed text-xs">
+          <strong>The honest reality:</strong> Unless you have executed <code class="text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded font-mono">docker compose up -d</code> on your local workstation, these 17 services are in a <strong>Configured / Standby (Compose Defined)</strong> state. To provide complete integrity, this page now uses a live client-side network probing engine to test local host ports and report true availability.
+        </p>
+      </div>
+
+      <!-- Action & Filter Bar -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-panel p-4 rounded-xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <span>Docker Compose Specification & Service Topology (17 Containers)</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-mono">17 Services Defined</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Network: <code class="text-indigo-300">epricing-network (172.20.0.0/16)</code> • Exact Port Mappings, Container Names & Aliases</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Ping Local Stack Live Probe Button -->
+          <button onclick="pingLocalStack()" id="btn-ping-stack" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition flex items-center gap-2 shadow-md shadow-indigo-600/30 font-mono">
+            <svg class="w-4 h-4" id="ping-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <span id="ping-text">Ping Local Stack (Live Probe)</span>
+          </button>
+          
+          <button onclick="resetContainerStatuses()" class="px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 font-medium text-xs transition font-mono">
+            Reset to Standby
+          </button>
+        </div>
+      </div>
+
+      <!-- Live Probe Results Notification Box (Dynamically updated) -->
+      <div id="probe-result-box" class="hidden p-4 rounded-xl border text-xs font-mono space-y-2">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <!-- Container Category Filter Pills -->
+      <div class="flex flex-wrap items-center gap-2" id="container-filter-tabs">
+        <button onclick="filterContainers('All')" class="c-filter-btn active px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-indigo-600 text-white transition">All (17)</button>
+        <button onclick="filterContainers('App')" class="c-filter-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 text-slate-400 border border-slate-800 hover:text-white transition">Core App (1)</button>
+        <button onclick="filterContainers('Database')" class="c-filter-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 text-slate-400 border border-slate-800 hover:text-white transition">Databases (2)</button>
+        <button onclick="filterContainers('Messaging')" class="c-filter-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 text-slate-400 border border-slate-800 hover:text-white transition">Kafka & Temporal (3)</button>
+        <button onclick="filterContainers('Observability')" class="c-filter-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 text-slate-400 border border-slate-800 hover:text-white transition">Observability Fabric (9)</button>
+        <button onclick="filterContainers('Testing')" class="c-filter-btn px-3 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 text-slate-400 border border-slate-800 hover:text-white transition">Simulation & Testing (2)</button>
+      </div>
+
+      <!-- Container Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="container-grid">
+        <!-- Rendered dynamically by JavaScript from SHOWCASE_DATA -->
+      </div>
+
+      <!-- Quick Runbook Box -->
+      <div class="glass-card p-5 rounded-2xl space-y-3 border-l-4 border-l-indigo-500">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-white text-sm flex items-center gap-2">
+            <span>Terminal Runbook Commands</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">Local Orchestration</span>
+          </h4>
+          <span class="text-xs text-slate-400 font-mono">Requires Docker Desktop</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
+          <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+            <span class="text-slate-400 block mb-1">Start Entire 17-Container Stack:</span>
+            <code class="text-emerald-400 select-all font-bold">docker compose up -d</code>
+          </div>
+          <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+            <span class="text-slate-400 block mb-1">Inspect Active Status:</span>
+            <code class="text-cyan-400 select-all font-bold">docker compose ps</code>
+          </div>
+          <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+            <span class="text-slate-400 block mb-1">Stop & Clean Volumes:</span>
+            <code class="text-rose-400 select-all font-bold">docker compose down</code>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ========================================================================= -->
+  <!-- NATIVE MODAL DIALOG (MODERN WEB GUIDANCE COMPLIANT) -->
+  <!-- ========================================================================= -->
+  <dialog id="node-modal" closedby="any" aria-labelledby="modal-title" class="p-0 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl max-w-2xl w-[92vw] text-slate-100 backdrop:bg-slate-950/80 backdrop:backdrop-blur-sm">
+    <div class="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 id="modal-title" class="text-lg font-bold text-white flex items-center gap-2">
+          Component Specifications
+        </h3>
+        <form method="dialog">
+          <button value="cancel" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition" aria-label="Close dialog">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </form>
+      </div>
+
+      <div id="modal-body" class="space-y-4 text-xs sm:text-sm text-slate-300 leading-relaxed font-sans">
+        <!-- Injected dynamically by JavaScript -->
+      </div>
+
+      <div class="pt-4 border-t border-slate-800 flex justify-end">
+        <form method="dialog">
+          <button value="cancel" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs font-mono transition">
+            Close Inspector
+          </button>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ========================================================================= -->
+  <!-- FOOTER -->
+  <!-- ========================================================================= -->
+  <footer class="mt-auto border-t border-slate-800/80 bg-[#070b14] py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 font-mono">
+      <div>
+        <span>ePricing Microservice Engineering Showcase</span> • <span>93 Unit & Integration Tests Passing (1 Integration Standby)</span>
+      </div>
+      <div>
+        <span>Java 21 • Spring Boot 3.3.4 • YugabyteDB • Temporal • Kafka • OpenTelemetry</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT: DATA MODEL & INTERACTIVE LOGIC -->
+  <!-- ========================================================================= -->
+  <script>
+    /**
+     * SHOWCASE_DATA: Verified specification of the 17 containers, 5 tiers, and architecture nodes.
+     * Accurately reflects docker-compose.yml configuration.
+     */
+    const SHOWCASE_DATA = {
+      containers: [
+        { 
+          serviceName: "epricing-service",
+          name: "epricing-service", 
+          role: "Core Banking Pricing & Underwriting Microservice", 
+          image: "epricing-service:1.0.0 (Java 21 + Spring Boot 3.3.4)",
+          port: "Host: 8080:8080 (API) / 8089:8081 (Ops/Actuator)", 
+          network: "epricing-network",
+          networkAlias: "epricing-service",
+          status: "standby", 
+          category: "App",
+          healthcheck: "wget -q -O - http://127.0.0.1:8081/actuator/health",
+          probeEndpoint: "http://localhost:8080/health/liveness"
+        },
+        { 
+          serviceName: "yugabytedb",
+          name: "epricing-yugabytedb", 
+          role: "Distributed SQL Database (PostgreSQL Compatible)", 
+          image: "yugabytedb/yugabyte:2.20.1.0-b97",
+          port: "Host: 5433 (YSQL) / 15433 (Web UI) / 7000 / 9000", 
+          network: "epricing-network (172.20.100.10)",
+          networkAlias: "yugabytedb",
+          status: "standby", 
+          category: "Database",
+          healthcheck: "bin/ysqlsh -p 5433 -U yugabyte -d epricingdb -c 'SELECT 1;'",
+          probeEndpoint: "http://localhost:15433"
+        },
+        { 
+          serviceName: "temporal-db",
+          name: "temporal-db", 
+          role: "PostgreSQL 15 State Store for Temporal Workflows", 
+          image: "postgres:15-alpine",
+          port: "Host: 5432:5432 (Postgres wire)", 
+          network: "epricing-network",
+          networkAlias: "temporal-db",
+          status: "standby", 
+          category: "Database",
+          healthcheck: "pg_isready -U temporal -d temporal",
+          probeEndpoint: null
+        },
+        { 
+          serviceName: "temporal",
+          name: "temporal", 
+          role: "Durable State Machine & Workflow Orchestration Engine", 
+          image: "temporalio/auto-setup:1.24.1",
+          port: "Host: 7233:7233 (gRPC API)", 
+          network: "epricing-network",
+          networkAlias: "temporal",
+          status: "standby", 
+          category: "Messaging",
+          healthcheck: "gRPC service check (temporal server)",
+          probeEndpoint: null
+        },
+        { 
+          serviceName: "temporal-ui",
+          name: "temporal-ui", 
+          role: "Temporal Web Management & Workflow Visualizer Console", 
+          image: "temporalio/ui:2.26.0",
+          port: "Host: 8233 → Container 8080 (Web UI)", 
+          network: "epricing-network",
+          networkAlias: "temporal-ui",
+          status: "standby", 
+          category: "Messaging",
+          healthcheck: "HTTP Web /api/health",
+          probeEndpoint: "http://localhost:8233"
+        },
+        { 
+          serviceName: "kafka",
+          name: "epricing-kafka", 
+          role: "Apache Kafka 3.8.0 KRaft Consensus Streaming Broker", 
+          image: "apache/kafka:3.8.0",
+          port: "Host: 9092 (External) / Internal: 29092 (PLAINTEXT)", 
+          network: "epricing-network",
+          networkAlias: "kafka",
+          status: "standby", 
+          category: "Messaging",
+          healthcheck: "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list",
+          probeEndpoint: null
+        },
+        { 
+          serviceName: "otel-collector",
+          name: "otel-collector", 
+          role: "OpenTelemetry Telemetry Routing & Ingestion Gateway", 
+          image: "otel/opentelemetry-collector-contrib:0.107.0",
+          port: "Host: 4317 (gRPC) / 4318 (HTTP) / 8888 (Metrics) / 8889", 
+          network: "epricing-network",
+          networkAlias: "otel-collector",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "Internal Pipelines (4317/4318 receivers)",
+          probeEndpoint: "http://localhost:8888/metrics"
+        },
+        { 
+          serviceName: "tempo",
+          name: "tempo", 
+          role: "Grafana Tempo Distributed Tracing Backend (OTLP/TraceQL)", 
+          image: "grafana/tempo:2.5.0",
+          port: "Host: 3200:3200 (HTTP) / 4317 (gRPC)", 
+          network: "epricing-network",
+          networkAlias: "tempo",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "wget -q -O - http://localhost:3200/ready",
+          probeEndpoint: "http://localhost:3200/ready"
+        },
+        { 
+          serviceName: "prometheus",
+          name: "prometheus", 
+          role: "Prometheus Time-Series Metrics TSDB & PromQL Engine", 
+          image: "prom/prometheus:v2.53.0",
+          port: "Host: 9090:9090 (UI + PromQL API)", 
+          network: "epricing-network",
+          networkAlias: "prometheus",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "wget -q -O - http://localhost:9090/-/healthy",
+          probeEndpoint: "http://localhost:9090/-/healthy"
+        },
+        { 
+          serviceName: "grafana",
+          name: "grafana", 
+          role: "SRE Telemetry Dashboards & Unified Visualizations", 
+          image: "grafana/grafana:11.1.0",
+          port: "Host: 3000:3000 (Single Pane of Glass UI)", 
+          network: "epricing-network",
+          networkAlias: "grafana",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "wget -q -O - http://localhost:3000/api/health",
+          probeEndpoint: "http://localhost:3000/api/health"
+        },
+        { 
+          serviceName: "loki",
+          name: "loki", 
+          role: "Grafana Loki Compressed Log Indexing & LogQL Engine", 
+          image: "grafana/loki:3.1.0",
+          port: "Host: 3100:3100 (LogQL API)", 
+          network: "epricing-network",
+          networkAlias: "loki",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "wget -q -O - http://localhost:3100/ready",
+          probeEndpoint: "http://localhost:3100/ready"
+        },
+        { 
+          serviceName: "promtail",
+          name: "promtail", 
+          role: "High-Throughput JSON Log Collector & Stream Shipper", 
+          image: "grafana/promtail:3.1.0",
+          port: "Internal Process (Shared epricing-logs volume)", 
+          network: "epricing-network",
+          networkAlias: "promtail",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "Internal Daemon Process",
+          probeEndpoint: null
+        },
+        { 
+          serviceName: "alertmanager",
+          name: "alertmanager", 
+          role: "Alert Evaluation, Deduplication & Routing", 
+          image: "prom/alertmanager:v0.27.0",
+          port: "Host: 9093:9093 (UI + API)", 
+          network: "epricing-network",
+          networkAlias: "alertmanager",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "wget -q -O - http://localhost:9093/-/healthy",
+          probeEndpoint: "http://localhost:9093/-/healthy"
+        },
+        { 
+          serviceName: "webhook-logger",
+          name: "webhook-logger", 
+          role: "Local Alert Notification Receiver & Formatter", 
+          image: "python:3.11-alpine",
+          port: "Host: 5001:5001 (HTTP POST Receiver)", 
+          network: "epricing-network",
+          networkAlias: "webhook-logger",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "HTTP POST listener /webhook",
+          probeEndpoint: "http://localhost:5001"
+        },
+        { 
+          serviceName: "cadvisor",
+          name: "cadvisor", 
+          role: "Real-Time Container Resource & Cgroups Metrics Exporter", 
+          image: "gcr.io/cadvisor/cadvisor:v0.49.1",
+          port: "Host: 8085 → Container 8080 (Web UI & /metrics)", 
+          network: "epricing-network",
+          networkAlias: "cadvisor",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "HTTP /metrics",
+          probeEndpoint: "http://localhost:8085/containers"
+        },
+        { 
+          serviceName: "node-exporter",
+          name: "node-exporter", 
+          role: "Host Hardware, CPU, Memory & OS Telemetry Exporter", 
+          image: "prom/node-exporter:v1.8.1",
+          port: "Host: 9100:9100 (Prometheus Metrics)", 
+          network: "epricing-network",
+          networkAlias: "node-exporter",
+          status: "standby", 
+          category: "Observability",
+          healthcheck: "HTTP /metrics",
+          probeEndpoint: "http://localhost:9100/metrics"
+        },
+        { 
+          serviceName: "traffic-generator",
+          name: "traffic-generator", 
+          role: "Automated Realistic Banking Loan Application Simulator", 
+          image: "alpine/curl:latest",
+          port: "Internal Daemon Loop (6s cadence)", 
+          network: "epricing-network",
+          networkAlias: "traffic-generator",
+          status: "standby", 
+          category: "Testing",
+          healthcheck: "Shell Script Loop",
+          probeEndpoint: null
+        }
+      ],
+      tiers: {
+        'tier-1': {
+          title: "Tier 1: Client Gateway & Automated Ingestion Boundary",
+          tag: "TIER 1 • INGRESS BOUNDARY",
+          protocol: "HTTP/1.1 REST (JSON)",
+          ports: "Host 8080 (Client Traffic) • Host 8089 -> Container 8081 (Ops/Actuator)",
+          network: "epricing-network (172.20.0.0/16)",
+          contract: `POST /api/v1/pricing -> 200 OK (Calculated Quote) / 422 Unprocessable (Policy Rejection)
+POST /api/v1/workflow/pricing/start -> 202 Accepted (Temporal Workflow Dispatched)
+GET /health/liveness -> 200 OK {"status":"UP"} (Decoupled Liveness Check)
+GET /health/readiness -> 200 OK {"status":"UP","database":"UP"}`,
+          specs: "<strong>Ingress Boundary Architecture:</strong><br>• <strong>Traffic Simulator (traffic-generator):</strong> Rotates 5 loan products, triggering 75% prime approvals, 15% credit rejections (&lt;650 CIBIL), and 10% FOIR ceiling violations (&gt;50%).<br>• <strong>Separation of Planes:</strong> Client endpoints on 8080; operational management and Actuator telemetry isolated to port 8081 (mapped to host 8089 to prevent developer port clashes).<br>• <strong>Distributed Tracing Context:</strong> Injects and propagates standard W3C <code>traceparent</code> headers on every incoming request.<br>• <strong>Decoupled Liveness:</strong> Liveness verifies JVM memory/threads without DB coupling to avoid cascading restarts."
+        },
+        'tier-2': {
+          title: "Tier 2: Core Banking Pricing & Underwriting Service",
+          tag: "TIER 2 • CORE BANKING ENGINE",
+          protocol: "Java 21 LTS • Spring Boot 3.3.4 (REST, gRPC, YSQL, Kafka Binary)",
+          ports: "Host: 8080 (API) / 8089 -> 8081 (Ops/Actuator) / OTel Out: 4318",
+          network: "epricing-network (Dynamic IP)",
+          contract: `// Reducing-Balance Compounding Contract:
+EMI = (P * r * (1 + r)^n) / ((1 + r)^n - 1)
+Evaluated with MathContext.DECIMAL128 (34 digits of IEEE 754R precision)
+Statutory Bounds: Floor 7.00% p.a. | Ceiling 24.00% p.a.
+Underwriting Rules: 10x Annual Income Cap | 50% FOIR Ceiling | 650 CIBIL Threshold`,
+          specs: "<strong>Core Financial & Underwriting Execution:</strong><br>• <strong>Zero Floating-Point Drift:</strong> Financial math strictly executed in <code>BigDecimal</code> with <code>MathContext.DECIMAL128</code>.<br>• <strong>Dual-Tier Underwriting:</strong> Automatic evaluation of customer income, loan-to-income (LTI), debt-service coverage (FOIR), and credit score tier.<br>• <strong>Temporal Worker:</strong> Hosts worker pollers listening on <code>epricing-pricing-queue</code> for durable 7-day rate-lock workflows.<br>• <strong>Fail-Fast Kafka Producer:</strong> Emits domain events with a 3000ms <code>max.block.ms</code> timeout guardrail."
+        },
+        'tier-3': {
+          title: "Tier 3: Distributed State & Durable Orchestration",
+          tag: "TIER 3 • DISTRIBUTED STATE & WORKFLOWS",
+          protocol: "YSQL (PostgreSQL wire) & gRPC Protobuf",
+          ports: "Host 5433 (YSQL) / 15433 (Yugabyte UI) / 7233 (Temporal gRPC) / 8233 (Temporal UI) / 5432 (temporal-db)",
+          network: "epricing-network (Static IPv4: 172.20.100.10 for Yugabyte)",
+          contract: `-- YugabyteDB ACID Schema:
+CREATE TABLE pricing_requests (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id VARCHAR(64) NOT NULL,
+  calculated_rate DECIMAL(5,2) NOT NULL,
+  emi_amount DECIMAL(15,2) NOT NULL,
+  trace_id VARCHAR(64),
+  version BIGINT NOT NULL
+);
+// Temporal Durable Rate-Lock Contract:
+Workflow.await(Duration.ofDays(7), () -> approved || rejected);
+// JVM thread unloaded; 0% CPU and 0 threads consumed during 7-day wait`,
+          specs: "<strong>Distributed ACID Database & Durable Workflows:</strong><br>• <strong>YugabyteDB 2.20:</strong> PostgreSQL wire-compatible ACID distributed database using hash-sharded LSM trees with DocDB tablet consensus.<br>• <strong>Smart Driver:</strong> Connected with <code>load-balance=true</code> to distribute query execution across nodes.<br>• <strong>Temporal 1.24.1:</strong> Provides guaranteed state machine durability. Long-running rate-lock quotes unload to PostgreSQL 15 (<code>temporal-db</code>) and resume seamlessly upon customer approval signal."
+        },
+        'tier-4': {
+          title: "Tier 4: Apache Kafka 3.8.0 KRaft Event Streaming",
+          tag: "TIER 4 • KRAFT EVENT STREAMING",
+          protocol: "Kafka PLAINTEXT Binary Protocol",
+          ports: "Host 9092 (PLAINTEXT_HOST) / Internal 29092 (PLAINTEXT)",
+          network: "epricing-network (alias: kafka)",
+          contract: `{
+  "eventId": "evt_8921a9f1",
+  "timestamp": 1795400000000,
+  "customerId": "CUST001234",
+  "calculatedRate": 8.00,
+  "emiAmount": 30332.00,
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          specs: "<strong>KRaft Consensus Streaming:</strong><br>• <strong>ZooKeeper Elimination:</strong> Native Raft metadata quorum (no external cluster dependencies).<br>• <strong>Dual Listeners:</strong> Internal <code>PLAINTEXT://kafka:29092</code> for microservice and external <code>PLAINTEXT_HOST://localhost:9092</code> for external clients.<br>• <strong>Fail-Fast Guardrail:</strong> <code>max.block.ms: 3000ms</code> ensures producer threads never block during broker maintenance."
+        },
+        'tier-5': {
+          title: "Tier 5: 17-Container Observability Fabric (SRE Mesh)",
+          tag: "TIER 5 • 17-CONTAINER OBSERVABILITY FABRIC",
+          protocol: "OTLP over gRPC (4317) & HTTP (4318) • PromQL • LogQL • TraceQL",
+          ports: "Grafana :3000 • Prometheus :9090 • Loki :3100 • Tempo :3200 • Alertmanager :9093 • OTel :4318",
+          network: "epricing-network",
+          contract: `OTLP Traces -> Grafana Tempo :4317
+OTLP Metrics -> Prometheus Remote Write :9090
+Promtail JSON Logs -> Grafana Loki :3100
+Firing Alerts -> Alertmanager :9093 -> Webhook Logger :5001
+Single Pane of Glass: Grafana :3000 (Dashboards 1, 2, 3)`,
+          specs: "<strong>Full-Stack Observability Architecture:</strong><br>• <strong>Unified Ingestion Gateway:</strong> OTel Collector receives all application spans and metrics via standard OTLP.<br>• <strong>Distributed Tracing (Tempo):</strong> Stores compressed trace blocks correlated by W3C Trace IDs.<br>• <strong>High-Resolution Metrics (Prometheus):</strong> Scrapes Actuator every 5s with SLA alert evaluation.<br>• <strong>Structured Logging (Loki & Promtail):</strong> Scrapes container log streams, indexing customer IDs and trace IDs.<br>• <strong>Single Pane of Glass (Grafana):</strong> Pre-provisioned dashboards with direct jump-to-trace and jump-to-log links."
+        }
+      },
+      nodes: {
+        'traffic-generator': {
+          title: "Tier 1: Automated Traffic Simulator (traffic-generator)",
+          tier: "Tier 1: Client Gateway & Ingestion Boundary",
+          protocol: "HTTP/1.1 REST Client (curl)",
+          ports: "Internal loop (no exposed host port)",
+          network: "epricing-network (alias: traffic-generator)",
+          contract: `{
+  "customer_id": "CUST001234",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000.00,
+  "loan_tenure_months": 240,
+  "credit_score": 780,
+  "annual_income": 2400000.00
+}`,
+          specs: "<strong>Traffic Simulation Breakdown:</strong><br>• <strong>75% Approved Applications:</strong> CIBIL &ge; 700, FOIR &le; 40%.<br>• <strong>15% Underwriting Rejections:</strong> CIBIL &lt; 650 (triggers 422 PRICING_INSUFFICIENT_CREDIT_SCORE).<br>• <strong>10% Debt-to-Income Violations:</strong> Monthly EMI &gt; 50% income (FOIR violation).<br>• <strong>Temporal Rate-Lock Dispatches:</strong> Initiates long-running 7-day rate lock workflows and sends simulated customer approval signals.<br>• <strong>Telemetry Perturbations:</strong> Periodically requests slow endpoints and error endpoints to populate Prometheus and Loki graphs."
+        },
+        gateway: {
+          title: "Tier 1: Ingress Boundary & Reverse Proxy",
+          tier: "Tier 1: Ingress Boundary",
+          protocol: "HTTP/1.1 REST",
+          ports: "Host 8080 (Client Traffic) / Host 8089 -> Container 8081 (Ops/Actuator)",
+          network: "epricing-network",
+          contract: `POST /api/v1/pricing -> 200 OK / 422 Unprocessable Entity
+GET /health/liveness -> 200 OK {"status":"UP"}
+GET /health/readiness -> 200 OK {"status":"UP","database":"UP"}`,
+          specs: "<strong>Ingress Boundary Characteristics:</strong><br>• <strong>Isolated Management Plane:</strong> Client endpoints on 8080; actuator and internal metrics isolated to port 8081 (mapped to host 8089 to prevent conflicts).<br>• <strong>Distributed Tracing Context:</strong> Injects and propagates standard W3C <code>traceparent</code> headers.<br>• <strong>Decoupled Liveness Probe:</strong> Kubernetes/Docker liveness probe verifies only memory and CPU, preventing cascading pod restarts during transient database blips."
+        },
+        epricing: {
+          title: "Tier 2: ePricing Spring Boot 3.3.4 Core Service",
+          tier: "Tier 2: Core Banking Microservice",
+          protocol: "HTTP REST / gRPC Protobuf / JDBC YSQL / Kafka Binary",
+          ports: "Host: 8080 (API) / 8089 -> 8081 (Ops)",
+          network: "epricing-network (alias: epricing-service)",
+          contract: `// Mathematical Compounding Contract:
+EMI = (P * r * (1 + r)^n) / ((1 + r)^n - 1)
+Using MathContext.DECIMAL128 (34 digits precision)
+Statutory rate bounds: Floor 7.00% p.a. | Cap 24.00% p.a.`,
+          specs: "<strong>Core Financial & Underwriting Capabilities:</strong><br>• <strong>Statutory Compounding:</strong> Standard reducing-balance EMI calculation with zero floating-point drift.<br>• <strong>Underwriting Policies:</strong> Strict RBI guidelines enforcing 10x Annual Income loan ceiling, 50% FOIR monthly debt service cap, and 650 CIBIL threshold.<br>• <strong>Durable Workflow Worker:</strong> Hosts Temporal Worker listening on task queue <code>epricing-pricing-queue</code>.<br>• <strong>Kafka Event Streaming:</strong> Publishes <code>LoanPricingEvent</code> with 3000ms fail-fast timeout."
+        },
+        yugabyte: {
+          title: "Tier 3: YugabyteDB 2.20 Distributed SQL",
+          tier: "Tier 3: Distributed State & Durable Orchestration",
+          protocol: "PostgreSQL Wire Protocol (YSQL)",
+          ports: "Host: 5433 (YSQL) / 15433 (Web Dashboard) / 7000 / 9000",
+          network: "epricing-network (Static IPv4: 172.20.100.10, alias: yugabytedb)",
+          contract: `CREATE TABLE pricing_requests (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id VARCHAR(64) NOT NULL,
+  calculated_rate DECIMAL(5,2) NOT NULL,
+  emi_amount DECIMAL(15,2) NOT NULL,
+  trace_id VARCHAR(64),
+  version BIGINT NOT NULL
+);`,
+          specs: "<strong>Distributed ACID Database Architecture:</strong><br>• <strong>PostgreSQL Wire Compatible:</strong> Spring Boot connects via official YugabyteDB JDBC Smart Driver with <code>load-balance=true</code>.<br>• <strong>Hash-Sharded LSM Trees:</strong> High-throughput horizontal scale with Raft consensus across docdb tablets.<br>• <strong>Optimistic Locking:</strong> Strict optimistic locking with version column prevents concurrent overwrite anomalies."
+        },
+        temporal: {
+          title: "Tier 3: Temporal 1.24.1 Durable State Machine",
+          tier: "Tier 3: Distributed State & Durable Orchestration",
+          protocol: "gRPC Protobuf (Port 7233)",
+          ports: "Host: 7233 (gRPC) / 8233 (Temporal Web UI) / 5432 (temporal-db)",
+          network: "epricing-network (alias: temporal)",
+          contract: `// Durable Workflow await contract:
+Workflow.await(Duration.ofDays(7), () -> approved || rejected);
+// JVM thread released to pool; 0% CPU & 0 threads consumed`,
+          specs: "<strong>7-Day Rate Lock Durability:</strong><br>• <strong>Zero Thread Starvation:</strong> The Java worker thread unloads while the execution state machine persists in <code>temporal-db</code> (PostgreSQL 15).<br>• <strong>External Signal Resumption:</strong> Resumes immediately upon receiving approval or rejection REST signal.<br>• <strong>Activity Resiliency:</strong> Automatic exponential backoff retries with non-retryable domain error filters."
+        },
+        kafka: {
+          title: "Tier 4: Apache Kafka 3.8.0 KRaft Streaming Broker",
+          tier: "Tier 4: Event Streaming & Message Broker",
+          protocol: "Kafka PLAINTEXT Binary Protocol",
+          ports: "Host: 9092 (PLAINTEXT_HOST) / Internal: 29092 (PLAINTEXT)",
+          network: "epricing-network (alias: kafka)",
+          contract: `{
+  "eventId": "evt_8921a9f1",
+  "timestamp": 1795400000000,
+  "customerId": "CUST001234",
+  "calculatedRate": 8.00,
+  "emiAmount": 30332.00,
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          specs: "<strong>KRaft Consensus Streaming:</strong><br>• <strong>ZooKeeper Elimination:</strong> Native Raft metadata quorum (no external cluster dependencies).<br>• <strong>Dual Listeners:</strong> Internal <code>PLAINTEXT://kafka:29092</code> for microservice and external <code>PLAINTEXT_HOST://localhost:9092</code> for external clients.<br>• <strong>Fail-Fast Guardrail:</strong> <code>max.block.ms: 3000ms</code> ensures producer threads never block during broker maintenance."
+        },
+        'otel-collector': {
+          title: "Tier 5: OpenTelemetry Ingestion Gateway",
+          tier: "Tier 5: 17-Container Observability Fabric",
+          protocol: "OTLP over gRPC (4317) & HTTP (4318)",
+          ports: "Host: 4317 / 4318 / 8888 (Internal Metrics) / 8889 (Prom Exporter)",
+          network: "epricing-network (alias: otel-collector)",
+          contract: `OTLP Traces -> Grafana Tempo :4317
+OTLP Metrics -> Prometheus Remote Write :9090
+Batching: 1024 spans, timeout 1s`,
+          specs: "<strong>Centralized Telemetry Router:</strong><br>• Single receiver collecting metrics and traces from Spring Boot.<br>• Enriches spans with container environment attributes and team metadata.<br>• Fans out telemetry to Grafana Tempo and Prometheus concurrently without vendor lock-in."
+        },
+        tempo: {
+          title: "Tier 5: Grafana Tempo Distributed Tracing Backend",
+          tier: "Tier 5: Observability Fabric",
+          protocol: "OTLP gRPC (4317) / HTTP Query (3200)",
+          ports: "Host: 3200:3200",
+          network: "epricing-network (alias: tempo)",
+          contract: `TraceQL: { .service.name = "epricing-service" && .http.status_code >= 400 }`,
+          specs: "High-volume distributed tracing backend storing compressed trace blocks on disk. Correlates directly with Prometheus metrics exemplars and Loki log records via W3C Trace IDs."
+        },
+        prometheus: {
+          title: "Tier 5: Prometheus Time-Series Metrics TSDB",
+          tier: "Tier 5: Observability Fabric",
+          protocol: "PromQL / HTTP (9090)",
+          ports: "Host: 9090:9090",
+          network: "epricing-network (alias: prometheus)",
+          contract: `PromQL: rate(http_server_requests_seconds_count{application="epricing-service"}[1m])`,
+          specs: "Pulls metrics every 5s from Spring Boot actuator and receives OTLP pushed metrics. Evaluates alerting rules for error rates, latency spikes, and SLA breaches, forwarding firing alerts to Alertmanager."
+        },
+        grafana: {
+          title: "Tier 5: Grafana SRE Telemetry Dashboards",
+          tier: "Tier 5: Observability Fabric",
+          protocol: "HTTP (3000)",
+          ports: "Host: 3000:3000",
+          network: "epricing-network (alias: grafana)",
+          contract: `Pre-provisioned dashboards:
+1. ePricing Complete Observability (Unified)
+2. ePricing L1 Ops Dashboard
+3. ePricing Log Analysis (Loki)`,
+          specs: "Single-pane-of-glass operations center. Pre-configured datasources for Prometheus, Loki, and Tempo with automatic trace-to-metrics navigation."
+        },
+        loki: {
+          title: "Tier 5: Grafana Loki & Promtail Log Aggregator",
+          tier: "Tier 5: Observability Fabric",
+          protocol: "LogQL / HTTP (3100)",
+          ports: "Host: 3100:3100",
+          network: "epricing-network (alias: loki & promtail)",
+          contract: `LogQL: {application="epricing-service"} |= "PRICING_CALCULATED" | json`,
+          specs: "Structured JSON log indexing. Promtail tails shared volume <code>epricing-logs</code>, extracts traceId and customerId labels, and streams compressed records into Loki."
+        },
+        alertmanager: {
+          title: "Tier 5: Alertmanager & Webhook Receiver",
+          tier: "Tier 5: Observability Fabric",
+          protocol: "HTTP (9093 / 5001)",
+          ports: "Host: 9093 (Alertmanager) / 5001 (Webhook Logger)",
+          network: "epricing-network (alias: alertmanager & webhook-logger)",
+          contract: `POST /api/v2/alerts -> Alertmanager -> POST :5001/webhook (Local Python Server)`,
+          specs: "Deduplicates, groups, and routes firing alerts. During local development, forwards alerts to <code>webhook-logger</code> on port 5001 to print formatted alert cards to the terminal."
+        }
+      }
+    };
+
+    // TAB SWITCHING LOGIC
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(el => {
+        el.classList.remove('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-600/20');
+        el.classList.add('text-slate-400', 'hover:text-white', 'hover:bg-slate-900');
+      });
+
+      const activeContent = document.getElementById('content-' + tabId);
+      const activeTabBtn = document.getElementById('tab-' + tabId);
+      if (activeContent) activeContent.classList.remove('hidden');
+      if (activeTabBtn) {
+        activeTabBtn.classList.add('bg-indigo-600', 'text-white', 'shadow-md', 'shadow-indigo-600/20');
+        activeTabBtn.classList.remove('text-slate-400', 'hover:text-white', 'hover:bg-slate-900');
+      }
+    }
+
+    // FLOW FILTER SWITCHING
+    let currentFlow = 'all';
+    const flowDescriptions = {
+      all: "Showing entire 5-tier architecture topology. Click individual flows above to isolate data paths or click any tier banner / node card to inspect full specifications.",
+      underwriting: "1. Underwriting Ingress: Traffic Simulator -> ePricing Gateway (8080) -> ePricing Core (DECIMAL128 math). High-precision statutory reducing-balance calculation.",
+      persistence: "2. ACID Persistence Flow: ePricing Core -> YugabyteDB (5433 YSQL). Smart Driver with load-balance=true; hash-sharded LSM trees persist immutable pricing_audit_logs.",
+      temporal: "3. 7-Day Durable Rate-Lock: ePricing Core -> Temporal Server (7233 gRPC) -> temporal-db (Postgres 5432). Workflow unloads to DB with 0% CPU consumption during 7-day wait.",
+      kafka: "4. Real-Time Event Bus: ePricing Core -> Kafka Broker (9092/29092) -> Topic: loan-pricing-events. Fail-fast 3000ms max.block.ms prevents thread starvation.",
+      telemetry: "5. SRE Telemetry Fabric: ePricing Core -> OTel Collector (4318) -> Tempo (Traces: 3200), Prometheus (Metrics: 9090), Loki (Logs: 3100) -> Grafana (3000 Single Pane of Glass)."
+    };
+
+    function setFlowFilter(flowName) {
+      currentFlow = flowName;
+      document.querySelectorAll('.flow-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'text-white');
+        btn.classList.add('bg-slate-900', 'text-slate-300');
+      });
+      const activeBtn = document.getElementById('flow-btn-' + flowName);
+      if (activeBtn) {
+        activeBtn.classList.add('bg-indigo-600', 'text-white');
+        activeBtn.classList.remove('bg-slate-900', 'text-slate-300');
+      }
+
+      document.getElementById('flow-desc-text').innerText = flowDescriptions[flowName] || flowDescriptions.all;
+
+      // Dim non-matching tiers/nodes
+      const tiers = [
+        { id: 'tier-1-container', flows: ['all', 'underwriting'] },
+        { id: 'tier-2-container', flows: ['all', 'underwriting', 'persistence', 'temporal', 'kafka', 'telemetry'] },
+        { id: 'tier-3-container', flows: ['all', 'persistence', 'temporal'] },
+        { id: 'tier-4-container', flows: ['all', 'kafka'] },
+        { id: 'tier-5-container', flows: ['all', 'telemetry'] }
+      ];
+
+      tiers.forEach(t => {
+        const el = document.getElementById(t.id);
+        if (!el) return;
+        if (t.flows.includes(flowName)) {
+          el.style.opacity = '1';
+          el.style.filter = 'none';
+        } else {
+          el.style.opacity = '0.35';
+          el.style.filter = 'grayscale(60%)';
+        }
+      });
+
+      // Highlight matching SVG wire paths
+      const wires = [
+        { selector: '.flow-wire-underwriting', flows: ['all', 'underwriting'] },
+        { selector: '.flow-wire-persistence', flows: ['all', 'persistence'] },
+        { selector: '.flow-wire-temporal', flows: ['all', 'temporal'] },
+        { selector: '.flow-wire-kafka', flows: ['all', 'kafka'] },
+        { selector: '.flow-wire-telemetry', flows: ['all', 'telemetry'] }
+      ];
+
+      wires.forEach(w => {
+        document.querySelectorAll(w.selector).forEach(el => {
+          if (w.flows.includes(flowName)) {
+            el.style.opacity = '1';
+            el.setAttribute('stroke-width', flowName === 'all' ? '2' : '3.5');
+          } else {
+            el.style.opacity = '0.2';
+            el.setAttribute('stroke-width', '1.5');
+          }
+        });
+      });
+
+      // Highlight matching packet dots
+      const packets = [
+        { selector: '.packet-underwriting', flows: ['all', 'underwriting'] },
+        { selector: '.packet-persistence', flows: ['all', 'persistence'] },
+        { selector: '.packet-temporal', flows: ['all', 'temporal'] },
+        { selector: '.packet-kafka', flows: ['all', 'kafka'] },
+        { selector: '.packet-telemetry', flows: ['all', 'telemetry'] }
+      ];
+
+      packets.forEach(p => {
+        document.querySelectorAll(p.selector).forEach(dot => {
+          if (p.flows.includes(flowName)) {
+            dot.style.display = 'block';
+          } else {
+            dot.style.display = 'none';
+          }
+        });
+      });
+    }
+
+    // ANIMATED PACKET TOGGLE
+    let packetAnimationActive = true;
+    function togglePacketAnimation() {
+      packetAnimationActive = !packetAnimationActive;
+      const container = document.getElementById('architecture-canvas-container');
+      const btn = document.getElementById('btn-toggle-packets');
+      const allSvgs = container.querySelectorAll('svg');
+
+      if (packetAnimationActive) {
+        container.classList.remove('flow-paused');
+        allSvgs.forEach(s => {
+          if (typeof s.unpauseAnimations === 'function') s.unpauseAnimations();
+        });
+        btn.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Packets: ON';
+        btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 text-emerald-400 border border-slate-800 hover:bg-slate-800 transition flex items-center gap-1.5';
+      } else {
+        container.classList.add('flow-paused');
+        allSvgs.forEach(s => {
+          if (typeof s.pauseAnimations === 'function') s.pauseAnimations();
+        });
+        btn.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-500"></span> Packets: PAUSED';
+        btn.className = 'px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium bg-slate-900 text-slate-400 border border-slate-800 hover:bg-slate-800 transition flex items-center gap-1.5';
+      }
+    }
+
+    // TIER MODAL CONTROLLER
+    function openTierModal(tierKey) {
+      const tier = SHOWCASE_DATA.tiers[tierKey];
+      if (!tier) return;
+      document.getElementById('modal-title').innerHTML = `
+        <span class="text-xs font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">${tier.tag}</span>
+        <span class="truncate">${tier.title}</span>
+      `;
+      document.getElementById('modal-body').innerHTML = `
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+            <div><span class="text-slate-400">Wire Protocols:</span> <span class="text-emerald-400 font-semibold">${tier.protocol}</span></div>
+            <div><span class="text-slate-400">Port Allocations:</span> <span class="text-cyan-400">${tier.ports}</span></div>
+            <div class="sm:col-span-2"><span class="text-slate-400">Docker Network Subnet:</span> <span class="text-purple-400">${tier.network}</span></div>
+          </div>
+          <div>
+            <h5 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold mb-1">Architectural Flow & Reliability Guarantees:</h5>
+            <div class="text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+              ${tier.specs}
+            </div>
+          </div>
+          <div>
+            <h5 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold mb-1">Interaction Contracts & Payload Specifications:</h5>
+            <pre class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-400 overflow-x-auto">${tier.contract}</pre>
+          </div>
+        </div>
+      `;
+      const modal = document.getElementById('node-modal');
+      if (typeof modal.showModal === 'function') {
+        modal.showModal();
+      } else {
+        modal.setAttribute('open', '');
+      }
+    }
+
+    // NATIVE DIALOG MODAL CONTROLLER (Modern Web Guidance Compliant)
+    function openNodeModal(nodeKey) {
+      const node = SHOWCASE_DATA.nodes[nodeKey];
+      if (!node) return;
+      document.getElementById('modal-title').innerText = node.title;
+      document.getElementById('modal-body').innerHTML = `
+        <div class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            <div><span class="text-slate-400">Architectural Tier:</span> <span class="text-indigo-300 font-semibold">${node.tier}</span></div>
+            <div><span class="text-slate-400">Wire Protocol:</span> <span class="text-emerald-400 font-semibold">${node.protocol}</span></div>
+            <div><span class="text-slate-400">Port Mapping:</span> <span class="text-cyan-400">${node.ports}</span></div>
+            <div><span class="text-slate-400">Docker Network:</span> <span class="text-purple-400">${node.network}</span></div>
+          </div>
+          <div>
+            <h5 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold mb-1">Architecture & Failure Recovery:</h5>
+            <div class="text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
+              ${node.specs}
+            </div>
+          </div>
+          <div>
+            <h5 class="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold mb-1">Interface Contract / Payload Specification:</h5>
+            <pre class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-emerald-400 overflow-x-auto">${node.contract}</pre>
+          </div>
+        </div>
+      `;
+      const modal = document.getElementById('node-modal');
+      if (typeof modal.showModal === 'function') {
+        modal.showModal();
+      } else {
+        modal.setAttribute('open', '');
+      }
+    }
+
+    // Light-dismiss fallback for <dialog closedby="any"> per Modern Web Guidance
+    if (!('closedBy' in HTMLDialogElement.prototype)) {
+      const dialog = document.getElementById('node-modal');
+      if (dialog) {
+        dialog.addEventListener('click', (event) => {
+          if (event.target !== dialog) return;
+          const rect = dialog.getBoundingClientRect();
+          const isDialogContent = (
+            rect.top <= event.clientY &&
+            event.clientY <= rect.top + rect.height &&
+            rect.left <= event.clientX &&
+            event.clientX <= rect.left + rect.width
+          );
+          if (isDialogContent) return;
+          dialog.close();
+        });
+      }
+    }
+
+    // LIVE PRICING SIMULATOR ENGINE (Exact replica of PricingCalculator.java)
+    let selectedProduct = 'HOME_LOAN';
+    const productMultipliers = {
+      HOME_LOAN: 1.00,
+      AUTO_LOAN: 1.20,
+      PERSONAL_LOAN: 1.50,
+      EDUCATION_LOAN: 1.10
+    };
+
+    function setProduct(prod) {
+      selectedProduct = prod;
+      document.querySelectorAll('.prod-btn').forEach(b => {
+        b.classList.remove('border-indigo-500', 'bg-indigo-600/20', 'text-indigo-300');
+        b.classList.add('border-slate-800', 'bg-slate-900/60', 'text-slate-300');
+      });
+      const active = document.getElementById('prod-' + prod);
+      if (active) {
+        active.classList.add('border-indigo-500', 'bg-indigo-600/20', 'text-indigo-300');
+        active.classList.remove('border-slate-800', 'bg-slate-900/60', 'text-slate-300');
+      }
+      calculateLivePricing();
+    }
+
+    function calculateLivePricing() {
+      const amount = parseFloat(document.getElementById('slider-amount').value);
+      const tenure = parseInt(document.getElementById('slider-tenure').value);
+      const credit = parseInt(document.getElementById('slider-credit').value);
+      const income = parseFloat(document.getElementById('slider-income').value);
+
+      // Update text readouts with proper Rupee symbol ₹
+      document.getElementById('readout-amount').innerText = '₹' + amount.toLocaleString('en-IN');
+      document.getElementById('readout-tenure').innerText = `${tenure} Months (${(tenure/12).toFixed(0)} Years)`;
+      document.getElementById('readout-credit').innerText = `${credit} — ${credit >= 750 ? 'Prime Borrower' : (credit >= 650 ? 'Medium Risk' : 'High Risk (Rejected)')}`;
+      document.getElementById('readout-income').innerText = '₹' + income.toLocaleString('en-IN') + ' / year';
+
+      // 1. Credit Score Underwriting Policy Check
+      if (credit < 650) {
+        displayRejection(`REJECTED: Credit score (${credit}) is below statutory threshold of 650.`);
+        return;
+      }
+
+      // 2. Gross Loan Amount Underwriting Policy (Max 10x Annual Income)
+      if (amount > income * 10) {
+        displayRejection(`REJECTED: Requested loan (₹${amount.toLocaleString('en-IN')}) exceeds maximum eligibility limit of 10x annual income (₹${(income * 10).toLocaleString('en-IN')}).`);
+        return;
+      }
+
+      // 3. Base Rate Calculation
+      const baseRate = 8.50;
+      const multiplier = productMultipliers[selectedProduct] || 1.00;
+      let calculatedRate = baseRate * multiplier;
+
+      // Credit score adjustments
+      if (credit >= 800) calculatedRate -= 1.00;
+      else if (credit >= 750) calculatedRate -= 0.50;
+      else if (credit >= 700) calculatedRate += 0.00;
+      else calculatedRate += 1.50; // 650 - 699
+
+      // Statutory bounds enforcement (7.00% to 24.00%)
+      if (calculatedRate < 7.00) calculatedRate = 7.00;
+      if (calculatedRate > 24.00) calculatedRate = 24.00;
+
+      // 4. Reducing-Balance EMI Calculation
+      const monthlyRate = calculatedRate / (12 * 100);
+      const emi = (amount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) / (Math.pow(1 + monthlyRate, tenure) - 1);
+      const totalPayable = emi * tenure;
+      const totalInterest = totalPayable - amount;
+
+      // 5. FOIR Policy Check (Max 50% monthly income)
+      const monthlyIncome = income / 12;
+      const foir = (emi / monthlyIncome) * 100;
+      const lti = (amount / income);
+
+      if (foir > 50.0) {
+        displayRejection(`REJECTED: Monthly EMI (₹${Math.round(emi).toLocaleString('en-IN')}) requires ${foir.toFixed(1)}% of monthly income, violating the 50% FOIR ceiling.`);
+        return;
+      }
+
+      // Display Approval
+      const outputBox = document.getElementById('output-box');
+      outputBox.className = 'glass-card p-6 rounded-2xl flex-grow flex flex-col justify-between border-t-4 border-t-emerald-500 glow-emerald';
+      document.getElementById('output-status').className = 'px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+      document.getElementById('output-status').innerText = 'APPROVED';
+      document.getElementById('output-emi').innerText = '₹' + Math.round(emi).toLocaleString('en-IN');
+      document.getElementById('output-rate-badge').innerText = `Interest Rate: ${calculatedRate.toFixed(2)}% p.a.`;
+      document.getElementById('output-total').innerText = '₹' + Math.round(totalPayable).toLocaleString('en-IN');
+      document.getElementById('output-interest').innerText = '₹' + Math.round(totalInterest).toLocaleString('en-IN');
+      document.getElementById('output-foir').innerText = `${foir.toFixed(1)}% (Safe ≤ 50%)`;
+      document.getElementById('output-foir').className = 'font-bold text-emerald-400';
+      document.getElementById('output-lti').innerText = `${lti.toFixed(2)}x (Safe ≤ 10x)`;
+      document.getElementById('output-risk').innerText = credit >= 750 ? 'LOW_RISK (PRIME)' : 'MEDIUM_RISK';
+      document.getElementById('output-note').className = 'mt-4 p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/40 text-xs text-emerald-300';
+      document.getElementById('output-note').innerHTML = `<strong>Underwriting Approved:</strong> Base (${baseRate}%) × Multiplier (${multiplier.toFixed(2)}) + Credit Adjustment = <strong>${calculatedRate.toFixed(2)}% p.a.</strong> Rate locked for 7 days in Temporal.`;
+    }
+
+    function displayRejection(reason) {
+      const outputBox = document.getElementById('output-box');
+      outputBox.className = 'glass-card p-6 rounded-2xl flex-grow flex flex-col justify-between border-t-4 border-t-rose-500';
+      document.getElementById('output-status').className = 'px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-rose-500/20 text-rose-400 border border-rose-500/30';
+      document.getElementById('output-status').innerText = 'REJECTED';
+      document.getElementById('output-emi').innerText = '₹0';
+      document.getElementById('output-rate-badge').innerText = 'Application Declined';
+      document.getElementById('output-total').innerText = '₹0';
+      document.getElementById('output-interest').innerText = '₹0';
+      document.getElementById('output-foir').innerText = 'Violation';
+      document.getElementById('output-foir').className = 'font-bold text-rose-400';
+      document.getElementById('output-risk').innerText = 'HIGH_RISK';
+      document.getElementById('output-note').className = 'mt-4 p-3 rounded-lg bg-rose-950/30 border border-rose-800/40 text-xs text-rose-300';
+      document.getElementById('output-note').innerHTML = `<strong>Underwriting Policy Violation:</strong> ${reason}`;
+    }
+
+    // PII MASKING TOGGLE
+    function togglePiiMasking() {
+      const isChecked = document.getElementById('pii-toggle').checked;
+      const status = document.getElementById('pii-status');
+      const sample = document.getElementById('pii-sample');
+      if (isChecked) {
+        status.innerText = 'ACTIVE (CUST****1234)';
+        status.className = 'text-emerald-400 font-bold';
+        sample.innerText = 'customer_id: CUST****1234 (Masked)';
+      } else {
+        status.innerText = 'UNMASKED (CUST12345678)';
+        status.className = 'text-rose-400 font-bold';
+        sample.innerText = 'customer_id: CUST12345678 (Raw Plaintext)';
+      }
+    }
+
+    // TEMPORAL STEPPER SIMULATION
+    let currentStep = 1;
+    const temporalSteps = [
+      {
+        step: 1,
+        title: "STATE: INITIALIZING",
+        text: "Client sends POST /api/v1/workflow/pricing/start. Temporal initializes LoanPricingWorkflow on queue 'epricing-pricing-queue'.",
+        btn: "Next: Calculate & Persist Quote →"
+      },
+      {
+        step: 2,
+        title: "STATE: QUOTED",
+        text: "Activity 'calculateAndPersistPricing' executes in YugabyteDB. Rate calculated at 8.00% p.a., EMI ₹30,332 saved. Kafka publishes 'LoanPricingEvent'.",
+        btn: "Next: Enter 7-Day Durable Wait →"
+      },
+      {
+        step: 3,
+        title: "STATE: RATE_LOCKED (7-Day Durable Wait)",
+        text: "Workflow calls Workflow.await(Duration.ofDays(7), () -> approved || rejected). JVM thread is released to the pool. 0% CPU consumed while waiting for customer signal.",
+        btn: "Simulate Customer Signal →"
+      },
+      {
+        step: 4,
+        title: "STATE: APPROVED",
+        text: "Customer calls POST /approve. Temporal immediately resumes the workflow, updates status to APPROVED in YugabyteDB, and emits final completion event to Kafka.",
+        btn: "Restart Workflow Stepper →"
+      }
+    ];
+
+    function advanceTemporalStep(targetStep) {
+      if (targetStep > 4) targetStep = 1;
+      currentStep = targetStep;
+
+      for (let i = 1; i <= 4; i++) {
+        const circle = document.getElementById(`step-${i}-circle`);
+        if (i <= currentStep) {
+          circle.className = 'w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-lg shadow-indigo-600/30';
+        } else {
+          circle.className = 'w-10 h-10 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-sm';
+        }
+      }
+
+      const info = temporalSteps[currentStep - 1];
+      const box = document.getElementById('temporal-step-box');
+      box.innerHTML = `
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <span class="text-indigo-400 font-bold">${info.title}</span>
+          <span class="text-slate-400 font-mono">WorkflowID: PRICING-WF-CUST123456-9812</span>
+        </div>
+        <p class="text-slate-300 leading-relaxed">${info.text}</p>
+        <div class="flex gap-2 pt-2">
+          <button onclick="advanceTemporalStep(${currentStep + 1})" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-xs font-semibold shadow-md shadow-indigo-600/20">${info.btn}</button>
+        </div>
+      `;
+    }
+
+    // =========================================================================
+    // CONTAINER SERVICE TOPOLOGY & LIVE PROBING ENGINE
+    // =========================================================================
+    let activeCategoryFilter = 'All';
+
+    function filterContainers(category) {
+      activeCategoryFilter = category;
+      document.querySelectorAll('.c-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'text-white', 'font-semibold');
+        btn.classList.add('bg-slate-900', 'text-slate-400', 'font-medium');
+      });
+      event.target.classList.add('bg-indigo-600', 'text-white', 'font-semibold');
+      event.target.classList.remove('bg-slate-900', 'text-slate-400', 'font-medium');
+      renderContainerGrid();
+    }
+
+    function renderContainerGrid() {
+      const grid = document.getElementById('container-grid');
+      if (!grid) return;
+
+      const filtered = SHOWCASE_DATA.containers.filter(c => {
+        if (activeCategoryFilter === 'All') return true;
+        return c.category === activeCategoryFilter;
+      });
+
+      grid.innerHTML = filtered.map(c => {
+        let badgeHtml = '';
+        if (c.status === 'live') {
+          badgeHtml = `<span class="flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/30"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Live & Healthy</span>`;
+        } else if (c.status === 'offline') {
+          badgeHtml = `<span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-amber-950/40 text-amber-400 border border-amber-800/60" title="Start with docker compose up -d">Offline / Standby (Start with docker compose up -d)</span>`;
+        } else {
+          badgeHtml = `<span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">Configured / Standby (Compose Defined)</span>`;
+        }
+
+        return `
+          <div class="p-4 rounded-xl glass-card flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-indigo-300">${c.category}</span>
+                ${badgeHtml}
+              </div>
+              <h4 class="font-mono font-bold text-white text-sm truncate">${c.name}</h4>
+              <p class="text-xs text-slate-400 leading-snug mt-1">${c.role}</p>
+            </div>
+
+            <div class="space-y-1.5 text-[11px] font-mono bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80">
+              <div class="text-indigo-400 truncate"><span class="text-slate-500">Ports:</span> ${c.port}</div>
+              <div class="text-slate-300 truncate"><span class="text-slate-500">Image:</span> ${c.image}</div>
+              <div class="text-slate-400 truncate"><span class="text-slate-500">Net Alias:</span> epricing-network (${c.networkAlias})</div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] font-mono text-slate-400">
+              <span class="text-slate-500">docker compose: ${c.serviceName}</span>
+              <button onclick="openContainerModal('${c.name}')" class="text-indigo-400 hover:text-indigo-300 font-semibold">Inspect Spec →</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openContainerModal(containerName) {
+      const container = SHOWCASE_DATA.containers.find(c => c.name === containerName);
+      if (!container) return;
+      document.getElementById('modal-title').innerText = `Container: ${container.name}`;
+      document.getElementById('modal-body').innerHTML = `
+        <div class="space-y-3 font-mono text-xs">
+          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2">
+            <div><span class="text-slate-500">Compose Service:</span> <span class="text-indigo-400 font-bold">${container.serviceName}</span></div>
+            <div><span class="text-slate-500">Container Name:</span> <span class="text-white font-bold">${container.name}</span></div>
+            <div><span class="text-slate-500">Service Role:</span> <span class="text-emerald-300">${container.role}</span></div>
+            <div><span class="text-slate-500">Image:</span> <span class="text-emerald-400">${container.image}</span></div>
+            <div><span class="text-slate-500">Host & Container Ports:</span> <span class="text-cyan-400">${container.port}</span></div>
+            <div><span class="text-slate-500">Network Alias:</span> <span class="text-purple-400">${container.network} (alias: ${container.networkAlias})</span></div>
+            <div><span class="text-slate-500">Healthcheck Defined:</span> <span class="text-amber-400">${container.healthcheck}</span></div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-950/40 border border-slate-800 text-slate-300 font-sans text-xs">
+            Defined in <code class="text-indigo-300">docker-compose.yml</code>. To run this individual service, execute:<br>
+            <code class="text-emerald-400 font-mono mt-1 block select-all">docker compose up -d ${container.serviceName}</code>
+          </div>
+        </div>
+      `;
+      const modal = document.getElementById('node-modal');
+      if (typeof modal.showModal === 'function') modal.showModal();
+      else modal.setAttribute('open', '');
+    }
+
+    // PING LOCAL STACK ASYNCHRONOUS ENGINE (Concurrent Fast Probe)
+    async function pingLocalStack() {
+      const btn = document.getElementById('btn-ping-stack');
+      const pingText = document.getElementById('ping-text');
+      const pingIcon = document.getElementById('ping-icon');
+      const resultBox = document.getElementById('probe-result-box');
+
+      btn.disabled = true;
+      pingText.innerText = "Probing local stack concurrently...";
+      pingIcon.classList.add('animate-spin');
+
+      // Probe all endpoints in parallel with Promise.allSettled
+      const probePromises = SHOWCASE_DATA.containers.map(async c => {
+        if (!c.probeEndpoint) {
+          return { container: c, reachable: null };
+        }
+        try {
+          await fetch(c.probeEndpoint, { 
+            method: 'GET', 
+            mode: 'no-cors',
+            signal: AbortSignal.timeout(1200)
+          });
+          return { container: c, reachable: true };
+        } catch (err) {
+          return { container: c, reachable: false };
+        }
+      });
+
+      const results = await Promise.allSettled(probePromises);
+
+      let liveHttpCount = 0;
+      let probedHttpCount = 0;
+
+      results.forEach(res => {
+        if (res.status === 'fulfilled') {
+          const { container, reachable } = res.value;
+          if (reachable === true) {
+            container.status = 'live';
+            liveHttpCount++;
+            probedHttpCount++;
+          } else if (reachable === false) {
+            container.status = 'offline';
+            probedHttpCount++;
+          }
+        }
+      });
+
+      // Synchronize non-HTTP containers with stack reachability
+      const stackIsLive = liveHttpCount > 0;
+      SHOWCASE_DATA.containers.forEach(c => {
+        if (!c.probeEndpoint) {
+          c.status = stackIsLive ? 'live' : 'offline';
+        }
+      });
+
+      btn.disabled = false;
+      pingText.innerText = "Re-Probe Local Stack";
+      pingIcon.classList.remove('animate-spin');
+
+      // Update header indicator
+      const headerDot = document.getElementById('header-stack-status-dot');
+      const headerText = document.getElementById('header-stack-status-text');
+
+      if (stackIsLive) {
+        headerDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+        headerText.innerText = `${liveHttpCount}/${SHOWCASE_DATA.containers.length} Containers (Live Stack)`;
+      } else {
+        headerDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        headerText.innerText = `0/17 Containers Online (Standby)`;
+      }
+
+      // Display detailed probe banner
+      resultBox.classList.remove('hidden');
+      if (!stackIsLive) {
+        resultBox.className = 'p-4 rounded-xl border border-amber-500/40 bg-amber-950/20 text-xs font-mono space-y-2 text-slate-300';
+        resultBox.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-amber-400 font-bold flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+              Probe Complete: 0/${probedHttpCount} Tested HTTP Endpoints Responding on Localhost
+            </span>
+            <span class="text-[11px] text-slate-400">Docker Daemon Offline</span>
+          </div>
+          <p class="text-slate-300 leading-relaxed font-sans text-xs">
+            The local Docker stack is not currently active on your workstation. All containers are marked as <strong>Offline / Standby (Start with docker compose up -d)</strong>. To start the live 17-container stack, run:
+          </p>
+          <div class="flex items-center gap-2 bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+            <code class="text-emerald-400 font-bold flex-1 select-all">docker compose up -d</code>
+            <button onclick="navigator.clipboard.writeText('docker compose up -d')" class="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-[11px] font-semibold">Copy</button>
+          </div>
+        `;
+      } else {
+        resultBox.className = 'p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/20 text-xs font-mono space-y-2 text-slate-300';
+        resultBox.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-emerald-400 font-bold flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Live Stack Detected: ${liveHttpCount}/${probedHttpCount} Tested Endpoints Responding!
+            </span>
+            <span class="text-[11px] text-emerald-400 font-bold">Stack Active</span>
+          </div>
+          <p class="text-slate-300 font-sans text-xs">
+            Local containers are running and healthy. You can inspect live metrics in Grafana at <a href="http://localhost:3000" target="_blank" class="text-indigo-400 underline">http://localhost:3000</a> or trigger live endpoints on port 8080.
+          </p>
+        `;
+      }
+
+      renderContainerGrid();
+    }
+
+    function resetContainerStatuses() {
+      SHOWCASE_DATA.containers.forEach(c => c.status = 'standby');
+      document.getElementById('probe-result-box').classList.add('hidden');
+      document.getElementById('header-stack-status-dot').className = 'w-2 h-2 rounded-full bg-amber-400';
+      document.getElementById('header-stack-status-text').innerText = '17 Containers (Compose Standby)';
+      document.getElementById('ping-text').innerText = "Ping Local Stack (Live Probe)";
+      renderContainerGrid();
+    }
+
+    // INITIALIZE ON LOAD
+    document.addEventListener('DOMContentLoaded', () => {
+      renderContainerGrid();
+      calculateLivePricing();
+    });
+  </script>
+</body>
+</html>

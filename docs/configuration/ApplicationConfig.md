@@ -91,13 +91,14 @@ spring:
 
 ---
 
-## H2 Console (Development Only)
+## H2 Console (Disabled by Default)
 
 ```yaml
 spring:
   h2:
     console:
-      enabled: true
+      enabled: false  # Explicitly disabled in application.yml for security
+```
       path: /h2-console     # http://localhost:8080/api/v1/h2-console
 ```
 
@@ -248,17 +249,75 @@ epricing:
 
 ---
 
+## Apache Kafka Event Streaming
+
+```yaml
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    template:
+      default-topic: ${KAFKA_TOPIC_PRICING_EVENTS:${KAFKA_TOPIC:loan-pricing-events}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        spring.json.add.type.headers: false
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:3000}
+
+kafka:
+  enabled: ${KAFKA_ENABLED:true}
+  topic: ${KAFKA_TOPIC_PRICING_EVENTS:${KAFKA_TOPIC:loan-pricing-events}}
+```
+
+- `max.block.ms: 3000`: Enforces fail-fast resilience; times out in 3 seconds if broker is down, preserving Tomcat worker threads.
+- `spring.json.add.type.headers: false`: Suppresses Spring-specific type headers, allowing cross-language consumers to parse JSON without deserialization class errors.
+- `enable.idempotence: true` & `acks: all`: Guarantees exactly-once transport from producer to broker.
+
+---
+
+## Temporal Durable Workflow Orchestration
+
+```yaml
+epricing:
+  temporal:
+    enabled: ${TEMPORAL_ENABLED:false}
+    target: ${TEMPORAL_TARGET:localhost:7233}
+    namespace: ${TEMPORAL_NAMESPACE:default}
+    task-queue: ${TEMPORAL_TASK_QUEUE:epricing-pricing-queue}
+```
+
+- `temporal.enabled`: Gated by feature flag; disabled during standalone tests and enabled in Docker Compose.
+- `temporal.target`: gRPC endpoint for Temporal Server (defaults to `localhost:7233` for local dev, `temporal:7233` in Docker).
+- `temporal.task-queue`: Dedicated task queue polling for loan pricing workflow tasks.
+
+---
+
 ## Environment Variable Overrides
 
 Any `application.yml` property can be overridden by environment variables following Spring's relaxed binding rules:
 
-| Property | Environment Variable |
-|---|---|
-| `spring.profiles.active` | `SPRING_PROFILES_ACTIVE` |
-| `otel.exporter.otlp.endpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` |
-| `spring.datasource.url` | `SPRING_DATASOURCE_URL` |
-| `management.otlp.metrics.export.url` | `MANAGEMENT_OTLP_METRICS_EXPORT_URL` |
-| `logging.file.path` | `LOGGING_FILE_PATH` |
+| Property | Environment Variable | Default Value | Purpose |
+|---|---|---|---|
+| `spring.profiles.active` | `SPRING_PROFILES_ACTIVE` | `local` | Active Spring profiles (`docker`, `h2`) |
+| `spring.datasource.url` | `SPRING_DATASOURCE_URL` | YugabyteDB URL | Database JDBC connection string |
+| `spring.datasource.username` | `DB_USERNAME` | None (fail-fast) | Database user |
+| `spring.datasource.password` | `DB_PASSWORD` | None (fail-fast) | Database password |
+| `otel.exporter.otlp.endpoint` | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` | OpenTelemetry Collector endpoint |
+| `management.otlp.metrics.export.url` | `MANAGEMENT_OTLP_METRICS_EXPORT_URL` | Collector metrics | Micrometer OTLP metrics push URL |
+| `logging.file.path` | `LOGGING_FILE_PATH` | `./logs` | Local path where log files are written |
+| `spring.kafka.bootstrap-servers` | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka broker endpoints (`kafka:29092` in Docker) |
+| `kafka.enabled` | `KAFKA_ENABLED` | `true` | Feature flag toggling Kafka domain event publishing |
+| `kafka.topic` | `KAFKA_TOPIC` / `KAFKA_TOPIC_PRICING_EVENTS` | `loan-pricing-events` | Target Kafka topic for domain events |
+| `spring.kafka.producer.properties.max.block.ms` | `KAFKA_PRODUCER_MAX_BLOCK_MS` | `3000` | Fail-fast producer timeout in ms |
+| `epricing.temporal.enabled` | `TEMPORAL_ENABLED` | `false` | Feature flag toggling Temporal durable workflow worker |
+| `epricing.temporal.target` | `TEMPORAL_TARGET` | `localhost:7233` | Temporal Server gRPC connection target |
+| `epricing.temporal.namespace` | `TEMPORAL_NAMESPACE` | `default` | Temporal workflow tenant namespace |
+| `epricing.temporal.task-queue` | `TEMPORAL_TASK_QUEUE` | `epricing-pricing-queue` | Worker task queue identifier |
+| `epricing.cors.allowed-origins` | `CORS_ALLOWED_ORIGINS` | Empty (deny all) | Comma-separated whitelisted browser origins |
+| `epricing.rate-valid-days` | `RATE_VALID_DAYS` | `7` | Duration in days for guaranteed rate-lock offers |
 
 ---
 
@@ -266,5 +325,8 @@ Any `application.yml` property can be overridden by environment variables follow
 
 - [WebConfig.md](./WebConfig.md) — async thread pool
 - [OpenTelemetryConfig.md](./OpenTelemetryConfig.md) — OTel SDK initialization
+- [KafkaKRaftBroker.md](../messaging/KafkaKRaftBroker.md) — Kafka KRaft broker details
+- [ProducerFailFast.md](../messaging/ProducerFailFast.md) — Producer resilience configuration
+- [TemporalWorkflows.md](../workflows/TemporalWorkflows.md) — Durable workflow orchestration
 - [Prometheus.md](../monitoring/Prometheus.md) — metrics scraping
 - [DockerCompose.md](../docker/DockerCompose.md) — environment overrides in Docker

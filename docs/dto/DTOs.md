@@ -141,9 +141,97 @@ This ensures `processedAt` appears as `"2024-01-15T10:30:00.000+05:30"` rather t
 
 ---
 
+## PricingWorkflowResult (Temporal Workflow DTO)
+
+**Package:** `com.bank.epricing.temporal.dto`  
+**File:** `PricingWorkflowResult.java`  
+**Purpose:** Represents the durable state and outcome snapshot of a `LoanPricingWorkflow`.
+
+```java
+@JsonProperty("workflow_id")
+private String workflowId;
+
+@JsonProperty("customer_id")
+private String customerId;
+
+@JsonProperty("product_type")
+private String productType;
+
+@JsonProperty("status")
+private String status; // INITIALIZING, PROCESSING, QUOTED, APPROVED, REJECTED, EXPIRED
+
+@JsonProperty("rejection_reason")
+private String rejectionReason;
+
+@JsonProperty("quote")
+private PricingResponseDto quote;
+
+@JsonProperty("created_at")
+private String createdAt;
+
+@JsonProperty("updated_at")
+private String updatedAt;
+```
+
+---
+
+## LoanPricingEvent (Domain Messaging Event DTO)
+
+**Package:** `com.bank.epricing.event`  
+**File:** [`LoanPricingEvent.java`](../../src/main/java/com/bank/epricing/event/LoanPricingEvent.java)  
+**Detailed Spec:** [`LoanPricingEventStreaming.md`](../messaging/LoanPricingEventStreaming.md)  
+**Purpose:** Canonical domain event emitted to the Apache Kafka topic `loan-pricing-events` upon calculation and state transitions.
+
+```java
+@JsonProperty("request_id")
+private Long requestId;
+
+@JsonProperty("customer_id")
+private String customerId;
+
+@JsonProperty("product_type")
+private String productType;
+
+@JsonProperty("loan_amount")
+private BigDecimal loanAmount;
+
+@JsonProperty("interest_rate")
+@JsonAlias({"interestRate", "interest_rate_pa", "interestRatePA"})
+private BigDecimal interestRate;
+
+@JsonProperty("emi_amount")
+private BigDecimal emiAmount;
+
+@JsonProperty("loan_tenure_months")
+private Integer loanTenureMonths;
+
+@JsonProperty("total_payable_amount")
+private BigDecimal totalPayableAmount;
+
+@JsonProperty("total_interest_payable")
+private BigDecimal totalInterestPayable;
+
+@JsonProperty("risk_category")
+private String riskCategory;
+
+@JsonProperty("status")
+private String status; // CALCULATED, APPROVED, REJECTED, EXPIRED
+
+@JsonProperty("timestamp")
+@JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
+private LocalDateTime timestamp;
+
+@JsonProperty("trace_id")
+private String traceId;
+```
+
+---
+
 ## Cross-References
 
 - [PricingController.md](../controllers/PricingController.md) — how DTOs are used in endpoints
+- [TemporalWorkflows.md](../workflows/TemporalWorkflows.md) — Temporal workflow execution
+- [LoanPricingEventStreaming.md](../messaging/LoanPricingEventStreaming.md) — Kafka event streaming specification
 - [PricingService.md](../services/PricingService.md) — DTO to entity mapping
 - [PricingRequest.md](../entities/PricingRequest.md) — corresponding entity
 - [ExceptionHandling.md](../exception-handling/ExceptionHandling.md) — validation error responses

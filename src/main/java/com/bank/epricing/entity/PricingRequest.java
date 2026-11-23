@@ -27,6 +27,14 @@ public class PricingRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // ISSUE-07 FIX: Optimistic locking version field. Hibernate will include
+    // "WHERE version = ?" in all UPDATE statements. Concurrent modifications
+    // to the same row (e.g. approval vs expiration racing within 100ms) will
+    // throw OptimisticLockingFailureException instead of silently losing one update.
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     @Column(name = "customer_id", nullable = false, length = 50, updatable = false)
     @NotBlank(message = "Customer ID cannot be blank")
     private String customerId;
@@ -153,6 +161,9 @@ public class PricingRequest {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
+
     public String getCustomerId() { return customerId; }
     public void setCustomerId(String customerId) { this.customerId = customerId; }
 
@@ -217,6 +228,7 @@ public class PricingRequest {
 
     public static class PricingRequestBuilder {
         private Long id;
+        private Long version;
         private String customerId;
         private String productType;
         private BigDecimal loanAmount;
@@ -240,6 +252,7 @@ public class PricingRequest {
         PricingRequestBuilder() {}
 
         public PricingRequestBuilder id(Long id) { this.id = id; return this; }
+        public PricingRequestBuilder version(Long version) { this.version = version; return this; }
         public PricingRequestBuilder customerId(String customerId) { this.customerId = customerId; return this; }
         public PricingRequestBuilder productType(String productType) { this.productType = productType; return this; }
         public PricingRequestBuilder loanAmount(BigDecimal loanAmount) { this.loanAmount = loanAmount; return this; }
@@ -261,10 +274,14 @@ public class PricingRequest {
         public PricingRequestBuilder updatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; return this; }
 
         public PricingRequest build() {
-            return new PricingRequest(id, customerId, productType, loanAmount, loanTenureMonths, creditScore,
+            PricingRequest req = new PricingRequest(id, customerId, productType, loanAmount, loanTenureMonths, creditScore,
                     annualIncome, loanPurpose, totalPayableAmount, totalInterestPayable, riskCategory,
                     calculatedRate, emiAmount, status, processingTimeMs, requestIp, traceId, errorMessage,
                     createdAt, updatedAt);
+            if (version != null) {
+                req.setVersion(version);
+            }
+            return req;
         }
     }
 }

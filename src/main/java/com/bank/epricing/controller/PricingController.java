@@ -1,5 +1,6 @@
 package com.bank.epricing.controller;
 
+import com.bank.epricing.dto.PagedResponse;
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.dto.PricingResponseDto;
 import com.bank.epricing.service.PricingService;
@@ -55,39 +56,26 @@ public class PricingController {
     /**
      * GET /api/v1/pricing
      *
-     * Returns a list of all pricing requests for a given customer.
+     * Returns paginated pricing requests for a customer, or recent pricing history in a uniform envelope.
      *
-     * @RequestParam: Reads query parameter from URL.
-     *   Example: GET /api/v1/pricing?customerId=CUST001234
-     *
-     * @RequestParam(required=false): Parameter is optional.
-     *   If not provided, returns recent pricing (capped at 10 for demo).
-     *
-     * ResponseEntity<List<PricingResponseDto>>:
-     *   ResponseEntity gives full control over HTTP response:
-     *     - Status code
-     *     - Headers
-     *     - Body
-     *   Without ResponseEntity: Spring returns 200 automatically.
-     *   With ResponseEntity: You control every aspect of the response.
+     * ISSUE-10 FIX: Standardized on PagedResponse<PricingResponseDto> to guarantee a deterministic,
+     * strongly-typed contract across all clients, eliminating polymorphic contract flipping.
      */
     @GetMapping
-    public ResponseEntity<?> getPricingHistory(
+    public ResponseEntity<PagedResponse<PricingResponseDto>> getPricingHistory(
         @RequestParam(required = false) String customerId,
-        @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size
     ) {
         log.info("GET /pricing | customerId={} | page={} | size={}", StructuredLogger.maskCustomerId(customerId), page, size);
-        if (page != null && customerId != null && !customerId.isBlank()) {
-            int pageSize = (size != null && size > 0 && size <= 100) ? size : 20;
-            Page<PricingResponseDto> pagedResult = pricingService.getPricingHistory(
-                customerId, PageRequest.of(page, pageSize)
-            );
-            return ResponseEntity.ok(pagedResult);
-        }
-        List<PricingResponseDto> history = pricingService.getPricingHistory(customerId);
-        log.info("Pricing history retrieved | customerId={} | count={}", StructuredLogger.maskCustomerId(customerId), history.size());
-        return ResponseEntity.ok(history);
+        int pageSize = (size > 0 && size <= 100) ? size : 20;
+        int pageNumber = Math.max(0, page);
+        Page<PricingResponseDto> pagedResult = pricingService.getPricingHistory(
+            customerId, PageRequest.of(pageNumber, pageSize)
+        );
+        log.info("Pricing history retrieved | customerId={} | totalElements={}",
+            StructuredLogger.maskCustomerId(customerId), pagedResult.getTotalElements());
+        return ResponseEntity.ok(PagedResponse.from(pagedResult));
     }
 
     /**

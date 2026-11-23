@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ePricing Design System — Glassmorphism & UI Component Sandbox</title>
+  <!-- Tailwind CSS via CDN with fallback -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (typeof tailwind === 'undefined') {
+      document.write('<script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"><\/script>');
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    code, pre, .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass-panel {
+      background: rgba(17, 24, 39, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    }
+    .glass-card {
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px -5px rgba(0, 0, 0, 0.5), 0 0 15px -2px rgba(99, 102, 241, 0.2);
+    }
+    .glass-input {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .glass-input:focus {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+      outline: none;
+    }
+    .glow-emerald {
+      box-shadow: 0 0 25px -4px rgba(16, 185, 129, 0.35);
+    }
+    .glow-indigo {
+      box-shadow: 0 0 25px -4px rgba(99, 102, 241, 0.35);
+    }
+    .glow-amber {
+      box-shadow: 0 0 25px -4px rgba(245, 158, 11, 0.35);
+    }
+    .glow-rose {
+      box-shadow: 0 0 25px -4px rgba(244, 63, 94, 0.35);
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-[#070b14] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOP APP BAR -->
+  <header class="sticky top-0 z-50 bg-[#070b14]/85 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 font-bold text-white text-lg">
+          UI
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold tracking-tight text-white text-lg">ePricing Design System</span>
+            <span class="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              Glassmorphism v2.4
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Component Sandbox & Design Token Architecture</p>
+        </div>
+      </div>
+
+      <!-- Action Navigation -->
+      <div class="flex items-center gap-3 text-xs font-mono">
+        <a href="index.html" class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          Open Live Showcase App
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 space-y-12">
+
+    <!-- HERO HEADER -->
+    <div class="relative overflow-hidden p-8 rounded-2xl glass-panel border border-slate-800 bg-gradient-to-r from-indigo-950/40 via-slate-900/60 to-purple-950/30">
+      <div class="max-w-3xl space-y-3">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Financial Tier-1 Design System
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          Modern Glassmorphism Component Sandbox
+        </h1>
+        <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+          The exact design system and visual component library powering the <strong>ePricing Service Interactive Showcase</strong>. Designed for high-density fintech dashboards with frosted elevation, neon telemetry accents, and responsive real-time widgets.
+        </p>
+      </div>
+    </div>
+
+    <!-- 1. COLOR TOKENS & FOUNDATIONS -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+          1. Color Palette & Telemetry Elevation Tokens
+        </h2>
+        <span class="text-xs font-mono text-slate-400">Tokens: CSS Variables & Tailwind 3.4</span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div class="p-3.5 rounded-xl glass-card space-y-2">
+          <div class="h-10 rounded-lg bg-emerald-500 flex items-center justify-center font-mono font-bold text-xs text-slate-950">#10B981</div>
+          <div class="text-xs font-bold text-white">Underwriting Green</div>
+          <div class="text-[11px] font-mono text-slate-400">Approval / Safe Risk</div>
+        </div>
+        <div class="p-3.5 rounded-xl glass-card space-y-2">
+          <div class="h-10 rounded-lg bg-indigo-600 flex items-center justify-center font-mono font-bold text-xs text-white">#6366F1</div>
+          <div class="text-xs font-bold text-white">Sovereign Indigo</div>
+          <div class="text-[11px] font-mono text-slate-400">Primary Core / Temporal</div>
+        </div>
+        <div class="p-3.5 rounded-xl glass-card space-y-2">
+          <div class="h-10 rounded-lg bg-cyan-500 flex items-center justify-center font-mono font-bold text-xs text-slate-950">#06B6D4</div>
+          <div class="text-xs font-bold text-white">Kafka Cyan</div>
+          <div class="text-[11px] font-mono text-slate-400">KRaft Stream / Events</div>
+        </div>
+        <div class="p-3.5 rounded-xl glass-card space-y-2">
+          <div class="h-10 rounded-lg bg-amber-500 flex items-center justify-center font-mono font-bold text-xs text-slate-950">#F59E0B</div>
+          <div class="text-xs font-bold text-white">Risk Warning Amber</div>
+          <div class="text-[11px] font-mono text-slate-400">Medium FOIR / Threshold</div>
+        </div>
+        <div class="p-3.5 rounded-xl glass-card space-y-2">
+          <div class="h-10 rounded-lg bg-rose-500 flex items-center justify-center font-mono font-bold text-xs text-white">#F43F5E</div>
+          <div class="text-xs font-bold text-white">Critical Rejection Rose</div>
+          <div class="text-[11px] font-mono text-slate-400">Credit &lt; 650 / Breach</div>
+        </div>
+        <div class="p-3.5 rounded-xl glass-card space-y-2">
+          <div class="h-10 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center font-mono font-bold text-xs text-slate-300">#070B14</div>
+          <div class="text-xs font-bold text-white">Obsidian Slate</div>
+          <div class="text-[11px] font-mono text-slate-400">Deep Canvas Backdrop</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. LIVE INTERACTIVE METRIC CARDS -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          2. Live Banking Metric Cards (Glass Elevation Tiers)
+        </h2>
+        <span class="text-xs font-mono text-slate-400">Interactive: Click cards to trigger glow</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1 -->
+        <div onclick="this.classList.toggle('glow-emerald')" class="p-5 rounded-2xl glass-card cursor-pointer select-none space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">TEST SUITE COVERAGE</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">100% PASS</span>
+          </div>
+          <div class="text-3xl font-extrabold text-white">94 / 94</div>
+          <p class="text-xs text-slate-400">0 failures, 0 errors, full JPA & Kafka integration suite verified.</p>
+        </div>
+
+        <!-- Card 2 -->
+        <div onclick="this.classList.toggle('glow-indigo')" class="p-5 rounded-2xl glass-card cursor-pointer select-none space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">ORCHESTRATED WORKFLOWS</span>
+            <span class="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono">TEMPORAL</span>
+          </div>
+          <div class="text-3xl font-extrabold text-white">7-Day Lock</div>
+          <p class="text-xs text-slate-400">Durable state machine with non-blocking timers and signals.</p>
+        </div>
+
+        <!-- Card 3 -->
+        <div onclick="this.classList.toggle('glow-amber')" class="p-5 rounded-2xl glass-card cursor-pointer select-none space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">STREAMING INGESTION</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-mono">KRAFT BROKER</span>
+          </div>
+          <div class="text-3xl font-extrabold text-white">3,000 ms</div>
+          <p class="text-xs text-slate-400">Fail-fast max.block.ms timeout eliminating worker thread starvation.</p>
+        </div>
+
+        <!-- Card 4 -->
+        <div onclick="this.classList.toggle('glow-rose')" class="p-5 rounded-2xl glass-card cursor-pointer select-none space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">AUDITED TRAPS REMEDIATED</span>
+            <span class="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-mono">PRODUCTION</span>
+          </div>
+          <div class="text-3xl font-extrabold text-white">11 of 11</div>
+          <p class="text-xs text-slate-400">Zero latent race conditions, deadlock, or liveness traps remaining.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. INTERACTIVE FINANCIAL CALCULATOR COMPONENT -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-500"></span>
+          3. Reactive Financial Sliders & Donut Chart Sandbox
+        </h2>
+        <span class="text-xs font-mono text-slate-400">Calculates in real-time with SVG redraw</span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Controls (7 cols) -->
+        <div class="lg:col-span-7 p-6 rounded-2xl glass-card space-y-6">
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs font-mono">
+              <label class="text-slate-300 font-bold">LOAN AMOUNT (₹)</label>
+              <span id="demo-amount-val" class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-bold">₹10,00,000</span>
+            </div>
+            <input type="range" id="demo-amount" min="100000" max="10000000" step="50000" value="1000000" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500" oninput="updateDemoPricing()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>₹1 Lakh</span>
+              <span>₹50 Lakhs</span>
+              <span>₹1 Crore</span>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs font-mono">
+              <label class="text-slate-300 font-bold">TENURE (MONTHS)</label>
+              <span id="demo-tenure-val" class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-bold">120 Months (10 Yrs)</span>
+            </div>
+            <input type="range" id="demo-tenure" min="12" max="360" step="12" value="120" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500" oninput="updateDemoPricing()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>1 Year</span>
+              <span>15 Years</span>
+              <span>30 Years</span>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs font-mono">
+              <label class="text-slate-300 font-bold">CREDIT SCORE (CIBIL)</label>
+              <span id="demo-score-val" class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold">780 — Excellent</span>
+            </div>
+            <input type="range" id="demo-score" min="300" max="900" step="10" value="780" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500" oninput="updateDemoPricing()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>300 (Rejection)</span>
+              <span>650 (Threshold)</span>
+              <span>900 (Prime)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Donut & Breakdown (5 cols) -->
+        <div class="lg:col-span-5 p-6 rounded-2xl glass-card flex flex-col items-center justify-between space-y-4">
+          <div class="w-full flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-mono text-slate-400">AMORTIZATION SPLIT</span>
+            <span id="demo-rate-badge" class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold">8.50% p.a.</span>
+          </div>
+
+          <!-- SVG Donut Chart -->
+          <div class="relative w-44 h-44 flex items-center justify-center">
+            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="40" stroke="#1e293b" stroke-width="14" fill="transparent"/>
+              <circle id="donut-principal" cx="50" cy="50" r="40" stroke="#6366f1" stroke-width="14" stroke-dasharray="251.2" stroke-dashoffset="75" fill="transparent" class="transition-all duration-500"/>
+              <circle id="donut-interest" cx="50" cy="50" r="40" stroke="#10b981" stroke-width="14" stroke-dasharray="251.2" stroke-dashoffset="176" fill="transparent" class="transition-all duration-500"/>
+            </svg>
+            <div class="absolute flex flex-col items-center justify-center text-center">
+              <span class="text-[10px] font-mono text-slate-400">MONTHLY EMI</span>
+              <span id="demo-emi" class="text-lg font-extrabold text-white">₹12,398</span>
+            </div>
+          </div>
+
+          <!-- Split Legend -->
+          <div class="w-full grid grid-cols-2 gap-2 text-xs font-mono pt-2 border-t border-slate-800">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+              <span class="text-slate-400">Principal:</span>
+              <span id="demo-principal-text" class="text-white font-bold">₹10,00,000</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span class="text-slate-400">Interest:</span>
+              <span id="demo-interest-text" class="text-emerald-400 font-bold">₹4,87,828</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. TEMPORAL WORKFLOW STEPPER COMPONENT -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+          4. Temporal Durable Workflow State Stepper
+        </h2>
+        <span class="text-xs font-mono text-slate-400">Lifecycle: 7-Day Rate Lock Simulation</span>
+      </div>
+
+      <div class="p-6 rounded-2xl glass-card space-y-6">
+        <!-- Steps Circles -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 relative">
+          <div id="step-1" class="p-4 rounded-xl bg-slate-900 border border-indigo-500/40 text-center space-y-1">
+            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center mx-auto text-xs">1</div>
+            <div class="font-bold text-white text-xs">CALCULATE</div>
+            <div class="text-[11px] text-slate-400 font-mono">Reducing Balance</div>
+          </div>
+          <div id="step-2" class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center space-y-1">
+            <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 font-bold flex items-center justify-center mx-auto text-xs">2</div>
+            <div class="font-bold text-white text-xs">LOCK 7 DAYS</div>
+            <div class="text-[11px] text-slate-400 font-mono">Durable Timer</div>
+          </div>
+          <div id="step-3" class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center space-y-1">
+            <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 font-bold flex items-center justify-center mx-auto text-xs">3</div>
+            <div class="font-bold text-white text-xs">CUSTOMER SIGNAL</div>
+            <div class="text-[11px] text-slate-400 font-mono">Approve / Reject</div>
+          </div>
+          <div id="step-4" class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center space-y-1">
+            <div class="w-8 h-8 rounded-full bg-slate-800 text-slate-400 font-bold flex items-center justify-center mx-auto text-xs">4</div>
+            <div class="font-bold text-white text-xs">KAFKA EVENT</div>
+            <div class="text-[11px] text-slate-400 font-mono">Post-Commit Broadcast</div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-800">
+          <div class="flex gap-2">
+            <button onclick="setWorkflowState(1)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono font-medium text-slate-300">Step 1: Calculate</button>
+            <button onclick="setWorkflowState(2)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono font-medium text-slate-300">Step 2: Lock</button>
+            <button onclick="setWorkflowState(3)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono font-medium text-slate-300">Step 3: Signal</button>
+            <button onclick="setWorkflowState(4)" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono font-medium text-slate-300">Step 4: Publish</button>
+          </div>
+          <span id="workflow-desc" class="text-xs font-mono text-indigo-400 font-bold">Executing initial reducing balance calculation...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. TERMINAL LOG STREAMER WITH MASKED PII -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+          5. Glassmorphism Terminal Log Console
+        </h2>
+        <span class="text-xs font-mono text-emerald-400 flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          PII Masking Active: CUST****1234
+        </span>
+      </div>
+
+      <div class="p-4 rounded-2xl glass-card bg-slate-950 font-mono text-xs space-y-2 overflow-x-auto border border-slate-800 shadow-inner">
+        <div class="text-slate-500">// Real-time Structured JSON Output (Logback + OpenTelemetry Context)</div>
+        <div class="text-emerald-400">{"@timestamp":"2026-11-19T14:11:34.268Z","level":"INFO","logger":"PricingCalculator","customerId":"<span class="bg-indigo-500/20 text-indigo-300 px-1 rounded">CUST****001</span>","product":"HOME_LOAN","creditScore":820,"rate":7.50}</div>
+        <div class="text-indigo-400">{"@timestamp":"2026-11-19T14:11:34.270Z","level":"INFO","logger":"TemporalPricingService","action":"WORKFLOW_START","workflowId":"PRICING-WF-<span class="bg-indigo-500/20 text-indigo-300 px-1 rounded">CUST****001</span>-8291","rateLockDays":7}</div>
+        <div class="text-cyan-400">{"@timestamp":"2026-11-19T14:11:34.280Z","level":"INFO","logger":"KafkaPricingEventProducer","topic":"loan-pricing-events","status":"PUBLISHED_POST_COMMIT","traceparent":"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="mt-auto border-t border-slate-800 bg-[#070b14] py-6 text-center text-xs text-slate-500 font-mono">
+    ePricing Microservice Design System &bull; Java 21 LTS &bull; Spring Boot 3.3.4 &bull; Tailwind CSS 3.4
+  </footer>
+
+  <!-- SCRIPT LOGIC -->
+  <script>
+    function updateDemoPricing() {
+      const amount = parseFloat(document.getElementById('demo-amount').value);
+      const tenure = parseInt(document.getElementById('demo-tenure').value);
+      const score = parseInt(document.getElementById('demo-score').value);
+
+      document.getElementById('demo-amount-val').textContent = '₹' + amount.toLocaleString('en-IN');
+      document.getElementById('demo-tenure-val').textContent = tenure + ' Months (' + (tenure/12).toFixed(1) + ' Yrs)';
+      
+      let tier = "Average";
+      let rate = 10.50;
+      if (score >= 800) { tier = "Excellent"; rate = 8.50; }
+      else if (score >= 750) { tier = "Good"; rate = 9.00; }
+      else if (score >= 650) { tier = "Average"; rate = 10.50; }
+      else { tier = "High Risk"; rate = 14.00; }
+
+      document.getElementById('demo-score-val').textContent = score + ' — ' + tier;
+      document.getElementById('demo-rate-badge').textContent = rate.toFixed(2) + '% p.a.';
+
+      // Monthly EMI calculation: [P x R x (1+R)^N]/[(1+R)^N-1]
+      const r = (rate / 12) / 100;
+      const emi = (amount * r * Math.pow(1 + r, tenure)) / (Math.pow(1 + r, tenure) - 1);
+      const totalPayable = emi * tenure;
+      const totalInterest = totalPayable - amount;
+
+      document.getElementById('demo-emi').textContent = '₹' + Math.round(emi).toLocaleString('en-IN');
+      document.getElementById('demo-principal-text').textContent = '₹' + amount.toLocaleString('en-IN');
+      document.getElementById('demo-interest-text').textContent = '₹' + Math.round(totalInterest).toLocaleString('en-IN');
+
+      // Update Donut
+      const circumference = 251.2;
+      const principalPct = amount / totalPayable;
+      const principalOffset = circumference * (1 - principalPct);
+      document.getElementById('donut-principal').style.strokeDashoffset = principalOffset;
+      document.getElementById('donut-interest').style.strokeDashoffset = circumference * principalPct;
+    }
+
+    function setWorkflowState(step) {
+      const descs = [
+        "Step 1: Financial engine computes reducing-balance compounding rate and persists audit row.",
+        "Step 2: Temporal starts 7-day rate lock timer with non-blocking thread release.",
+        "Step 3: Customer approval signal received via REST endpoint /api/v1/temporal/quotes/{id}/approve.",
+        "Step 4: Transaction commits and post-commit listener broadcasts LoanPricingEvent to Kafka topic loan-pricing-events."
+      ];
+      document.getElementById('workflow-desc').textContent = descs[step - 1];
+
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById(`step-${i}`);
+        if (i <= step) {
+          el.className = "p-4 rounded-xl bg-slate-900 border border-indigo-500/80 text-center space-y-1 shadow-md shadow-indigo-500/10";
+          el.children[0].className = "w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center mx-auto text-xs";
+        } else {
+          el.className = "p-4 rounded-xl bg-slate-900 border border-slate-800 text-center space-y-1";
+          el.children[0].className = "w-8 h-8 rounded-full bg-slate-800 text-slate-400 font-bold flex items-center justify-center mx-auto text-xs";
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      updateDemoPricing();
+    });
+  </script>
+</body>
+</html>

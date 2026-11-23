@@ -1,11 +1,12 @@
 # Temporal Durable Workflow Orchestration
 
 **Package:** `com.bank.epricing.temporal`  
-**Configuration File:** [`TemporalConfig.java`](file:///c:/Users/Sonux/Desktop/epricing-service/src/main/java/com/bank/epricing/temporal/config/TemporalConfig.java)  
-**Workflow Interface:** [`LoanPricingWorkflow.java`](file:///c:/Users/Sonux/Desktop/epricing-service/src/main/java/com/bank/epricing/temporal/workflow/LoanPricingWorkflow.java)  
-**Activities Interface:** [`PricingActivities.java`](file:///c:/Users/Sonux/Desktop/epricing-service/src/main/java/com/bank/epricing/temporal/activity/PricingActivities.java)  
+**Configuration File:** [`TemporalConfig.java`](../../src/main/java/com/bank/epricing/temporal/config/TemporalConfig.java)  
+**Workflow Interface:** [`LoanPricingWorkflow.java`](../../src/main/java/com/bank/epricing/temporal/workflow/LoanPricingWorkflow.java)  
+**Activities Interface:** [`PricingActivities.java`](../../src/main/java/com/bank/epricing/temporal/activity/PricingActivities.java)  
 **Temporal Web UI:** `http://localhost:8233`  
-**Temporal gRPC Server:** `localhost:7233`
+**Temporal gRPC Server:** `localhost:7233`  
+**Downstream Event Streaming:** [`LoanPricingEventStreaming.md`](../messaging/LoanPricingEventStreaming.md)
 
 ---
 
@@ -26,7 +27,7 @@ Historically, microservices attempted to manage this with database polling cron 
 
 ---
 
-## 2. Architecture & Lifecycle
+## 2. Architecture & Lifecycle Sequence
 
 ```mermaid
 sequenceDiagram
@@ -37,6 +38,7 @@ sequenceDiagram
     participant Worker as Temporal Worker
     participant Activities as PricingActivitiesImpl
     participant DB as YugabyteDB
+    participant Kafka as Apache Kafka (loan-pricing-events)
 
     Customer->>API: POST /api/v1/workflow/pricing/start
     API->>Engine: start(LoanPricingWorkflow)
@@ -44,36 +46,104 @@ sequenceDiagram
 
     Engine->>Worker: Execute Workflow Method
     Worker->>Activities: calculateAndPersistPricing(request)
-    Activities->>DB: INSERT pricing_requests (CALCULATED)
+    Activities->>DB: INSERT pricing_requests (CALCULATED) & AuditLog
+    Activities->>Kafka: publishPricingEvent(LoanPricingEvent: CALCULATED)
     Activities-->>Worker: quoteResult
 
     Worker->>Engine: Workflow.await(7 days or customer signal)
-    Note over Worker,Engine: Zero threads consumed! Worker sleeps durably.
+    Note over Worker,Engine: Zero threads consumed! Worker sleeps durably in Temporal DB.
 
-    alt Customer Approves within 7 days
+    alt Scenario A: Customer Approves Quote
         Customer->>API: POST /api/v1/workflow/pricing/{id}/approve
         API->>Engine: Signal: approveQuote()
         Engine->>Worker: Resume Workflow with approval
         Worker->>Activities: recordQuoteApproval(quoteId, customerId)
         Activities->>DB: UPDATE pricing_requests (APPROVED) & INSERT pricing_audit_logs (RATE_APPROVED)
-    else Customer Rejects
+        Activities->>Kafka: publishStatusEvent(LoanPricingEvent: APPROVED)
+    else Scenario B: Customer Rejects Quote
         Customer->>API: POST /api/v1/workflow/pricing/{id}/reject
         API->>Engine: Signal: rejectQuote(reason)
         Worker->>Activities: recordQuoteRejection(quoteId, customerId, reason)
         Activities->>DB: UPDATE pricing_requests (REJECTED) & INSERT pricing_audit_logs (RATE_REJECTED)
-    else 7 Days Elapse (Timer Expires)
+        Activities->>Kafka: publishStatusEvent(LoanPricingEvent: REJECTED)
+    else Scenario C: 7 Days Elapse (Timer Expires)
         Engine->>Worker: Wake up on timeout
         Worker->>Activities: recordQuoteExpiration(quoteId, customerId)
         Activities->>DB: UPDATE pricing_requests (EXPIRED) & INSERT pricing_audit_logs (RATE_EXPIRED)
+        Activities->>Kafka: publishStatusEvent(LoanPricingEvent: EXPIRED)
     end
 ```
 
 ---
 
-## 3. Workflow Implementation Details
+## 3. Kafka Domain Event Integration on State Transitions
+
+In addition to persisting state changes in YugabyteDB, `PricingActivitiesImpl` emits domain events to the Apache Kafka topic `loan-pricing-events`:
+
+- **CALCULATED**: Emitted immediately upon initial quote calculation by `PricingService`.
+- **APPROVED**: Emitted when the customer accepts the rate lock via the approval signal.
+- **REJECTED**: Emitted when the customer declines the offer with a rejection reason.
+- **EXPIRED**: Emitted when the 7-day rate-lock timer expires without customer interaction.
+
+```java
+private void publishStatusEvent(PricingRequest request, String status) {
+    if (pricingEventProducer == null || !pricingEventProducer.isKafkaEnabled()) {
+        return;
+    }
+    try {
+        LoanPricingEvent event = new LoanPricingEvent();
+        event.setRequestId(request.getId());
+        event.setCustomerId(request.getCustomerId());
+        event.setProductType(request.getProductType());
+        event.setLoanAmount(request.getLoanAmount());
+        event.setInterestRate(request.getInterestRate());
+        event.setEmiAmount(request.getEmiAmount());
+        event.setLoanTenureMonths(request.getLoanTenureMonths());
+        event.setTotalPayableAmount(request.getTotalPayableAmount());
+        event.setTotalInterestPayable(request.getTotalInterestPayable());
+        event.setRiskCategory(request.getRiskCategory());
+        event.setStatus(status);
+        event.setTimestamp(LocalDateTime.now());
+        // Propagate trace context if available
+        pricingEventProducer.publishPricingEvent(event);
+    } catch (Exception e) {
+        log.warn("Failed to publish status event for requestId={} status={}: {}",
+                request.getId(), status, e.getMessage());
+    }
+}
+```
+
+---
+
+## 4. PII Data Masking Across Workflow Layers
+
+To comply with banking data privacy regulations (RBI / GDPR), all log statements across Temporal controllers, activities, and workflows strictly sanitize customer identifiers using `StructuredLogger.maskCustomerId()`:
+
+1. **Temporal Controller (`TemporalPricingController.java`)**:
+   ```java
+   log.info("Starting durable loan pricing workflow for customer: {}",
+           StructuredLogger.maskCustomerId(requestDto.getCustomerId()));
+   ```
+2. **Workflow Implementation (`LoanPricingWorkflowImpl.java`)**:
+   ```java
+   Workflow.getLogger(LoanPricingWorkflowImpl.class).info(
+           "Starting loan pricing workflow for customer: {}",
+           StructuredLogger.maskCustomerId(requestDto.getCustomerId()));
+   ```
+3. **Activities Implementation (`PricingActivitiesImpl.java`)**:
+   ```java
+   log.info("Recording quote approval for quoteId: {}, customer: {}",
+           quoteId, StructuredLogger.maskCustomerId(customerId));
+   ```
+
+Raw customer identifiers (e.g. `CUST001234`) are never written to Loki logs in plaintext; they are transformed into masked tokens like `CUST****1234`.
+
+---
+
+## 5. Workflow Implementation & Determinism Rules
 
 ### Determinism Rules
-Temporal workflow methods (`LoanPricingWorkflowImpl`) must be **100% deterministic** to allow replay during worker failure recovery:
+Temporal workflow code (`LoanPricingWorkflowImpl`) must be **100% deterministic** to allow replay during worker failure recovery:
 - Use `Workflow.currentTimeMillis()` or activity timestamps (never `System.currentTimeMillis()` or `LocalDateTime.now()` directly in workflow code).
 - Use `Workflow.sleep()` or `Workflow.await()` instead of `Thread.sleep()`.
 - Use `Workflow.newActivityStub(...)` to run database, network, and I/O operations inside Activities.
@@ -101,18 +171,21 @@ ActivityOptions options = ActivityOptions.newBuilder()
 
 ---
 
-## 4. REST API Reference
+## 6. REST API Reference
+
+All Temporal workflow endpoints are under `/api/v1/workflow/pricing`:
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/v1/workflow/pricing/start` | Starts a new `LoanPricingWorkflow` execution asynchronously. Returns `workflowId` and initial snapshot. |
-| `GET` | `/api/v1/workflow/pricing/{workflowId}` | Queries workflow status (`INITIALIZING`, `QUOTED`, `APPROVED`, `REJECTED`, `EXPIRED`, `PROCESSING`, `FAILED`) and result snapshot. |
-| `POST` | `/api/v1/workflow/pricing/{workflowId}/approve` | Dispatches approval signal to the running workflow. |
-| `POST` | `/api/v1/workflow/pricing/{workflowId}/reject` | Dispatches rejection signal with optional reason. |
+| `POST` | `/api/v1/workflow/pricing/start` | Starts a new `LoanPricingWorkflow` execution asynchronously. Returns HTTP 202 Accepted with `workflowId` and initial result. |
+| `GET` | `/api/v1/workflow/pricing/{workflowId}` | Queries complete workflow state and full `PricingWorkflowResult` DTO. |
+| `GET` | `/api/v1/workflow/pricing/{workflowId}/status` | Fast status query returning simple JSON `{ "workflowId": "...", "status": "..." }`. |
+| `POST` | `/api/v1/workflow/pricing/{workflowId}/approve` | Dispatches approval signal to the running workflow. Returns updated workflow state. |
+| `POST` | `/api/v1/workflow/pricing/{workflowId}/reject` | Dispatches rejection signal with optional reason query param. Returns updated workflow state. |
 
 ---
 
-## 5. Local Inspection & Verification
+## 7. Local Inspection & Verification
 
 When running the stack with Docker:
 1. Open the **Temporal Web UI** at **`http://localhost:8233`**.

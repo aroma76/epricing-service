@@ -77,11 +77,11 @@ public class PricingAuditService {
     /**
      * Records a business rejection event with both the human-readable error message and the error code.
      *
-     * COMPLIANCE: This method is SYNCHRONOUS (no @Async).
-     * Business rejections are regulatory records (FOIR rejection, credit score rejection).
-     * They must be committed in the same request cycle, not fire-and-forget.
+     * ISSUE-01 FIX: Removed Propagation.REQUIRES_NEW to prevent HikariCP connection pool
+     * starvation deadlocks. Uses standard @Transactional (REQUIRED) so it executes within
+     * a single connection without suspending an outer connection or deadlocking the pool.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(rollbackFor = Exception.class)
     public void recordRejection(PricingRequestDto requestDto, String errorMessage, String errorCode, String requestIp, String traceId) {
         try {
             String displayReason = (errorMessage != null && !errorMessage.isBlank())
@@ -154,16 +154,11 @@ public class PricingAuditService {
      * in PricingService rolls back — meaning nothing is saved to the DB.
      * Support teams cannot see failed jobs or their error reason in Grafana.
      *
-     * THIS METHOD runs in a NEW transaction (REQUIRES_NEW) separate from the
-     * failing transaction. Even though PricingService's transaction rolls back,
-     * this transaction commits independently — saving the failed record with
-     * status=ERROR and the exact error_message into pricing_requests.
-     *
-     * Grafana's L1 Jobs Table queries pricing_requests directly and displays
-     * the error_message column — so support teams see what went wrong without
-     * logging into YugabyteDB.
+     * ISSUE-01 FIX: Removed Propagation.REQUIRES_NEW. Uses standard @Transactional (REQUIRED)
+     * so it does not check out a second database connection while an outer connection is held,
+     * preventing HikariCP pool starvation.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(rollbackFor = Exception.class)
     public void recordTechnicalFailure(PricingRequestDto requestDto, String errorMessage,
                                        String requestIp, String traceId) {
         try {

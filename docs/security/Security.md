@@ -119,21 +119,25 @@ public void recordTechnicalFailure(...) { ... }
 
 ---
 
-### 5. PII Masking in Logs
+### 5. PII Masking in Logs & Workflows
 
 **Before:** Customer IDs, loan amounts, credit scores, and annual income appeared in plaintext in all log statements and were shipped to Loki.
 
-**After:** `StructuredLogger.java` masks all PII before writing to logs:
+**After:** `StructuredLogger.java` provides public static masking helpers used across HTTP controllers, services, Temporal workflows, and activities:
 
 ```java
-// "CUST001234" → "CUST****1234"
-private String maskCustomerId(String customerId) {
+// "CUST001234" → "CUST****1234" | "CUST01" → "CU****01" | "ABCD" → "****"
+public static String maskCustomerId(String customerId) {
     if (customerId == null || customerId.length() <= 4) return "****";
+    if (customerId.length() < 8) {
+        return customerId.substring(0, 2) + "****" + customerId.substring(customerId.length() - 2);
+    }
     return customerId.substring(0, 4) + "****" + customerId.substring(customerId.length() - 4);
 }
 
 // ₹5,00,000 → "1L-10L"
 private String amountBracket(BigDecimal amount) {
+    if (amount == null) return "unknown";
     long val = amount.longValue();
     if (val < 100_000)    return "<1L";
     if (val < 1_000_000)  return "1L-10L";
@@ -142,7 +146,12 @@ private String amountBracket(BigDecimal amount) {
 }
 ```
 
-**Why it matters:** Loki stores logs in plaintext. If Grafana credentials are compromised, all customer financial data would be readable. PII in logs also violates India's DPDP Act (Digital Personal Data Protection Act 2023).
+**Temporal Hygiene**: PII masking is enforced across the durable workflow tier:
+- `TemporalPricingController`: Sanitizes customer IDs before dispatching workflow executions.
+- `PricingActivitiesImpl`: Sanitizes customer IDs during quote calculation, approval, rejection, and expiration activities.
+- `LoanPricingWorkflowImpl`: Sanitizes customer IDs in workflow execution replay logs.
+
+**Why it matters:** Loki stores logs in plaintext. If Grafana credentials are compromised, all customer financial data would be readable. PII in logs also violates India's DPDP Act (Digital Personal Data Protection Act 2023) and RBI guidelines.
 
 ---
 
@@ -163,6 +172,30 @@ private String extractClientIp(HttpServletRequest request) {
     return request.getRemoteAddr();
 }
 ```
+
+---
+
+### 7. Messaging & Lakehouse Data Privacy
+
+In the event streaming tier (`loan-pricing-events`):
+- **Partition Key**: Emits `customerId` as the record key to guarantee partition ordering, while sensitive financial figures in analytical stores are pseudonymized into hashed tokens (`customer_hash_token`) and masked strings (`customer_id_masked`) according to the [Analytics Star-Schema Mapping Manifesto](../mapping-manifesto.md).
+- **Trace Context**: Transmits standard W3C `traceparent` headers without leaking customer credentials or authorization headers.
+- **Header Sanitization**: Spring Kafka type headers are suppressed (`spring.json.add.type.headers: false`) to prevent internal classpath disclosure.
+
+---
+
+### 8. Architectural Threat Evaluation & Remediation Matrix
+
+For a complete analysis of latent security and resilience risks, see the **[Architectural Audit Report](../architectural-audit.md)** and **[Production Readiness Audit](../PRODUCTION_READINESS_AUDIT.md)**:
+
+| Finding ID | Severity | Category | Description | Remediation Status |
+|---|:---:|---|---|---|
+| **SEC-01** | High | Auth | Unauthenticated business endpoints (`/api/v1/pricing`, `/api/v1/workflow/pricing/*`) | Documented POC limitation; Spring Security OAuth2 / JWT planned |
+| **SEC-02** | High | PII Leak | Unmasked customer identifiers in older log snippets | ✅ Remediated via `StructuredLogger.maskCustomerId()` across all tiers |
+| **SEC-03** | Medium | Actuator | Information disclosure via management endpoints | ✅ Remediated; only `health, info, prometheus, metrics` exposed |
+| **RES-01** | High | Resilience | Kafka producer thread pool starvation | ✅ Remediated via `max.block.ms: 3000` fail-fast configuration |
+| **RES-02** | Medium | Connection Pool | HikariCP pool starvation during nested transactions | Monitored via Prometheus `hikaricp_connections_active` alerts |
+| **ORC-01** | High | Dual-Write | Potential domain event loss during broker downtime | Decoupled fail-fast active; Transactional Outbox pattern recommended |
 
 ---
 

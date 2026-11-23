@@ -51,20 +51,34 @@ public class OpenTelemetryConfig {
         log.info("Initializing OpenTelemetry SDK | serviceName={} | endpoint={}",
             serviceName, otlpEndpoint);
 
-        return AutoConfiguredOpenTelemetrySdk.builder()
-            .setResultAsGlobal()
-            .addPropertiesSupplier(() -> {
-                Map<String, String> props = new HashMap<>();
-                props.put("otel.service.name", serviceName);
-                props.put("otel.exporter.otlp.endpoint", otlpEndpoint);
-                props.put("otel.exporter.otlp.protocol", "http/protobuf");
-                props.put("otel.traces.sampler", "parentbased_always_on");
-                props.put("otel.resource.attributes",
-                    "service.namespace=Bank,team.name=epricing,deployment.environment=" + activeProfile);
-                return props;
-            })
-            .build()
-            .getOpenTelemetrySdk();
+        try {
+            return AutoConfiguredOpenTelemetrySdk.builder()
+                .setResultAsGlobal()
+                .addPropertiesSupplier(this::buildOtelProperties)
+                .build()
+                .getOpenTelemetrySdk();
+        } catch (Exception e) {
+            log.warn("GlobalOpenTelemetry already registered in JVM or failed to register as global ({}); reusing existing global or creating standalone SDK", e.getMessage());
+            try {
+                return io.opentelemetry.api.GlobalOpenTelemetry.get();
+            } catch (Exception ex) {
+                return AutoConfiguredOpenTelemetrySdk.builder()
+                    .addPropertiesSupplier(this::buildOtelProperties)
+                    .build()
+                    .getOpenTelemetrySdk();
+            }
+        }
+    }
+
+    private Map<String, String> buildOtelProperties() {
+        Map<String, String> props = new HashMap<>();
+        props.put("otel.service.name", serviceName);
+        props.put("otel.exporter.otlp.endpoint", otlpEndpoint);
+        props.put("otel.exporter.otlp.protocol", "http/protobuf");
+        props.put("otel.traces.sampler", "parentbased_always_on");
+        props.put("otel.resource.attributes",
+            "service.namespace=Bank,team.name=epricing,deployment.environment=" + activeProfile);
+        return props;
     }
 
     /**

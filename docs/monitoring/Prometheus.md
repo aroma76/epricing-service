@@ -211,6 +211,7 @@ Alert rules are stored in `prometheus/alerts/application-alerts.yml`. See [Alert
 
 ## Cross-References
 
+- [AI_IN_PROMETHEUS_AND_GRAFANA.md](./AI_IN_PROMETHEUS_AND_GRAFANA.md) — Native PromQL regression, statistical forecasting, and AI triage
 - [PricingMetrics.md](./PricingMetrics.md) — custom metric definitions
 - [Grafana.md](./Grafana.md) — PromQL in dashboards
 - [AlertingRules.md](./AlertingRules.md) — Prometheus alert rules

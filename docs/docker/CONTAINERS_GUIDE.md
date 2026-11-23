@@ -5,7 +5,7 @@
 > every single Docker container: why it exists, what image it runs, what ports it uses, how it stores data,
 > how it communicates with other containers, and how to debug it when things fail.
 >
-> **Stack Summary:** 16 containers running on a custom bridge network (`epricing-network`), orchestrated
+> **Stack Summary:** 17 containers running on a custom bridge network (`epricing-network`), orchestrated
 > by Docker Compose with strict health checks, resource bounds, and automated telemetry pipelines.
 
 ---
@@ -14,7 +14,7 @@
 
 1. [Container Topology & Network Architecture](#1-container-topology--network-architecture)
 2. [Master Container Directory (Quick Reference)](#2-master-container-directory-quick-reference)
-3. [Deep-Dive: The 16 Platform Containers](#3-deep-dive-the-16-platform-containers)
+3. [Deep-Dive: The 17 Platform Containers](#3-deep-dive-the-17-platform-containers)
    - [01. epricing-yugabytedb (Distributed SQL Database)](#01-epricing-yugabytedb)
    - [02. epricing-service (Core Spring Boot Microservice)](#02-epricing-service)
    - [03. prometheus (Time-Series Metrics Database)](#03-prometheus)
@@ -31,6 +31,7 @@
    - [14. temporal-db (Temporal PostgreSQL Persistence)](#14-temporal-db)
    - [15. temporal (Durable Workflow Engine)](#15-temporal)
    - [16. temporal-ui (Workflow Web Console)](#16-temporal-ui)
+   - [17. kafka (KRaft Mode Event Streaming Broker)](#17-kafka)
 4. [Storage & Volume Persistence Matrix](#4-storage--volume-persistence-matrix)
 5. [Port Map & Conflict Prevention Strategy](#5-port-map--conflict-prevention-strategy)
 6. [Startup Order & Health Dependency Graph](#6-startup-order--health-dependency-graph)
@@ -40,7 +41,7 @@
 
 ## 1. Container Topology & Network Architecture
 
-All 16 containers attach to a user-defined bridge network named `epricing-network` (Subnet: `172.20.0.0/16`).
+All 17 containers attach to a user-defined bridge network named `epricing-network` (Subnet: `172.20.0.0/16`).
 
 ```mermaid
 graph TB
@@ -53,6 +54,10 @@ graph TB
         APP["epricing-service\n(Spring Boot 3.3.4 / Java 21)"]
         YDB["epricing-yugabytedb\n(YugabyteDB 2.20.1 Distributed SQL)"]
         LOGS_VOL[("epricing-logs Volume\n(/app/logs/*.log)")]
+    end
+
+    subgraph MessagingTier ["Event Streaming & Message Broker"]
+        KAFKA["kafka\n(Apache Kafka 3.8.0 KRaft :9092/:29092)"]
     end
 
     subgraph TemporalStack ["Durable Workflow Engine"]
@@ -89,11 +94,12 @@ graph TB
     CLIENT -->|"HTTP :8233"| TUI
     CLIENT -->|"HTTP :3000"| GRAF
 
-    %% App & DB
+    %% App & DB & Messaging
     APP -->|"YSQL (:5433)"| YDB
     APP -->|"JSON Log Writes"| LOGS_VOL
     APP -->|"OTLP Traces (:4318)"| OTEL
     APP -->|"gRPC (:7233)"| TENG
+    APP -->|"Kafka Events (:29092)"| KAFKA
 
     %% Temporal
     TENG -->|"Postgres (:5432)"| TDB
@@ -139,10 +145,13 @@ graph TB
 | 14 | `temporal-db` | `postgres:15-alpine` | `5432` | Workflow DB | Host default |
 | 15 | `temporal` | `temporalio/auto-setup:1.24.1` | `7233` | Workflow Engine | Host default |
 | 16 | `temporal-ui` | `temporalio/ui:2.26.0` | `8233` | Workflow UI | Host default |
+| 17 | `kafka` | `apache/kafka:3.8.0` | `9092, 29092` | Messaging | Host default |
+
+> **Optional Profile Container:** Container 18: `epricing-ollama` (`ollama/ollama:latest`, Port `11434`, Category: `AI / Local LLM`, Profile: `ai`) provides on-premises private LLM execution for Grafana LLM App and Alertmanager triage without external network egress. See [`AI_IN_PROMETHEUS_AND_GRAFANA.md`](../monitoring/AI_IN_PROMETHEUS_AND_GRAFANA.md).
 
 ---
 
-## 3. Deep-Dive: The 16 Platform Containers
+## 3. Deep-Dive: The 17 Platform Containers
 
 ---
 
@@ -321,7 +330,10 @@ GF_SECURITY_ADMIN_PASSWORD: Bank@grafana123
 GF_USERS_DEFAULT_THEME: dark
 GF_FEATURE_TOGGLES_ENABLE: "traceToMetrics"
 GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/epricing-complete-dashboard.json"
+GF_INSTALL_PLUGINS: "${GF_INSTALL_PLUGINS:-}" # Set to "grafana-llm-app" to enable AI plugin
 ```
+
+> **AI & LLM Capabilities:** See [`docs/monitoring/AI_IN_PROMETHEUS_AND_GRAFANA.md`](../monitoring/AI_IN_PROMETHEUS_AND_GRAFANA.md) for enabling the Grafana LLM plugin and running private on-premises models via Ollama (`--profile ai`).
 
 #### 5. How to Inspect Live
 - Open `http://localhost:3000` (User: `admin`, Pass: `Bank@grafana123`).
@@ -578,6 +590,53 @@ The management web console for Temporal. It allows developers and operations tea
 
 ---
 
+### 17. `kafka`
+
+#### 1. Overview & Image
+- **Image:** `apache/kafka:3.8.0`
+- **Container Name:** `epricing-kafka`
+- **Ports:** `9092:9092` (Host forwarded), `29092` (Internal Docker bridge), `9093` (Controller listener)
+
+#### 2. Why This Container Exists
+Apache Kafka acts as the **event streaming backbone** for asynchronous, event-driven banking operations. It decouples the core loan pricing calculation from downstream analytical data pipelines (BigQuery/Iceberg star schema), customer notification microservices, and regulatory compliance audit streams.
+
+#### 3. KRaft Mode Consensus Architecture (No ZooKeeper)
+Running Kafka 3.8.0 in **KRaft mode (Kafka Raft Metadata Mode)** eliminates ZooKeeper entirely:
+- **Combined Node Roles:** `KAFKA_PROCESS_ROLES: broker,controller` — node ID 1 functions simultaneously as metadata voter and event broker.
+- **Quorum Voter:** `KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093` ensures consensus is tracked directly within the internal `@metadata` log.
+- **Fail-Fast Protection:** Integrated with the application's 3000ms fail-fast producer configuration (`max.block.ms: 3000`), ensuring that broker unreachability never exhausts Tomcat worker threads or fails customer HTTP transactions.
+
+#### 4. Volumes & Persistence
+- `kafka-data` volume mapped to `/var/lib/kafka/data`.
+- Persists all topic log segments for `loan-pricing-events` across container restarts.
+
+#### 5. Health Check
+```yaml
+test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+interval: 10s
+timeout: 5s
+retries: 5
+start_period: 20s
+```
+*`epricing-service` waits for Kafka to pass this health check (`condition: service_healthy`) before booting.*
+
+#### 6. Verification & CLI Tailing
+```powershell
+# List topics inside the broker
+docker exec -it epricing-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+# Live tail loan pricing domain events with key and timestamp
+docker exec -it epricing-kafka /opt/kafka/bin/kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic loan-pricing-events \
+  --from-beginning \
+  --property print.key=true
+```
+
+*For comprehensive architecture and configuration details, see [`docs/messaging/KafkaKRaftBroker.md`](../messaging/KafkaKRaftBroker.md).*
+
+---
+
 ## 4. Storage & Volume Persistence Matrix
 
 | Volume Name | Mounted Path Inside Container | Host Lifespan | Stored Contents |
@@ -591,6 +650,7 @@ The management web console for Temporal. It allows developers and operations tea
 | `tempo-data` | `/var/tempo` | Survives restarts | Distributed trace parquet blocks and bloom filters |
 | `alertmanager-data`| `/alertmanager` | 120 hours retention | Active alert silences and notification state |
 | `temporal-pg-data` | `/var/lib/postgresql/data` | Survives restarts | PostgreSQL data files for Temporal workflow persistence |
+| `kafka-data` | `/var/lib/kafka/data` | Survives restarts | Apache Kafka KRaft persistent commit logs and metadata partitions |
 
 ---
 
@@ -614,9 +674,11 @@ The management web console for Temporal. It allows developers and operations tea
 | `8233` | Temporal UI | Inbound | **Changed from 8080** to avoid conflicts with customer API |
 | `9000` | YugabyteDB | Inbound | Yugabyte TServer Admin UI |
 | `9090` | Prometheus | Inbound | Prometheus Query UI & Scraper |
+| `9092` | Kafka (Host) | Inbound | External / Host Kafka client access (`PLAINTEXT_HOST`) |
 | `9093` | Alertmanager | Inbound | Alertmanager UI & API |
 | `9100` | Node Exporter | Inbound | OS Hardware metrics |
 | `15433` | YugabyteDB | Inbound | yugabyted Administration Dashboard |
+| `29092` | Kafka (Internal) | Internal | Docker bridge network listener for microservices (`PLAINTEXT`) |
 
 ---
 
@@ -625,9 +687,10 @@ The management web console for Temporal. It allows developers and operations tea
 Docker Compose does not start containers randomly; it enforces a strict health-based dependency sequence:
 
 ```
-Step 1: Base Persistence
+Step 1: Base Persistence & Event Streaming
         ├── temporal-db starts → waits for pg_isready healthcheck
-        └── yugabytedb starts  → waits for yugabyted status healthcheck
+        ├── yugabytedb starts  → waits for yugabyted status healthcheck
+        └── kafka starts       → waits for kafka-topics.sh healthcheck
 
 Step 2: Workflow & Telemetry Infrastructure
         ├── temporal starts (depends on temporal-db: service_healthy)
@@ -636,7 +699,7 @@ Step 2: Workflow & Telemetry Infrastructure
         └── otel-collector starts (depends on tempo: service_started)
 
 Step 3: Core Application & Routing
-        ├── epricing-service starts (depends on yugabytedb: service_healthy AND otel-collector: service_started)
+        ├── epricing-service starts (depends on yugabytedb: service_healthy, kafka: service_healthy, otel-collector: service_started)
         ├── promtail starts (depends on loki: service_started)
         └── temporal-ui starts (depends on temporal: service_started)
 
@@ -652,12 +715,16 @@ Step 4: Monitoring, Exporters & Traffic Simulation
 
 ## 7. Operational Troubleshooting & Cheatsheet
 
-### 1. View Live Resource Consumption Across All 16 Containers
+### 1. View Live Resource Consumption Across All 17 Containers
 ```powershell
 docker stats --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
 ```
 
 ### 2. Verify Overall Platform Health
+```powershell
+docker-compose ps
+```
+*Look for `(healthy)` next to `epricing-yugabytedb`, `temporal-db`, `epricing-kafka`, `epricing-service`, and `alertmanager`.*
 ```powershell
 docker-compose ps
 ```

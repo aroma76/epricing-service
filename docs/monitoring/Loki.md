@@ -132,10 +132,10 @@ Promtail's pipeline stages:
 {application="epricing-service"} | json | level="ERROR"
 ```
 
-### Filter by customer
+### Filter by customer (masked identifier)
 
 ```logql
-{application="epricing-service"} | json | customerId="CUST001234"
+{application="epricing-service"} | json | customerId="CUST****1234"
 ```
 
 ### Filter by trace ID (log-trace correlation)

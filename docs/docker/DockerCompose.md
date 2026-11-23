@@ -2,13 +2,14 @@
 
 **File:** [`docker-compose.yml`](../../docker-compose.yml)  
 **Command:** `docker-compose up --build`  
-**Detailed Container Deep-Dive:** See **[`CONTAINERS_GUIDE.md`](./CONTAINERS_GUIDE.md)** for a complete study breakdown of all 16 containers.
+**Detailed Container Deep-Dive:** See **[`CONTAINERS_GUIDE.md`](./CONTAINERS_GUIDE.md)** for a complete study breakdown of all 17 containers.  
+**Messaging Architecture:** See **[`KafkaKRaftBroker.md`](../messaging/KafkaKRaftBroker.md)** for Apache Kafka KRaft broker specifications.
 
 ---
 
 ## Purpose
 
-`docker-compose.yml` defines the complete observability stack as a single declarative file. One command starts all 16 services with proper networking, volumes, and dependencies.
+`docker-compose.yml` defines the complete observability and event-driven banking stack as a single declarative file. One command starts all 17 services with proper networking, volumes, health checks, and dependencies.
 
 ---
 
@@ -32,6 +33,7 @@
 | `temporal-db` | `postgres:15-alpine` | `5432` | Workflow engine persistence database |
 | `temporal` | `temporalio/auto-setup:1.24.1` | `7233` | Durable workflow engine |
 | `temporal-ui` | `temporalio/ui:2.26.0` | `8233` | Temporal workflow web console |
+| `kafka` | `apache/kafka:3.8.0` | `9092`, `29092` | Apache Kafka KRaft event streaming broker |
 
 ---
 
@@ -50,6 +52,8 @@ All services join `epricing-network`. Docker's internal DNS resolves service nam
 - `epricing-service:8080` — app API
 - `prometheus:9090` — Prometheus
 - `loki:3100` — Loki push endpoint
+- `kafka:29092` — Kafka internal broker listener
+- `temporal:7233` — Temporal gRPC frontend
 
 The custom `/16` subnet prevents IP conflicts with other Docker Compose stacks.
 
@@ -68,9 +72,10 @@ volumes:
   tempo-data:           # Grafana Tempo distributed trace storage
   promtail-positions:   # Promtail read positions (deduplication across restarts)
   temporal-pg-data:     # Temporal PostgreSQL persistence
+  kafka-data:           # Apache Kafka KRaft persistent event storage
 ```
 
-Without named volumes, all data is lost on `docker-compose down`.
+Without named volumes, all database state, telemetry histories, and event streaming logs are lost on `docker-compose down`.
 
 ---
 
@@ -85,18 +90,29 @@ epricing-service:
     dockerfile: Dockerfile
   ports:
     - "8080:8080"
-    - "8081:8081"
+    - "8089:8081"   # Host port 8089 maps to internal Actuator port 8081
   environment:
     SPRING_PROFILES_ACTIVE: docker
     OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     OTEL_SERVICE_NAME: epricing-service
     MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://otel-collector:4318/v1/metrics
     LOGGING_FILE_PATH: /app/logs
+    KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    KAFKA_ENABLED: "true"
+    KAFKA_TOPIC: loan-pricing-events
+    TEMPORAL_ENABLED: "true"
+    TEMPORAL_TARGET: temporal:7233
   volumes:
     - epricing-logs:/app/logs       # Shared with promtail
   depends_on:
     otel-collector:
       condition: service_started
+    yugabytedb:
+      condition: service_healthy
+    temporal:
+      condition: service_started
+    kafka:
+      condition: service_healthy
   deploy:
     resources:
       limits:
@@ -106,6 +122,46 @@ epricing-service:
 ```
 
 Resource limits prevent the container from consuming all host resources. `512M` memory limit forces the JVM to respect container bounds via `-XX:+UseContainerSupport`.
+
+### kafka (KRaft Mode)
+
+```yaml
+kafka:
+  image: apache/kafka:3.8.0
+  container_name: epricing-kafka
+  ports:
+    - "9092:9092"
+  environment:
+    KAFKA_NODE_ID: 1
+    KAFKA_PROCESS_ROLES: broker,controller
+    KAFKA_LISTENERS: PLAINTEXT://:29092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
+    KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+    KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+    KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    KAFKA_NUM_PARTITIONS: 3
+    KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    KAFKA_LOG_DIRS: /var/lib/kafka/data
+  volumes:
+    - kafka-data:/var/lib/kafka/data
+  networks:
+    epricing-network:
+      aliases:
+        - kafka
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+    start_period: 20s
+```
+
+Detailed technical guide: [Kafka KRaft Broker Documentation](../messaging/KafkaKRaftBroker.md).
 
 ### prometheus
 
@@ -179,8 +235,6 @@ traffic-generator:
 
 Automatically sends pricing requests every 2 seconds. This ensures Grafana dashboards have live, realistic data immediately after `docker-compose up` — no need to manually hit the API.
 
-> **Note:** This service sends requests to all pricing endpoints and demo endpoints (`/simulate-slow`, `/simulate-error`, `/generate-load`) to populate all dashboard panels.
-
 ### cadvisor and node-exporter
 
 Infrastructure metric exporters:
@@ -198,17 +252,21 @@ Customer Request → epricing-service :8080
                                      ↓ write logs
                             /app/logs/epricing-service.log
                                      ↓ tail
-                               promtail
+                                promtail
                                      ↓ push
-                               loki :3100
+                                loki :3100
                                      ↓ datasource
-                               grafana :3000
+                                grafana :3000
 
 epricing-service → OTLP HTTP :4318 → otel-collector
                                            ↓ prometheus exporter
                                       prometheus :9090 ← scrape :8081/actuator/prometheus
                                            ↓ datasource
                                       grafana :3000
+
+epricing-service → Kafka Producer :29092 → Apache Kafka KRaft (loan-pricing-events)
+                                                ↓ stream
+                                           Downstream Consumers / Lakehouse
 ```
 
 ---
@@ -216,7 +274,7 @@ epricing-service → OTLP HTTP :4318 → otel-collector
 ## Common Commands
 
 ```bash
-# Start everything
+# Start all 17 platform containers
 docker-compose up --build
 
 # Start in background
@@ -224,6 +282,7 @@ docker-compose up --build -d
 
 # View logs for specific service
 docker-compose logs -f epricing-service
+docker-compose logs -f kafka
 
 # Restart just the app (after code change)
 docker-compose build epricing-service
@@ -243,6 +302,10 @@ curl -X POST http://localhost:9090/-/reload
 
 ## Cross-References
 
+- [CONTAINERS_GUIDE.md](./CONTAINERS_GUIDE.md) — Comprehensive deep-dive on all 17 containers
+- [KafkaKRaftBroker.md](../messaging/KafkaKRaftBroker.md) — Kafka KRaft broker architecture
+- [LoanPricingEventStreaming.md](../messaging/LoanPricingEventStreaming.md) — Event streaming specification
+- [ProducerFailFast.md](../messaging/ProducerFailFast.md) — Fail-fast producer configuration
 - [Dockerfile.md](./Dockerfile.md) — epricing-service image build
 - [Prometheus.md](../monitoring/Prometheus.md) — Prometheus configuration
 - [Grafana.md](../monitoring/Grafana.md) — Grafana setup

@@ -176,6 +176,28 @@ Uses the custom `pricing_requests_active` Gauge from `PricingMetrics`. If more t
 
 ---
 
+### Group 4: Event Streaming & Kafka Health (`epricing-kafka-alerts`)
+
+#### KafkaBrokerDown
+| Field | Value |
+|---|---|
+| **Severity** | `critical` |
+| **For** | `1m` |
+| **PromQL** | `probe_success{instance="kafka:9092"} == 0 or absent(up{job="kafka"})` |
+
+**Description:** The Apache Kafka KRaft broker is unreachable or failing health checks. Downstream analytical consumers cannot receive new pricing domain events.
+
+#### KafkaProducerPublishFailureRate
+| Field | Value |
+|---|---|
+| **Severity** | `warning` |
+| **For** | `3m` |
+| **PromQL** | `rate(kafka_producer_record_error_total[5m]) > 0.05` |
+
+**Description:** Kafka producer error rate exceeds 5% of all outbound publications. Indicates metadata retrieval timeouts or broker degradation. While HTTP transactions continue via fail-fast error decoupling, domain event delivery is impacted.
+
+---
+
 ## Alert Template Variables
 
 Prometheus alert annotations support templates:
@@ -192,20 +214,21 @@ description: "Error rate is {{ printf \"%.2f\" $value }}%."
 
 ## Alertmanager Integration
 
-> **Status: Not configured in the dev stack.** In production, Alertmanager would handle:
+Alertmanager is **actively deployed** in `docker-compose.yml` (Port `9093`):
 
 ```yaml
-# prometheus.yml (production addition)
+# prometheus.yml
 alerting:
   alertmanagers:
     - static_configs:
         - targets: ['alertmanager:9093']
 ```
 
-**Alertmanager would route:**
-- `severity=critical` → PagerDuty (immediate on-call notification)
-- `severity=warning` → Slack `#epricing-alerts` channel
-- `team_notify=risk-analytics` → Slack `#risk-analytics` channel
+**Active Alert Routing (`alertmanager.yml`):**
+- Receives firing alerts from Prometheus.
+- Groups and deduplicates alerts by `alertname` and `job`.
+- Dispatches alert JSON webhooks to `webhook-logger:5001` (visible via `docker logs webhook-logger -f`).
+- In production, routes `severity=critical` to PagerDuty and `severity=warning` to enterprise Slack channels.
 
 ---
 

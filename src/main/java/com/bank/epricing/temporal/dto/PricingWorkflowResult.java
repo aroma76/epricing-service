@@ -4,10 +4,15 @@ import com.bank.epricing.dto.PricingResponseDto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.io.Serializable;
+import java.time.Instant;
+import java.time.ZoneId;
 
 /**
  * Result object representing the state and outcome of a durable Temporal pricing workflow.
  * Adheres to Temporal determinism: timestamp tracking is driven by activities or workflow-deterministic context.
+ *
+ * ISSUE-08 FIX: Standardized on UTC ISO-8601 timestamps (Instant string representation)
+ * to eliminate chronology inversions between local JVM timezones and cloud UTC runtimes.
  */
 public class PricingWorkflowResult implements Serializable {
 
@@ -47,7 +52,7 @@ public class PricingWorkflowResult implements Serializable {
         this.status = status;
         this.quote = quote;
         if (quote != null && quote.getCalculatedAt() != null) {
-            this.createdAt = quote.getCalculatedAt().toString();
+            this.createdAt = quote.getCalculatedAt().atZone(ZoneId.of("UTC")).toInstant().toString();
         } else {
             this.createdAt = null;
         }
@@ -73,10 +78,11 @@ public class PricingWorkflowResult implements Serializable {
     public void setQuote(PricingResponseDto quote) {
         this.quote = quote;
         if (quote != null && quote.getCalculatedAt() != null) {
+            String utcTime = quote.getCalculatedAt().atZone(ZoneId.of("UTC")).toInstant().toString();
             if (this.createdAt == null) {
-                this.createdAt = quote.getCalculatedAt().toString();
+                this.createdAt = utcTime;
             }
-            this.updatedAt = quote.getCalculatedAt().toString();
+            this.updatedAt = utcTime;
         }
     }
 

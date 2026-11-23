@@ -19,8 +19,13 @@ server:
 epricing:
   temporal:
     enabled: false
+  kafka:
+    enabled: false
   cors:
     allowed-origins: "http://localhost:3000"
+
+kafka:
+  enabled: false
 
 otel:
   traces:

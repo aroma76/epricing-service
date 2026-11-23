@@ -98,6 +98,23 @@ spring:
       write-dates-as-timestamps: false
     time-zone: Asia/Kolkata  # IST for Bank
 
+  # ═══════════════════════════════════════════════════════════════
+  # APACHE KAFKA — Event Streaming Platform
+  # ═══════════════════════════════════════════════════════════════
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    template:
+      default-topic: ${KAFKA_TOPIC_PRICING_EVENTS:${KAFKA_TOPIC:loan-pricing-events}}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        spring.json.add.type.headers: false
+        max.block.ms: ${KAFKA_PRODUCER_MAX_BLOCK_MS:3000}
+
 # ═══════════════════════════════════════════════════════════════════
 # SERVER CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════
@@ -264,6 +281,20 @@ epricing:
     target: ${TEMPORAL_TARGET:localhost:7233}
     namespace: ${TEMPORAL_NAMESPACE:default}
     task-queue: ${TEMPORAL_TASK_QUEUE:epricing-pricing-queue}
+
+  # ═══════════════════════════════════════════════════════════════
+  # KAFKA EVENT STREAMING
+  # ═══════════════════════════════════════════════════════════════
+  kafka:
+    enabled: ${KAFKA_ENABLED:true}
+    topic: ${KAFKA_TOPIC_PRICING_EVENTS:${KAFKA_TOPIC:loan-pricing-events}}
+
+# ═══════════════════════════════════════════════════════════════════
+# KAFKA TOP-LEVEL FEATURE FLAG & TOPIC CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════
+kafka:
+  enabled: ${KAFKA_ENABLED:true}
+  topic: ${KAFKA_TOPIC_PRICING_EVENTS:${KAFKA_TOPIC:loan-pricing-events}}
 
 ---
 # ═══════════════════════════════════════════════════════════════════

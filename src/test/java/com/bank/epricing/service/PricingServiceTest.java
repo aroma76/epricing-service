@@ -3,6 +3,7 @@ package com.bank.epricing.service;
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.dto.PricingResponseDto;
 import com.bank.epricing.entity.PricingRequest;
+import com.bank.epricing.event.LoanPricingEvent;
 import com.bank.epricing.exception.PricingException;
 import com.bank.epricing.exception.PricingException.InsufficientCreditScoreException;
 import com.bank.epricing.logging.StructuredLogger;
@@ -19,6 +20,7 @@ import io.opentelemetry.api.trace.Tracer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -39,6 +41,7 @@ class PricingServiceTest {
     private Tracer tracer;
     private Span span;
     private SpanBuilder spanBuilder;
+    private PricingEventProducer pricingEventProducer;
 
     private PricingService pricingService;
 
@@ -68,13 +71,16 @@ class PricingServiceTest {
         when(spanBuilder.startSpan()).thenReturn(span);
         when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
 
+        pricingEventProducer = mock(PricingEventProducer.class);
+
         pricingService = new PricingService(
             pricingRepository,
             pricingCalculator,
             pricingMetrics,
             auditService,
             structuredLogger,
-            tracer
+            tracer,
+            pricingEventProducer
         );
     }
 
@@ -114,6 +120,51 @@ class PricingServiceTest {
         assertEquals("CALCULATED", response.getStatus());
 
         verify(pricingRepository, times(1)).save(any(PricingRequest.class));
+        verify(pricingEventProducer, times(1)).publishPricingEvent(any(LoanPricingEvent.class));
+    }
+
+    @Test
+    @DisplayName("Should publish Kafka event with all required domain attributes upon successful pricing")
+    void testCalculatePricing_PublishesKafkaEventWithCorrectAttributes() {
+        PricingRequestDto requestDto = PricingRequestDto.builder()
+            .customerId("CUST001234")
+            .productType("HOME_LOAN")
+            .loanAmount(new BigDecimal("5000000"))
+            .loanTenureMonths(240)
+            .creditScore(780)
+            .annualIncome(new BigDecimal("2400000"))
+            .build();
+
+        PricingRequest mockSaved = PricingRequest.builder()
+            .id(105L)
+            .customerId("CUST001234")
+            .productType("HOME_LOAN")
+            .loanAmount(new BigDecimal("5000000"))
+            .loanTenureMonths(240)
+            .calculatedRate(new BigDecimal("8.00"))
+            .emiAmount(new BigDecimal("41822.00"))
+            .status(PricingRequest.PricingStatus.CALCULATED)
+            .traceId("mock-trace-id-12345")
+            .build();
+
+        when(pricingRepository.save(any(PricingRequest.class))).thenReturn(mockSaved);
+
+        pricingService.calculatePricing(requestDto, "127.0.0.1");
+
+        ArgumentCaptor<LoanPricingEvent> eventCaptor = ArgumentCaptor.forClass(LoanPricingEvent.class);
+        verify(pricingEventProducer, times(1)).publishPricingEvent(eventCaptor.capture());
+
+        LoanPricingEvent publishedEvent = eventCaptor.getValue();
+        assertEquals(105L, publishedEvent.getRequestId());
+        assertEquals("CUST001234", publishedEvent.getCustomerId());
+        assertEquals("HOME_LOAN", publishedEvent.getProductType());
+        assertEquals(new BigDecimal("5000000"), publishedEvent.getLoanAmount());
+        assertEquals(new BigDecimal("8.00"), publishedEvent.getInterestRate());
+        assertEquals(new BigDecimal("41822.00"), publishedEvent.getEmiAmount());
+        assertEquals(240, publishedEvent.getLoanTenureMonths());
+        assertEquals("CALCULATED", publishedEvent.getStatus());
+        assertEquals("mock-trace-id-12345", publishedEvent.getTraceId());
+        assertNotNull(publishedEvent.getTimestamp());
     }
 
     @Test
@@ -205,5 +256,6 @@ class PricingServiceTest {
         // Verify auditRepository recorded rejection, NOT technical failure
         verify(auditRepository, times(1)).save(argThat(auditLog -> "REJECTED".equals(auditLog.getOutcome())));
         verify(auditRepository, never()).save(argThat(auditLog -> "FAILED".equals(auditLog.getOutcome())));
+        verify(pricingEventProducer, never()).publishPricingEvent(any());
     }
 }

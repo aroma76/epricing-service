@@ -1,45 +1,48 @@
-# Database Design
+# Database Design & Migration Architecture
 
-**Database:** YugabyteDB (Distributed SQL — YSQL, Port 5433) / PostgreSQL 16+ | **Driver:** Yugabyte Smart Driver (`jdbc-yugabytedb`)
-**Migrations:** Flyway Versioned Migrations (`classpath:db/migration`)
-**ORM:** Spring Data JPA + Hibernate (Dialect: `PostgreSQLDialect`, `ddl-auto: validate`)
+**Database:** YugabyteDB (Distributed SQL — YSQL, Port 5433) / PostgreSQL 16+ | **Driver:** Yugabyte Smart Driver (`jdbc-yugabytedb`)  
+**Migrations:** Enterprise Sequential Migration Runner (`DatabaseMigrationInitializer` executing V1..V6)  
+**ORM:** Spring Data JPA + Hibernate (Dialect: `PostgreSQLDialect`, `ddl-auto: validate`)  
+**Analytical Lakehouse Extension:** [`docs/mapping-manifesto.md`](../mapping-manifesto.md)
 
 ---
 
-## Entity Relationship Diagram
+## 1. Entity Relationship Diagram
 
 ```mermaid
 erDiagram
     PRICING_REQUESTS {
-        BIGINT id PK
-        VARCHAR(20) customer_id
+        BIGSERIAL id PK
+        VARCHAR(50) customer_id
         VARCHAR(50) product_type
         DECIMAL(15_2) loan_amount
         INT loan_tenure_months
         INT credit_score
         DECIMAL(15_2) annual_income
+        VARCHAR(200) loan_purpose
         DECIMAL(5_2) calculated_rate
         DECIMAL(15_2) emi_amount
-        DECIMAL(18_2) total_payable_amount
-        DECIMAL(18_2) total_interest_payable
-        VARCHAR(20) risk_category
+        DECIMAL(15_2) total_payable_amount
+        DECIMAL(15_2) total_interest_payable
+        VARCHAR(30) risk_category
         VARCHAR(20) status
+        VARCHAR(2000) error_message
         BIGINT processing_time_ms
-        VARCHAR(45) request_ip
+        VARCHAR(50) request_ip
         VARCHAR(64) trace_id
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
 
     PRICING_AUDIT_LOGS {
-        BIGINT id PK
+        BIGSERIAL id PK
         BIGINT pricing_request_id
-        VARCHAR(20) customer_id
+        VARCHAR(50) customer_id
         VARCHAR(50) action
         VARCHAR(500) description
         VARCHAR(100) performed_by
         VARCHAR(20) outcome
-        VARCHAR(45) request_ip
+        VARCHAR(50) request_ip
         VARCHAR(64) trace_id
         BIGINT duration_ms
         TIMESTAMP created_at
@@ -50,177 +53,139 @@ erDiagram
 
 ---
 
-## Table: pricing_requests
+## 2. Table: pricing_requests
 
-**Primary storage** for all loan pricing calculations.
+**Primary transactional storage** for all loan pricing calculations and rate locks.
 
 ```sql
-CREATE TABLE pricing_requests (
-    id                    BIGINT         PRIMARY KEY AUTO_INCREMENT,
-    customer_id           VARCHAR(20)    NOT NULL,
-    product_type          VARCHAR(50)    NOT NULL,
-    loan_amount           DECIMAL(15,2)  NOT NULL,
-    loan_tenure_months    INT            NOT NULL,
-    credit_score          INT,
-    annual_income         DECIMAL(15,2),
-    calculated_rate       DECIMAL(5,2),   -- e.g., 8.50
-    emi_amount            DECIMAL(15,2),
-    total_payable_amount  DECIMAL(18,2),
-    total_interest_payable DECIMAL(18,2),
-    risk_category         VARCHAR(20),    -- LOW, LOW_MEDIUM, MEDIUM, MEDIUM_HIGH, HIGH
-    status                VARCHAR(20)    NOT NULL DEFAULT 'PENDING',
-    processing_time_ms    BIGINT,
-    request_ip            VARCHAR(45),    -- IPv6-safe
-    trace_id              VARCHAR(64),
-    created_at            TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at            TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS pricing_requests (
+    id                      BIGSERIAL      PRIMARY KEY,
+    customer_id             VARCHAR(50)    NOT NULL,
+    product_type            VARCHAR(50)    NOT NULL,
+    loan_amount             DECIMAL(15,2)  NOT NULL,
+    loan_tenure_months      INTEGER        NOT NULL,
+    credit_score            INTEGER,
+    annual_income           DECIMAL(15,2),
+    loan_purpose            VARCHAR(200),
+    calculated_rate         DECIMAL(5,2),   -- e.g., 8.50%
+    emi_amount              DECIMAL(15,2),
+    total_payable_amount    DECIMAL(15,2),
+    total_interest_payable  DECIMAL(15,2),
+    risk_category           VARCHAR(30),    -- LOW, LOW_MEDIUM, MEDIUM, HIGH
+    status                  VARCHAR(20)    NOT NULL DEFAULT 'PENDING',
+    error_message           VARCHAR(2000),  -- Added in V5 for fail-fast error triage
+    processing_time_ms      BIGINT,
+    request_ip              VARCHAR(50),    -- IPv6-safe
+    trace_id                VARCHAR(64),
+    created_at              TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMP WITHOUT TIME ZONE
 );
 ```
 
-### Indexes
+### Indexes (`V3__create_indexes.sql`)
 
 ```sql
-CREATE INDEX idx_customer_id ON pricing_requests(customer_id);
-CREATE INDEX idx_trace_id    ON pricing_requests(trace_id);
-CREATE INDEX idx_status      ON pricing_requests(status);
-CREATE INDEX idx_created_at  ON pricing_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_pricing_requests_customer_id ON pricing_requests(customer_id);
+CREATE INDEX IF NOT EXISTS idx_pricing_requests_trace_id    ON pricing_requests(trace_id);
+CREATE INDEX IF NOT EXISTS idx_pricing_requests_status      ON pricing_requests(status);
+CREATE INDEX IF NOT EXISTS idx_pricing_requests_created_at  ON pricing_requests(created_at);
 ```
 
-| Index | Supports Query |
-|---|---|
-| `idx_customer_id` | `findByCustomerId()` — customer history lookup |
-| `idx_trace_id` | `findByTraceId()` — incident debugging by trace |
-| `idx_status` | `countByStatus()` — pipeline status monitoring |
-| `idx_created_at` | Time-range queries, recent history (findTop10ByOrderByCreatedAtDesc) |
+| Index Name | Supports Query | Operational Impact |
+|---|---|---|
+| `idx_pricing_requests_customer_id` | `findByCustomerId()` | Customer history lookup for CRM portals |
+| `idx_pricing_requests_trace_id` | `findByTraceId()` | OpenTelemetry / Tempo incident triage by trace ID |
+| `idx_pricing_requests_status` | `countByStatus()` | Pipeline health checks & rate-lock status monitoring |
+| `idx_pricing_requests_created_at` | `findTop10ByOrderByCreatedAtDesc` | High-frequency ops dashboard time-window filtering |
 
 ---
 
-## Table: pricing_audit_logs
+## 3. Table: pricing_audit_logs
 
-**Append-only audit trail** for compliance and investigation.
+**Append-only immutable audit trail** satisfying RBI regulatory compliance guidelines.
 
 ```sql
-CREATE TABLE pricing_audit_logs (
-    id                  BIGINT       PRIMARY KEY AUTO_INCREMENT,
-    pricing_request_id  BIGINT,      -- Soft FK to pricing_requests.id
-    customer_id         VARCHAR(20), -- Denormalized for query efficiency
-    action              VARCHAR(50),  -- PRICING_CALCULATED, PRICING_REJECTED, etc.
+CREATE TABLE IF NOT EXISTS pricing_audit_logs (
+    id                  BIGSERIAL      PRIMARY KEY,
+    pricing_request_id  BIGINT,        -- Soft FK to pricing_requests.id
+    customer_id         VARCHAR(50),   -- Denormalized for query performance
+    action              VARCHAR(50),   -- PRICING_CALCULATED, RATE_APPROVED, RATE_REJECTED, RATE_EXPIRED
     description         VARCHAR(500),
     performed_by        VARCHAR(100),
-    outcome             VARCHAR(20),  -- SUCCESS, FAILURE, REJECTED
-    request_ip          VARCHAR(45),
+    outcome             VARCHAR(20),   -- SUCCESS, FAILURE, REJECTED
+    request_ip          VARCHAR(50),
     trace_id            VARCHAR(64),
     duration_ms         BIGINT,
-    created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at          TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-> **Note:** `pricing_request_id` references `pricing_requests.id` but is a **soft foreign key** (no `FOREIGN KEY CONSTRAINT`). This is intentional: audit logs must be retained even if the source pricing request is purged. A hard FK would prevent deletion of `pricing_requests` records.
+> **Soft Foreign Key Rationale:** `pricing_request_id` is intentionally maintained as an unconstrained column rather than a hard foreign key. In financial systems, audit logs must be immutable and permanently retained for at least 7 years, even if transient pricing requests are purged or archived.
 
 ---
 
-## Seed Data (`V4__seed_initial_data.sql`)
+## 4. Migration Architecture (`DatabaseMigrationInitializer`)
 
-10 `pricing_requests` and 4 `pricing_audit_logs` are seeded into the database on startup via versioned migration script `V4__seed_initial_data.sql`:
-
-```sql
--- 10 pricing requests covering all product types and statuses
-INSERT INTO pricing_requests
-  (customer_id, product_type, loan_amount, loan_tenure_months, credit_score, annual_income, ...)
-VALUES
-  ('CUST001234', 'HOME_LOAN',      5000000.00, 240, 780, 2400000.00, ...),  -- CALCULATED
-  ('CUST002345', 'PERSONAL_LOAN',  500000.00,  36,  720, 800000.00,  ...),  -- CALCULATED
-  ('CUST003456', 'AUTO_LOAN',      800000.00,  60,  750, 1200000.00, ...),  -- CALCULATED
-  ('CUST004567', 'BUSINESS_LOAN',  2000000.00, 84,  810, 3600000.00, ...),  -- APPROVED
-  ('CUST005678', 'HOME_LOAN',      3500000.00, 180, 680, 1800000.00, ...),  -- CALCULATED
-  ('CUST006789', 'PERSONAL_LOAN',  300000.00,  24,  620, 600000.00,  ...),  -- REJECTED
-  ('CUST007890', 'EDUCATION_LOAN', 1200000.00, 120, 740, 1000000.00, ...),  -- CALCULATED
-  ('CUST008901', 'HOME_LOAN',      7500000.00, 300, 830, 4800000.00, ...),  -- APPROVED
-  ('CUST009012', 'AUTO_LOAN',      600000.00,  48,  700, 900000.00,  ...),  -- CALCULATED
-  ('CUST010123', 'BUSINESS_LOAN',  5000000.00, 60,  760, 6000000.00, ...);  -- CALCULATED
-
--- 4 audit log entries
-INSERT INTO pricing_audit_logs (pricing_request_id, customer_id, action, outcome, ...)
-VALUES
-  (1, 'CUST001234', 'PRICING_CALCULATED', 'SUCCESS',  ...),
-  (4, 'CUST004567', 'PRICING_APPROVED',   'SUCCESS',  ...),
-  (6, 'CUST006789', 'PRICING_REJECTED',   'REJECTED', ...),
-  (8, 'CUST008901', 'PRICING_APPROVED',   'SUCCESS',  ...);
-```
-
----
-
-## Enterprise Migration Runner (`DatabaseMigrationInitializer`)
-
-To support distributed SQL (YugabyteDB) alongside standard PostgreSQL and H2 without monolithic advisory lock contention, the service uses `DatabaseMigrationInitializer` with a dedicated `schema_history` table.
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:yugabytedb://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:epricingdb}?load-balance=true&sslmode=disable
-    driver-class-name: com.yugabyte.Driver
-    username: ${DB_USERNAME:yugabyte}
-    password: ${DB_PASSWORD:yugabyte}
-    hikari:
-      pool-name: epricing-pool
-      maximum-pool-size: 20
-      minimum-idle: 5
-      leak-detection-threshold: 60000
-
-  flyway:
-    enabled: false    # Migrations executed sequentially by DatabaseMigrationInitializer
-
-  jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      ddl-auto: validate      # Strictly validate entities against applied migrations
-    show-sql: false
-    properties:
-      hibernate:
-        jdbc:
-          batch_size: 50
-          order_inserts: true
-          order_updates: true
-```
-
-### Versioned Migration Scripts
+To support distributed SQL (YugabyteDB) alongside standard PostgreSQL and H2 without table lock contention, migrations are managed sequentially by `DatabaseMigrationInitializer` with automated state recording in `schema_history`.
 
 ```
 src/main/resources/db/migration/
 ├── V1__create_pricing_requests_table.sql
 ├── V2__create_pricing_audit_logs_table.sql
 ├── V3__create_indexes.sql
-└── V4__seed_initial_data.sql
+├── V4__seed_initial_data.sql
+├── V5__add_error_message_to_pricing_requests.sql
+└── V6__create_grafana_reader_role.sql
 ```
 
-**Key Safety Features:**
-- **Fail-Fast on Failure**: If any migration fails, `DatabaseMigrationInitializer` throws a critical runtime exception, preventing the application from starting in an inconsistent state.
-- **Idempotent Tracking**: Applied scripts are recorded in `schema_history(version, description, script, installed_on)`.
-- **Strict Validation**: Hibernate's `ddl-auto: validate` guarantees schema consistency while preventing untracked runtime DDL modifications.
+### Migration History & Scope
+
+| Version | Script Name | Scope & Purpose |
+|---|---|---|
+| **V1** | `V1__create_pricing_requests_table.sql` | Provisions core `pricing_requests` table with decimal monetary types. |
+| **V2** | `V2__create_pricing_audit_logs_table.sql` | Provisions append-only `pricing_audit_logs` compliance table. |
+| **V3** | `V3__create_indexes.sql` | Creates B-tree indexes for `customer_id`, `trace_id`, `status`, and `created_at`. |
+| **V4** | `V4__seed_initial_data.sql` | Seeds realistic retail banking loan requests and audit records across product types. |
+| **V5** | `V5__add_error_message_to_pricing_requests.sql` | Adds `error_message VARCHAR(2000)` column to display failure reasons in Grafana. |
+| **V6** | `V6__create_grafana_reader_role.sql` | Least-privilege security hardening: grants read-only access to `grafana_reader`. |
 
 ---
 
-## Data Types and Precision
+## 5. Security Hardening: Least-Privilege `grafana_reader` Role (V6)
 
-**Why BigDecimal / DECIMAL in SQL for financial data?**
+In compliance with banking security standards, Grafana does not connect to YugabyteDB using the superuser `yugabyte`. Instead, migration **V6** establishes a dedicated, read-only role:
 
-`double` and `float` are IEEE 754 floating-point types — they cannot exactly represent decimal fractions. For example:
-```java
-0.1 + 0.2 == 0.30000000000000004  // IEEE 754 float error
-```
-
-In banking, this is unacceptable. `DECIMAL(15,2)` stores exact base-10 values:
 ```sql
-DECIMAL(15,2): up to 15 digits total, 2 after decimal point
--- Example: 9999999999999.99 (13 digits + 2 decimal = 15 digits)
+GRANT CONNECT ON DATABASE epricingdb TO grafana_reader;
+GRANT USAGE ON SCHEMA public TO grafana_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO grafana_reader;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO grafana_reader;
 ```
+
+This prevents accidental DDL modifications or write statements from visualization panels.
 
 ---
 
-## Cross-References
+## 6. Analytical Lakehouse Extension (Kimball Star Schema)
 
-- [PricingRequest.md](../entities/PricingRequest.md) — entity mapping
-- [PricingAuditLog.md](../entities/PricingAuditLog.md) — audit entity mapping
-- [PricingRepository.md](../repositories/PricingRepository.md) — queries on pricing_requests
-- [PricingAuditRepository.md](../repositories/PricingAuditRepository.md) — queries on pricing_audit_logs
-- [ApplicationConfig.md](../configuration/ApplicationConfig.md) — JPA/HikariCP configuration
+While YugabyteDB handles high-concurrency OLTP loan calculations, long-term analytics, cohort delinquency modeling, and risk audits are offloaded to an **Analytical Star Schema Lakehouse** (BigQuery / Apache Iceberg):
+
+- **OLTP Source**: `pricing_requests` and `pricing_audit_logs` + Kafka topic `loan-pricing-events`.
+- **Target Lakehouse**:
+  - `dim_customer` (SCD Type 2 with PII tokenization)
+  - `dim_loan_product`
+  - `dim_date`
+  - `fact_pricing_decisions` (Grain: 1 row per calculation)
+  - `fact_audit_events` (Grain: 1 row per lifecycle state transition)
+
+*For complete analytical mappings, data deduplication rules, and schema DDL, refer to the **[Analytics Star-Schema Mapping Manifesto](../mapping-manifesto.md)**.*
+
+---
+
+## 7. Cross-References
+
+- [PricingRequest.md](../entities/PricingRequest.md) — JPA entity mapping
+- [PricingAuditLog.md](../entities/PricingAuditLog.md) — Audit entity mapping
+- [mapping-manifesto.md](../mapping-manifesto.md) — Lakehouse dimensional model specification
+- [KafkaKRaftBroker.md](../messaging/KafkaKRaftBroker.md) — Event streaming infrastructure
+- [Security.md](../security/Security.md) — Security controls & database credential management

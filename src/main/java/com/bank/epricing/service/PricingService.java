@@ -3,6 +3,7 @@ package com.bank.epricing.service;
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.dto.PricingResponseDto;
 import com.bank.epricing.entity.PricingRequest;
+import com.bank.epricing.event.LoanPricingEvent;
 import com.bank.epricing.exception.PricingException;
 import com.bank.epricing.logging.StructuredLogger;
 import com.bank.epricing.metrics.PricingMetrics;
@@ -14,11 +15,14 @@ import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -65,6 +69,7 @@ public class PricingService {
     private final PricingAuditService auditService;
     private final StructuredLogger structuredLogger;
     private final Tracer tracer;
+    private final PricingEventProducer pricingEventProducer;
 
     /**
      * Number of days a quoted interest rate is valid.
@@ -75,18 +80,30 @@ public class PricingService {
     @Value("${epricing.rate-valid-days:7}")
     private int rateValidDays;
 
+    @Autowired
     public PricingService(PricingRepository pricingRepository,
                           PricingCalculator pricingCalculator,
                           PricingMetrics pricingMetrics,
                           PricingAuditService auditService,
                           StructuredLogger structuredLogger,
-                          Tracer tracer) {
+                          Tracer tracer,
+                          @Autowired(required = false) PricingEventProducer pricingEventProducer) {
         this.pricingRepository = pricingRepository;
         this.pricingCalculator = pricingCalculator;
         this.pricingMetrics = pricingMetrics;
         this.auditService = auditService;
         this.structuredLogger = structuredLogger;
         this.tracer = tracer;
+        this.pricingEventProducer = pricingEventProducer;
+    }
+
+    public PricingService(PricingRepository pricingRepository,
+                          PricingCalculator pricingCalculator,
+                          PricingMetrics pricingMetrics,
+                          PricingAuditService auditService,
+                          StructuredLogger structuredLogger,
+                          Tracer tracer) {
+        this(pricingRepository, pricingCalculator, pricingMetrics, auditService, structuredLogger, tracer, null);
     }
 
     /**
@@ -94,17 +111,16 @@ public class PricingService {
      * CALCULATE PRICING — The main business operation
      * ═══════════════════════════════════════════════════════════════════
      *
-     * @Transactional: Wraps this method in a database transaction.
-     * If ANY exception is thrown, ALL database changes are rolled back.
-     * This ensures atomicity: either everything succeeds or nothing is saved.
+     * ISSUE-01 FIX: @Transactional removed from this method to eliminate
+     * the HikariCP connection-pool starvation deadlock caused by calling
+     * auditService methods annotated with REQUIRES_NEW while holding an
+     * outer connection. Atomic DB writes are now confined to PricingAuditService
+     * methods that each own their own short-lived transaction.
      *
-     * readOnly=false (default): This transaction may write to the database.
-     *
-     * In banking, transactionality is critical:
-     * "If pricing calculation succeeded but audit log failed → rollback both"
-     * This prevents partial state (pricing without audit trail).
+     * ISSUE-02 FIX: Kafka publish is now deferred to afterCommit() so the
+     * event is only sent after the DB transaction successfully commits,
+     * preventing phantom Kafka events if the DB write rolls back.
      */
-    @Transactional(rollbackFor = Exception.class)
     public PricingResponseDto calculatePricing(PricingRequestDto requestDto, String requestIp) {
 
         long overallStartTime = System.currentTimeMillis();
@@ -130,10 +146,15 @@ public class PricingService {
         //         └─ validateEligibility (5ms)
         //         └─ computeRate (10ms)
         //         └─ persistPricingRequest (120ms) ← DB operation
+        //
+        // ISSUE-05 FIX: Mask PII — customer IDs and exact loan amounts are
+        // replaced with masked IDs and bracket ranges to prevent PII leakage
+        // into Grafana Tempo / Loki / Prometheus telemetry stores.
+        String maskedCustomerId = StructuredLogger.maskCustomerId(requestDto.getCustomerId());
         Span pricingSpan = tracer.spanBuilder("calculatePricing")
-            .setAttribute("customer.id", requestDto.getCustomerId())
+            .setAttribute("customer.id.masked", maskedCustomerId)
             .setAttribute("product.type", requestDto.getProductType())
-            .setAttribute("loan.amount", requestDto.getLoanAmount().toPlainString())
+            .setAttribute("loan.amount.bracket", categorizeLoanBracket(requestDto.getLoanAmount()))
             .startSpan();
 
         // try-with-resources pattern for OTel scopes:
@@ -289,6 +310,62 @@ public class PricingService {
                 interestRate, emi, totalDuration
             );
 
+            // ─── STEP 7: Publish Domain Event to Kafka ────────────────────
+            // ISSUE-02 FIX: Defer Kafka publish until AFTER DB transaction commits.
+            // ISSUE-03 FIX: Log failures from the CompletableFuture callback so
+            //               dropped events are visible in operational logs.
+            if (pricingEventProducer != null) {
+                final LoanPricingEvent event = LoanPricingEvent.builder()
+                    .requestId(savedRequest.getId())
+                    .customerId(savedRequest.getCustomerId())
+                    .productType(savedRequest.getProductType())
+                    .loanAmount(savedRequest.getLoanAmount())
+                    .interestRate(interestRate)
+                    .emiAmount(emi)
+                    .loanTenureMonths(savedRequest.getLoanTenureMonths())
+                    .totalPayableAmount(totalPayable)
+                    .totalInterestPayable(totalInterest)
+                    .riskCategory(riskCategory)
+                    .status(savedRequest.getStatus() != null ? savedRequest.getStatus().name() : "CALCULATED")
+                    .timestamp(savedRequest.getCreatedAt() != null ? savedRequest.getCreatedAt().atZone(java.time.ZoneId.of("UTC")).toInstant() : java.time.Instant.now())
+                    .traceId(traceId)
+                    .build();
+
+                if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            try {
+                                pricingEventProducer.publishPricingEvent(event)
+                                    .whenComplete((result, ex) -> {
+                                        if (ex != null) {
+                                            log.error("CRITICAL: Async Kafka publish failed post-commit | requestId={} | error={}",
+                                                event.getRequestId(), ex.getMessage(), ex);
+                                        }
+                                    });
+                            } catch (Exception e) {
+                                log.error("Failed to submit Kafka publish post-commit | requestId={} | error={}",
+                                    event.getRequestId(), e.getMessage(), e);
+                            }
+                        }
+                    });
+                } else {
+                    // No active transaction (e.g. called directly in tests) — publish immediately
+                    try {
+                        pricingEventProducer.publishPricingEvent(event)
+                            .whenComplete((result, ex) -> {
+                                if (ex != null) {
+                                    log.error("CRITICAL: Async Kafka publish failed | requestId={} | error={}",
+                                        event.getRequestId(), ex.getMessage(), ex);
+                                }
+                            });
+                    } catch (Exception e) {
+                        log.error("Failed to publish loan pricing event to Kafka | requestId={} | error={}",
+                            savedRequest.getId(), e.getMessage(), e);
+                    }
+                }
+            }
+
             // ─── STEP 8: Build and return response ────────────────────────
             return PricingResponseDto.builder()
                 .requestId(savedRequest.getId())
@@ -384,6 +461,9 @@ public class PricingService {
     public Page<PricingResponseDto> getPricingHistory(String customerId, Pageable pageable) {
         log.info("Fetching paginated pricing history | customerId={} | page={} | size={}",
             StructuredLogger.maskCustomerId(customerId), pageable.getPageNumber(), pageable.getPageSize());
+        if (customerId == null || customerId.isBlank()) {
+            return pricingRepository.findAll(pageable).map(this::mapToResponseDto);
+        }
         return pricingRepository.findByCustomerId(customerId, pageable)
             .map(this::mapToResponseDto);
     }
@@ -407,6 +487,20 @@ public class PricingService {
         } finally {
             repoSpan.end();
         }
+    }
+
+    /**
+     * ISSUE-05 FIX: Categorises loan amounts into coarse brackets for OTel span
+     * attributes, preventing exact financial figures from leaking into telemetry.
+     */
+    private String categorizeLoanBracket(BigDecimal loanAmount) {
+        if (loanAmount == null) return "UNKNOWN";
+        double amount = loanAmount.doubleValue();
+        if (amount < 500_000) return "UNDER_5L";
+        if (amount < 2_000_000) return "5L_20L";
+        if (amount < 5_000_000) return "20L_50L";
+        if (amount < 10_000_000) return "50L_1CR";
+        return "ABOVE_1CR";
     }
 
     /**

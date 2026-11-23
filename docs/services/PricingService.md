@@ -28,7 +28,8 @@ public PricingService(
     PricingMetrics pricingMetrics,
     PricingAuditService auditService,
     StructuredLogger structuredLogger,
-    Tracer tracer
+    Tracer tracer,
+    @Autowired(required = false) PricingEventProducer pricingEventProducer
 )
 ```
 
@@ -39,9 +40,10 @@ All dependencies are injected via constructor injection (best practice — expli
 | `PricingRepository` | Save/retrieve `PricingRequest` JPA entities |
 | `PricingCalculator` | Pure math: interest rate, EMI, risk category |
 | `PricingMetrics` | Record Micrometer counters, timers, gauges |
-| `PricingAuditService` | Trigger async audit log write |
-| `StructuredLogger` | Emit typed, structured log events |
+| `PricingAuditService` | Trigger synchronous/asynchronous audit log write |
+| `StructuredLogger` | Emit typed, structured log events with sanitized PII |
 | `Tracer` | Create custom OTel child spans |
+| `PricingEventProducer` | Publish `LoanPricingEvent` domain events to Kafka (`loan-pricing-events`) |
 
 ---
 
@@ -58,9 +60,7 @@ flowchart TD
     A[Enter calculatePricing] --> B[Increment active request gauge]
     B --> C[Start OTel span: pricing-calculation]
     C --> D[Log PRICING_STARTED event]
-    D --> E[Create PricingRequest entity with PENDING status]
-    E --> F{Save PENDING to DB}
-    F --> G[PricingCalculator.validateEligibility]
+    D --> G[PricingCalculator.validateEligibility]
     G -->|Credit score < 650| H[Throw InsufficientCreditScoreException]
     G -->|Eligible| I[PricingCalculator.calculateInterestRate]
     I --> J[PricingCalculator.calculateEmi]
@@ -69,7 +69,8 @@ flowchart TD
     J2 -->|Compliant| K[Compute totalPayable and totalInterest]
     K --> L[Build PricingRequest entity with CALCULATED status]
     L --> M[Persist PricingRequest & AuditLog via savePricingWithAudit]
-    M --> O[Log PRICING_COMPLETED event]
+    M --> N[Publish LoanPricingEvent to Kafka topic with fail-fast 3000ms]
+    N --> O[Log PRICING_COMPLETED event]
     O --> P[Record metrics: success counter, timers]
     P --> Q[Return PricingResponseDto]
     H --> R[Log PRICING_REJECTED event]

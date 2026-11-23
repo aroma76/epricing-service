@@ -24,7 +24,7 @@ The logging strategy is built on three layers working together to produce **quer
 
 Plain text logs:
 ```
-2024-01-15 10:30:00 INFO  PricingService - Pricing requested by CUST001234
+2024-01-15 10:30:00 INFO  PricingService - Pricing requested by CUST****1234
 ```
 
 JSON logs (after LogstashEncoder):
@@ -36,7 +36,7 @@ JSON logs (after LogstashEncoder):
   "message": "Pricing calculation started",
   "traceId": "abc123def456",
   "spanId": "789xyz",
-  "customerId": "CUST001234",
+  "customerId": "CUST****1234",
   "requestId": "REQ-ABC123DEF456",
   "application": "epricing-service",
   "team": "epricing",
@@ -46,7 +46,7 @@ JSON logs (after LogstashEncoder):
 
 JSON logs are machine-parseable by Loki, enabling Grafana queries like:
 ```
-{application="epricing-service"} | json | event_type="PRICING_STARTED" | customerId="CUST001234"
+{application="epricing-service"} | json | event_type="PRICING_STARTED" | customerId="CUST****1234"
 ```
 
 ### Appenders
@@ -109,7 +109,7 @@ MDC (Mapped Diagnostic Context) is a thread-local key-value map provided by SLF4
 | MDC Key | Source | Example Value |
 |---|---|---|
 | `requestId` | `X-Request-ID` header, or generated UUID | `REQ-ABC123DEF456` |
-| `customerId` | `X-Customer-ID` header | `CUST001234` |
+| `customerId` | `X-Customer-ID` header (Masked via `StructuredLogger`) | `CUST****1234` |
 | `clientIp` | `X-Forwarded-For` or `getRemoteAddr()` | `203.0.113.195` |
 | `httpMethod` | `request.getMethod()` | `POST` |
 | `requestUri` | `request.getRequestURI()` | `/api/v1/pricing` |
@@ -230,8 +230,8 @@ After logs are shipped by Promtail to Loki:
 # All errors in the last 1 hour
 {application="epricing-service"} | json | level="ERROR"
 
-# All logs for a specific customer
-{application="epricing-service"} | json | customerId="CUST001234"
+# All logs for a specific customer (using masked identifier)
+{application="epricing-service"} | json | customerId="CUST****1234"
 
 # All logs for a specific trace (cross-reference with Tempo)
 {application="epricing-service"} | json | traceId="abc123def456"
@@ -242,6 +242,42 @@ After logs are shipped by Promtail to Loki:
 # Pricing rejections in the last 30 minutes
 {application="epricing-service"} | json | event_type="PRICING_REJECTED"
 ```
+
+---
+
+## PII Masking & Data Sanitization Standards
+
+To ensure strict compliance with banking secrecy and privacy regulations (RBI, DPDP Act 2023, GDPR), all application logs are scrubbed of sensitive Customer Personally Identifiable Information (PII) before leaving JVM memory:
+
+### 1. Customer Identifier Masking (`StructuredLogger.maskCustomerId`)
+The utility method `StructuredLogger.maskCustomerId(String customerId)` is `public static`, allowing use across controllers, services, activities, and workflows:
+
+```java
+public static String maskCustomerId(String customerId) {
+    if (customerId == null || customerId.length() <= 4) return "****";
+    if (customerId.length() < 8) {
+        return customerId.substring(0, 2) + "****" + customerId.substring(customerId.length() - 2);
+    }
+    return customerId.substring(0, 4) + "****" + customerId.substring(customerId.length() - 4);
+}
+```
+
+- Standard customer ID: `"CUST001234"` → `"CUST****1234"` (first 4 + mask + last 4)
+- Short customer ID: `"CUST01"` → `"CU****01"` (first 2 + mask + last 2)
+- Very short or null ID: `"ABCD"` or `null` → `"****"`
+
+### 2. Coarse Financial Amount Bracketing (`amountBracket`)
+Exact loan amounts are never indexed in plaintext in Loki to prevent unauthorized financial profiling. Instead, amounts are converted into coarse range brackets:
+- `< ₹1,00,000` → `"<1L"`
+- `₹1,00,000 – ₹10,00,000` → `"1L-10L"`
+- `₹10,00,000 – ₹1,00,00,000` → `"10L-1Cr"`
+- `> ₹1,00,00,000` → `">1Cr"`
+
+### 3. Masking Across Temporal Workflows & Activities
+Customer ID masking is consistently applied across the Temporal orchestration stack:
+- `TemporalPricingController`: Sanitizes customer IDs upon workflow dispatch.
+- `PricingActivitiesImpl`: Sanitizes customer IDs during quote calculation, approval, rejection, and expiration.
+- `LoanPricingWorkflowImpl`: Sanitizes customer IDs during workflow execution and replay logging.
 
 ---
 

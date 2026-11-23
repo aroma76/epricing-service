@@ -2,6 +2,7 @@ package com.bank.epricing.temporal.service;
 
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.exception.PricingException;
+import com.bank.epricing.logging.StructuredLogger;
 import com.bank.epricing.temporal.dto.PricingWorkflowResult;
 import com.bank.epricing.temporal.workflow.LoanPricingWorkflow;
 import io.temporal.client.WorkflowClient;
@@ -13,6 +14,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,13 +51,20 @@ public class TemporalPricingService {
 
     /**
      * Starts a new durable Loan Pricing Workflow.
+     *
+     * ISSUE-05 FIX: Customer ID is hashed before embedding into the workflowId
+     * and masked in log output to prevent PII leakage into Temporal Server's
+     * persistent storage and Web UI.
      */
     public PricingWorkflowResult startPricingWorkflow(PricingRequestDto requestDto, String requestIp) {
         ensureTemporalAvailable();
 
-        String workflowId = "pricing-" + requestDto.getCustomerId() + "-" + UUID.randomUUID().toString().substring(0, 8);
+        // Hash the customer ID so it is not stored in plaintext in Temporal Server
+        String hashedCustomerId = hashCustomerId(requestDto.getCustomerId());
+        String maskedCustomerId = StructuredLogger.maskCustomerId(requestDto.getCustomerId());
+        String workflowId = "pricing-" + hashedCustomerId + "-" + UUID.randomUUID().toString().substring(0, 8);
         log.info("Launching Temporal LoanPricingWorkflow | workflowId={} | customerId={}",
-            workflowId, requestDto.getCustomerId());
+            workflowId, maskedCustomerId);
 
         WorkflowClient client = workflowClient.get();
         LoanPricingWorkflow workflow = client.newWorkflowStub(
@@ -170,6 +181,26 @@ public class TemporalPricingService {
                 "TEMPORAL_DISABLED",
                 HttpStatus.BAD_REQUEST
             );
+        }
+    }
+
+    /**
+     * ISSUE-05 FIX: Returns the first 12 hex characters of SHA-256(customerId).
+     * Short enough to serve as a stable correlator, but not reversible.
+     */
+    private String hashCustomerId(String customerId) {
+        if (customerId == null || customerId.isBlank()) return "unknown";
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(customerId.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.substring(0, 12);
+        } catch (NoSuchAlgorithmException e) {
+            // SHA-256 is guaranteed by the JVM spec; this branch is unreachable
+            return "hash-err";
         }
     }
 }

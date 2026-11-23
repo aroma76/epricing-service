@@ -6,70 +6,145 @@
 ## SYSTEM ARCHITECTURE OVERVIEW
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                    Client Layer                                   │
-│  Postman │ React Frontend │ Mobile App │ Other Microservices     │
-└───────────────────────────┬──────────────────────────────────────┘
-                            │ HTTP/HTTPS on port 8080
-                            ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                   API Gateway (Production)                        │
-│  Rate Limiting │ Authentication │ SSL Termination │ Load Balance  │
-│  (Not in this project — Dockerized for local learning)           │
-└───────────────────────────┬──────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────────┐
-│              ePricing Service (Spring Boot, Port 8080)           │
-│                                                                   │
-│  Filter Chain:                                                    │
-│  MDCFilter(1) → SecurityFilter(2) → Spring DispatcherServlet     │
-│                                           │                       │
-│  Controllers:                             ↓                       │
-│  /pricing → PricingController             │                       │
-│  /health  → HealthController              │                       │
-│  /metrics-demo → MetricsDemoController    │                       │
-│                                           ↓                       │
-│  Service Layer:                                                   │
-│  PricingService ←→ PricingAuditService                           │
-│       │                   │                                       │
-│       ├── PricingCalculator (pure math)                           │
-│       ├── PricingMetrics (Micrometer)                             │
-│       ├── StructuredLogger (SLF4J)                                │
-│       └── Tracer (OpenTelemetry)                                  │
-│                                           │                       │
-│  Repository Layer:                        ↓                       │
-│  PricingRepository ←─── H2 In-Memory Database                    │
-│  PricingAuditRepository                                           │
-│                                                                   │
-│  Management Port 8081:                                            │
-│  /actuator/health │ /actuator/prometheus │ /actuator/metrics      │
-└──────────┬────────┴──────────┬───────────┴──────────┬────────────┘
-           │                   │                       │
-    (metrics)              (logs)                  (traces)
-           │                   │                       │
-           ▼                   ▼                       ▼
-    ┌──────────┐        ┌───────────┐          ┌────────────┐
-    │Prometheus│        │  Promtail  │          │OTel Collect│
-    │  :9090   │        │ reads file │          │  :4317/18  │
-    └────┬─────┘        └─────┬─────┘          └─────┬──────┘
-         │                    │                       │
-         │              ┌─────▼─────┐                 │
-         │              │   Loki    │                 │
-         │              │  :3100    │                 │
-         │              └─────┬─────┘                 │
-         │                    │                       │
-         └────────────────────┴───────────────────────┘
-                              │
-                              ▼
-                      ┌──────────────┐
-                      │   Grafana    │
-                      │   :3000      │
-                      │  Dashboards  │
-                      │  Alerts      │
-                      │  Explore     │
-                      └──────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                      Client Layer                                      │
+│   Postman │ React CRM Portal │ Mobile Loan App │ Interactive Showcase (showcase/)      │
+└───────────────────────────────────────────┬────────────────────────────────────────────┘
+                                            │ HTTP on :8080 (/api/v1/*)
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        ePricing Service (Spring Boot 3.3.4, Java 21)                   │
+│                                                                                        │
+│   Filter Chain:                                                                        │
+│   MDCFilter(1) [Sanitizes PII] ──► OpenTelemetry MVC Filter ──► DispatcherServlet      │
+│                                                                     │                  │
+│   Controllers:                                                      │                  │
+│   ├── /pricing ───────────► PricingController                       │                  │
+│   ├── /workflow/pricing ──► TemporalPricingController               │                  │
+│   └── /health ────────────► HealthController                        │                  │
+│                                                                     ▼                  │
+│   Service & Workflow Layer:                                                            │
+│   ├── PricingService ◄──► PricingAuditService                                          │
+│   ├── PricingCalculator (Reducing balance EMI formulas)                                │
+│   ├── PricingActivitiesImpl (Temporal Activities & Event Trigger)                     │
+│   ├── KafkaPricingEventProducer (Fail-fast 3000ms, W3C traceparent injection)          │
+│   ├── PricingMetrics (Micrometer) & StructuredLogger (Sanitized PII)                   │
+│   └── Tracer (OpenTelemetry 1.40.0)                                                    │
+│                                                                                        │
+│   Management Port 8089 (host) / 8081 (container):                                      │
+│   /actuator/health │ /actuator/prometheus │ /actuator/metrics                          │
+└───┬─────────────────────────┬──────────────────────┬──────────────────────┬────────────┘
+    │                         │                      │                      │
+    │ YSQL (:5433)            │ gRPC (:7233)         │ Kafka (:29092)       │ OTLP (:4318)
+    ▼                         ▼                      ▼                      ▼
+┌───────────────┐     ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
+│  YugabyteDB   │     │Temporal Server│      │ Apache Kafka  │      │ OTel Collector│
+│Distributed SQL│     │   (:7233)     │      │ (KRaft :9092) │      │  (:4317/4318) │
+│ epricingdb    │     │   Temporal DB │      │ Topic:        │      └───┬───────┬───┘
+│   Tables:     │     │(Postgres :5432│      │ loan-pricing- │          │       │
+│-pricing_reqs  │     │Temporal UI    │      │ events        │          │       │
+│-audit_logs    │     │   (:8233)     │      │(3 Partitions) │          │       │
+└───────┬───────┘     └───────────────┘      └───────┬───────┘          │       │
+        │                                            │                  │       │
+        │ CDC / Stream Ingestion                     │ ETL / Stream     │       │
+        └─────────────────────┬──────────────────────┘                  │       │
+                              ▼                                         │       │
+                    ┌──────────────────┐                                │       │
+                    │Analytics Lakehouse                                │       │
+                    │ (BigQuery/Iceberg│                                │       │
+                    │   Star Schema)   │                                │       │
+                    └──────────────────┘                                │       │
+                                                                        │       │
+┌───────────────────────────────────────────────────────────────────────┼───────┼────────┐
+│                        Full-Stack Observability Platform              │       │        │
+│                                                                       ▼       │        │
+│   ┌──────────────┐          ┌──────────────┐                   ┌──────────────┐        │
+│   │  Prometheus  │◄─────────┤ Promtail     │                   │ Grafana Tempo│◄───────┘
+│   │    :9090     │ Scrapes  │ reads files  │                   │    :3200     │
+│   └───┬──────────┘          └──────┬───────┘                   └──────┬───────┘
+│       │ Alerts                     │ Logs                             │ Traces
+│       ▼                            ▼                                  │
+│   ┌──────────────┐          ┌──────────────┐                          │
+│   │ Alertmanager │          │ Grafana Loki │                          │
+│   │    :9093     │          │    :3100     │                          │
+│   └──────┬───────┘          └──────┬───────┘                          │
+│          │ Webhook                 │                                  │
+│          ▼                         │                                  │
+│   ┌──────────────┐                 │                                  │
+│   │Webhook Logger│                 │                                  │
+│   │    :5001     │                 │                                  │
+│   └──────────────┘                 │                                  │
+│                                    ▼                                  ▼
+│                             ┌──────────────────────────────────────────────┐
+│                             │          Grafana Unified UI (:3000)          │
+│                             │  Metrics + Logs + Traces + DB Dashboards     │
+│                             └──────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## END-TO-END DATA FLOW (THE 5-TIER DATA JOURNEY)
+
+In the `epricing-service` enterprise banking architecture, data moves across four distinct operational, analytical, and telemetry pathways:
+
+### 1. Synchronous Online Pricing & Underwriting Flow
+1. **Client Ingress & PII Sanitization (`MDCFilter`, Order 1)**:
+   - Client applications (Mobile CRM, Core Banking Portal, or Traffic Simulator) dispatch HTTP `POST /api/v1/pricing` with payload (`productType`, `loanAmount`, `creditScore`, `annualIncome`, `customerId`).
+   - `MDCFilter` extracts or generates `X-Request-ID` and sanitizes `X-Customer-ID` via `StructuredLogger.maskCustomerId()` to `CUST****1234`.
+   - Binds `{requestId, customerId="CUST****1234", clientIp, httpMethod="POST", requestUri="/api/v1/pricing"}` to SLF4J MDC.
+   - OpenTelemetry Spring MVC filter auto-instruments the root trace (`traceId = 32-hex`, `spanId = 16-hex`) and bridges them into the logging context.
+2. **Actuarial Calculation & Financial Rules (`PricingCalculator`)**:
+   - `PricingController` verifies `@Valid` Bean constraints and delegates to `PricingService.calculatePricing()`.
+   - Validates credit score bounds [300, 900] and minimum threshold (650).
+   - Computes Fixed Obligation to Income Ratio (FOIR $\le$ 50%).
+   - Calculates base benchmark interest rate + product risk margin (Home Loan: 1.0x, Auto: 1.1x, Personal: 1.5x) - credit tier discount - relationship volume discount ($\ge$ ₹50L).
+   - Evaluates monthly Equated Installment (EMI) using exact reducing balance amortization formulas with `BigDecimal` (`HALF_EVEN` rounding).
+3. **Atomic Persistence & HikariCP Pool Safety (`PricingAuditService`)**:
+   - Atomic database persistence is deliberately confined to `PricingAuditService.savePricingWithAudit()` via `@Transactional(rollbackFor = Exception.class)` rather than outer `PricingService` methods, preventing HikariCP connection starvation deadlocks.
+   - Atomically inserts `pricing_requests` with status `CALCULATED` and `pricing_audit_logs` with action `PRICING_CALCULATED` into **YugabyteDB** (YSQL port 5433).
+4. **Post-Commit Asynchronous Domain Event Streaming (`KafkaPricingEventProducer`)**:
+   - Post-commit hook (`TransactionSynchronizationManager.registerSynchronization`) triggers after the database transaction successfully commits.
+   - Injects W3C `traceparent` (`00-{traceId}-{spanId}-01`) into Kafka `ProducerRecord` headers.
+   - Publishes `LoanPricingEvent` to `loan-pricing-events` on Kafka broker (`kafka:29092`) keyed by `customerId` with `max.block.ms: 3000`. If Kafka is unreachable or partitioned, the fail-fast timeout prevents thread hanging and decouples HTTP 201 responses.
+5. **Egress**:
+   - `PricingController` returns HTTP 201 Created with JSON `PricingResponseDto` and `X-Request-ID` response header.
+   - `MDCFilter` clears thread-local MDC in a `finally` block to prevent leakage across pooled Tomcat threads.
+
+---
+
+### 2. Durable Workflow Orchestration Flow (Temporal Engine)
+1. **Workflow Initiation**:
+   - Client sends `POST /api/v1/workflow/pricing/start`.
+   - `TemporalPricingController` invokes `TemporalPricingService.startPricingWorkflow()`, returning HTTP 202 Accepted with a deterministic `workflowId` (e.g. `LP-REQ-1042`).
+2. **Activity Task Execution**:
+   - Temporal Server (`:7233`) dispatches task to `PricingActivitiesImpl.calculateAndPersistPricing()`.
+   - Executes pricing calculation, commits to YugabyteDB, and emits `CALCULATED` event to Kafka.
+3. **Durable State Suspension**:
+   - Temporal enters `Workflow.await(7 days, ...)` rate-lock state timer.
+   - JVM worker threads are completely released back to the operating system; workflow state and timers are durably maintained in Temporal's PostgreSQL database.
+4. **Asynchronous Signal Resolution**:
+   - **Customer Approval**: Client sends `POST /api/v1/workflow/pricing/{workflowId}/approve`. Temporal unblocks and executes `PricingActivitiesImpl.recordQuoteApproval()`, updating `pricing_requests` to `APPROVED`, writing audit log, and emitting `APPROVED` event to Kafka.
+   - **Customer Rejection**: Client sends `POST /api/v1/workflow/pricing/{workflowId}/reject`. Updates status to `REJECTED` and publishes Kafka event.
+   - **Expiration**: If 7 days elapse without customer action, timer fires; activity marks status `EXPIRED` and emits Kafka event.
+
+---
+
+### 3. Downstream Analytics Lakehouse Streaming Flow
+1. **Bronze Ingestion (Raw Stream & CDC)**:
+   - Streaming runners (Apache Beam / Google Cloud Dataflow or Spark Streaming) ingest JSON payloads from Kafka topic `loan-pricing-events` (partitioned by `customerId`) and Debezium change data capture feeds from YugabyteDB.
+2. **Silver Ingestion (Data Hygiene & Privacy Masking)**:
+   - Data pipeline coerces numeric bounds, normalizes IST timestamps to UTC ISO-8601, masks customer IDs (`CUST****1234`), and generates cryptographically salted HMAC-SHA256 pseudonym tokens (`customer_hash_token`) compliant with RBI and DPDP Act 2023.
+3. **Gold Ingestion (Kimball Dimensional Star Schema in BigQuery / Iceberg)**:
+   - Materializes dimensional entities: `dim_customer` (SCD Type 2), `dim_loan_product`, `dim_date`.
+   - Materializes transactional and compliance facts: `fact_pricing_decisions` (grain: 1 row per pricing calculation) and `fact_audit_events` (grain: 1 row per lifecycle state transition).
+
+---
+
+### 4. Full-Stack Observability Telemetry Flow
+1. **Metrics**: Micrometer instruments latency, throughput, and error counters $\to$ exposed at `/actuator/prometheus` (management port 8089) $\to$ scraped every 15s by Prometheus (`:9090`) $\to$ visualized in Grafana (`:3000`). Alerts evaluate and route via Alertmanager (`:9093`) to Webhook Logger (`:5001`).
+2. **Logs**: Structured JSON written to `/app/logs/epricing-service.log` $\to$ tailed by Promtail $\to$ shipped to Loki (`:3100`) indexed by level, thread, and traceId.
+3. **Traces**: OpenTelemetry SDK exports W3C spans via OTLP HTTP (`:4318`) $\to$ OpenTelemetry Collector $\to$ Grafana Tempo (`:3200`) $\to$ single-click trace-to-log correlation in Grafana.
 
 ---
 
@@ -207,20 +282,32 @@
 
 ---
 
-## PRODUCTION ADDITIONS (Not in this project — future work)
+## ACTIVE PLATFORM ARCHITECTURE & ENTERPRISE ROADMAP
 
-| Component | Purpose | Replaces |
+### 1. Implemented Enterprise Platform Components (Active in Repository)
+
+The `epricing-service` repository has evolved beyond a basic POC into a production-grade banking microservice ecosystem:
+
+| Component | Status | Purpose & Implementation Details | Reference |
+|---|:---:|---|---|
+| **YugabyteDB (Distributed SQL)** | ✅ Active | Distributed ACID transactional storage wire-compatible with PostgreSQL (Port 5433). Runs database migrations V1..V6. | [`DatabaseDesign.md`](./database/DatabaseDesign.md) |
+| **Apache Kafka 3.8.0 (KRaft)** | ✅ Active | Event streaming broker operating without ZooKeeper on ports 9092 and 29092. Emits `LoanPricingEvent` on 3 partitions. | [`KafkaKRaftBroker.md`](./messaging/KafkaKRaftBroker.md) |
+| **Temporal Workflow Engine** | ✅ Active | Durable orchestration engine managing 7-day loan quote rate locks and asynchronous approval/rejection signals. | [`TemporalWorkflows.md`](./workflows/TemporalWorkflows.md) |
+| **Grafana Tempo (Traces)** | ✅ Active | High-volume distributed trace storage querying on port 3200; visualizes multi-span waterfalls with OTel Collector. | [`OpenTelemetry.md`](./monitoring/OpenTelemetry.md) |
+| **Prometheus Alertmanager** | ✅ Active | Alert deduplication, silencing, and notification routing on port 9093 with local webhook logging. | [`AlertingRules.md`](./monitoring/AlertingRules.md) |
+| **Kubernetes Manifests** | ✅ Active | Full K8s deployment manifests, ConfigMaps, RBAC, and pod security standards in `k8s/`. | [`KubernetesDeployment.md`](./kubernetes/KubernetesDeployment.md) |
+| **Interactive Showcase UI** | ✅ Active | Browser-based interactive showcase demonstrating real-time calculations, rate-lock states, and glassmorphism styling in `showcase/`. | [`InteractiveShowcase.md`](./showcase/InteractiveShowcase.md) |
+| **Analytical Star Schema** | ✅ Active | High-fidelity dimensional Lakehouse mapping specification for downstream BigQuery/Iceberg analytics. | [`mapping-manifesto.md`](./mapping-manifesto.md) |
+| **Architectural Audit** | ✅ Active | Formal architectural verification cataloging 5 dimensions and 7 hardening remediations. | [`architectural-audit.md`](./architectural-audit.md) |
+
+### 2. Planned Future Roadmap Additions
+
+| Component | Target Purpose | Architectural Motivation |
 |---|---|---|
-| PostgreSQL / Oracle | Persistent database | H2 in-memory |
-| Grafana Tempo | Distributed trace storage | OTel debug exporter |
-| Alertmanager | Alert routing to PagerDuty/Slack | (missing currently) |
-| Spring Security + JWT | API authentication | (absent for simplicity) |
-| Resilience4j | Circuit breaker, retry, bulkhead | (absent for simplicity) |
-| Spring Cloud Config | Centralized config management | Local application.yml |
-| Kubernetes | Container orchestration | Docker Compose |
-| Istio Service Mesh | mTLS, distributed tracing without code | OTel manual instrumentation |
-| Grafana OnCall | On-call management, escalation | (absent) |
-| Thanos / Cortex | Long-term Prometheus storage | Prometheus local storage |
+| **Spring Security + OAuth2 / JWT** | Zero-trust API authentication | Currently endpoints are unauthenticated for POC development; requires enterprise IDP integration (Keycloak/Okta). |
+| **Transactional Outbox + Debezium CDC** | Zero-loss event streaming | Eliminates the dual-write window by committing events to an outbox table within the DB transaction before streaming to Kafka. |
+| **Istio Service Mesh** | Dynamic mTLS & traffic shifting | Provides automated mTLS between microservice pods and canary routing without application-level TLS configuration. |
+| **Thanos / Cortex** | Multi-year TSDB metrics archival | Offloads long-term metrics storage from Prometheus local disks to object storage (GCS/S3). |
 
 ---
 
@@ -389,5 +476,19 @@ Modern cloud-native and Kubernetes banking infrastructure relies on a 3-tier res
 - **Activities**: `PricingActivities` invokes `PricingService` for calculations and `PricingAuditRepository` for immutable regulatory audit records.
 - **REST APIs**: `TemporalPricingController` provides endpoints at `/api/v1/workflow/pricing/*` to initiate workflows, inspect snapshots, and dispatch asynchronous signals.
 - **Lean Architecture**: Replaced the custom in-JVM Spring `@Async` thread pool (`ThreadPoolTaskExecutor`), eliminating JVM thread exhaustion and unrecovered task loss on server crashes.
+
+---
+
+### 10. Apache Kafka 3.8.0 KRaft Messaging Architecture
+
+- **Engine**: Runs as a single-node cluster in ZooKeeper-less KRaft mode (`apache/kafka:3.8.0`) on ports `9092` (host) and `29092` (internal Docker network).
+- **Domain Event Model**: Publishes strongly-typed `LoanPricingEvent` JSON records to the `loan-pricing-events` topic across 3 partitions.
+- **Fail-Fast Producer Resilience**: Configured with `max.block.ms: 3000` to prevent Tomcat HTTP worker thread starvation during broker downtime.
+- **Idempotency Guarantees**: Enforces `enable.idempotence: true`, `acks: all`, and `retries: 3` for zero-data-corruption message delivery to the broker.
+- **Distributed Trace Propagation**: Injects standard W3C `traceparent` headers into Kafka records, maintaining distributed trace context into downstream analytical consumers.
+- **Decoupled Error Handling**: DB persistence and HTTP 201 responses succeed even if Kafka encounters an outage, safeguarding core customer loan origination availability.
+- **Downstream Analytics**: Streams directly into analytical star-schema pipelines ([`docs/mapping-manifesto.md`](./mapping-manifesto.md)) for BigQuery and Apache Iceberg Lakehouse reporting.
+
+*For complete messaging specifications, see [`docs/messaging/KafkaKRaftBroker.md`](./messaging/KafkaKRaftBroker.md), [`docs/messaging/LoanPricingEventStreaming.md`](./messaging/LoanPricingEventStreaming.md), and [`docs/messaging/ProducerFailFast.md`](./messaging/ProducerFailFast.md).*
 
 

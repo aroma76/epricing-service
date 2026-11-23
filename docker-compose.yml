@@ -72,6 +72,8 @@ volumes:
   tempo-data:           # Grafana Tempo distributed trace storage
   promtail-positions:   # Promtail read positions (deduplication across restarts)
   temporal-pg-data:     # Temporal PostgreSQL persistence
+  kafka-data:           # Apache Kafka KRaft persistent event storage
+  ollama-models:        # Ollama local LLM model weights storage (profile: ai)
 
 services:
 
@@ -155,6 +157,10 @@ services:
       TEMPORAL_NAMESPACE: "default"
       TEMPORAL_TASK_QUEUE: "epricing-pricing-queue"
 
+      # Apache Kafka Event Streaming
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
+      KAFKA_ENABLED: "${KAFKA_ENABLED:-true}"
+
       # CORS Allowed Origins for Grafana and Local Testing
       CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8080"
     
@@ -166,7 +172,7 @@ services:
     networks:
       - epricing-network
     
-    # Startup ordering — wait for OTel Collector, YugabyteDB, and Temporal before starting
+    # Startup ordering — wait for OTel Collector, YugabyteDB, Temporal, and Kafka before starting
     depends_on:
       otel-collector:
         condition: service_started
@@ -174,6 +180,8 @@ services:
         condition: service_healthy
       temporal:
         condition: service_started
+      kafka:
+        condition: service_healthy
     
     # Resource limits — prevent the container from consuming all host resources
     # In production: right-size based on load testing results
@@ -277,6 +285,10 @@ services:
       
       # Enable features for Grafana 11
       GF_FEATURE_TOGGLES_ENABLE: "traceToMetrics"
+      
+      # Optional AI / LLM plugin installation (e.g. GF_INSTALL_PLUGINS=grafana-llm-app)
+      # When unset, defaults to empty to preserve instant, air-gapped container startup.
+      GF_INSTALL_PLUGINS: "${GF_INSTALL_PLUGINS:-}"
       
       # Set default home dashboard directly to ePricing Complete Observability Dashboard
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/epricing-complete-dashboard.json"
@@ -726,3 +738,65 @@ services:
     networks:
       - epricing-network
     restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 15: Apache Kafka (KRaft mode — event streaming broker)
+  # ═══════════════════════════════════════════════════════════════════════
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: epricing-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # KRaft cluster configuration (no ZooKeeper required)
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:29092,PLAINTEXT_HOST://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      epricing-network:
+        aliases:
+          - kafka
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # SERVICE 16: Ollama (Optional Local LLM for Private Banking AIOps)
+  # ═══════════════════════════════════════════════════════════════════════
+  # Activated with: docker compose --profile ai up -d
+  # Runs open-source LLMs (e.g., llama3:8b, mistral) entirely on-premise without
+  # leaking banking telemetry or customer traces outside the organizational firewall.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: epricing-ollama
+    profiles:
+      - ai
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - epricing-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

@@ -1,6 +1,7 @@
 package com.bank.epricing.temporal.controller;
 
 import com.bank.epricing.dto.PricingRequestDto;
+import com.bank.epricing.logging.StructuredLogger;
 import com.bank.epricing.temporal.dto.PricingWorkflowResult;
 import com.bank.epricing.temporal.service.TemporalPricingService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,7 +42,7 @@ public class TemporalPricingController {
             clientIp = request.getRemoteAddr();
         }
 
-        log.info("Received request to start Temporal workflow | customerId={}", requestDto.getCustomerId());
+        log.info("Received request to start Temporal workflow | customerId={}", StructuredLogger.maskCustomerId(requestDto.getCustomerId()));
         PricingWorkflowResult result = temporalPricingService.startPricingWorkflow(requestDto, clientIp);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(result);

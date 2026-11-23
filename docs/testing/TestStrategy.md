@@ -1,189 +1,167 @@
-# Test Strategy
+# Comprehensive Test Strategy & Verification Architecture
 
-**Test Framework:** JUnit 5 (Jupiter) + Mockito + Spring Test (MockMvc)
-**Test Location:** `src/test/java/com/bank/epricing/`
-**Command:** `mvn test`
-
----
-
-## Overview
-
-The ePricing service follows a **pragmatic testing strategy** that emphasizes:
-
-1. **Unit tests** for pure business logic (`PricingCalculator`)
-2. **Slice tests** for the service layer (`PricingService`) with mocked repositories
-3. **Controller tests** using `MockMvc` in standalone mode (no Spring context)
-
-No integration tests or Spring Boot test (`@SpringBootTest`) are used. This keeps tests fast and CI-friendly.
+**Frameworks:** JUnit 5 (Jupiter) + Mockito + Spring Boot Test (`@SpringBootTest`, `MockMvc`) + Temporal Test Environment (`TestWorkflowEnvironment`)  
+**Test Root:** `src/test/java/com/bank/epricing/`  
+**Execution Command (PowerShell):** `mvn clean test`
 
 ---
 
-## Test Classes
+## 1. Testing Philosophy & Verification Integrity
 
-### PricingCalculatorTest
+The `epricing-service` verification architecture rejects the fragile practice of relying solely on isolated Mockito unit tests. While unit tests provide rapid feedback for arithmetic calculations, they cannot verify:
+- Spring application context initialization and bean wiring.
+- Database entity mapping annotations (`@Entity`, `@Table`, column types).
+- Flyway/H2 schema migrations and SQL syntax validity.
+- Kafka producer auto-configuration, serializers, and KRaft connectivity.
+- Temporal workflow determinism and activity replay semantics.
 
-**File:** [`PricingCalculatorTest.java`](../../src/test/java/com/bank/epricing/util/PricingCalculatorTest.java)
-**Type:** Pure Unit Tests (no mocking)
+Therefore, the test suite implements a **multi-tiered testing pyramid** consisting of **17 test classes** spanning **7 functional categories**, executing both lightweight unit tests and full `@SpringBootTest` context bootstrap validations.
 
-`PricingCalculator` is side-effect-free — no mocking needed. Tests call real methods and assert return values.
+```
+                         ▲
+                        / \
+                       /   \   Category 1: Context Bootstrap (@SpringBootTest)
+                      /     \  ApplicationContextBootstrapTest, KafkaContextBootstrapTest
+                     /───────\
+                    /         \  Category 4 & 5: Temporal & Kafka Integration
+                   /           \ LoanPricingWorkflowTest, KafkaLiveBrokerIntegrationTest
+                  /─────────────\
+                 /               \  Category 3 & 6: Controller & Persistence Slices
+                /                 \ PricingControllerTest, DatabaseMigrationInitializerTest
+               /───────────────────\
+              /                     \  Category 2 & 7: Pure Logic & Security Units
+             /                       \ PricingCalculatorTest, StructuredLoggerTest
+            └─────────────────────────┘
+```
 
-| Test Method | Coverage |
-|---|---|
-| `testCalculateInterestRate_HomeLoan_ExcellentCredit` | Credit score ≥ 800 → −1.00% discount applied |
-| `testCalculateInterestRate_LargeLoanDiscount` | Loan ≥ ₹50L → −0.25% additional discount |
-| `testCalculateEmi` | Standard EMI formula verification (₹10L, 8.50%, 120mo → ₹12,398.57) |
-| `testDetermineRiskCategory` | All 5 risk buckets + null handling |
-| `testValidateEligibility_LowCreditScore` | Score 620 throws `InsufficientCreditScoreException` |
-| `testValidateEligibility_Valid` | Score 750 passes without exception |
+---
 
-**Example:**
+## 2. Master Test Inventory: 17 Classes Across 7 Functional Categories
+
+| # | Functional Category | Test Class | Test Type / Annotations | Scope & Architectural Coverage |
+|---|---------------------|------------|-------------------------|--------------------------------|
+| 1 | **Context Bootstrap** | `ApplicationContextBootstrapTest` | `@SpringBootTest`, `@ActiveProfiles("h2")` | Validates Spring context loading, HikariCP pool creation, JPA entity validation, Actuator beans, and environment property resolution. |
+| 2 | **Context Bootstrap** | `KafkaContextBootstrapTest` | `@SpringBootTest`, `@ActiveProfiles("h2")` | Verifies `KafkaProducerConfig`, `DefaultKafkaProducerFactory`, `KafkaTemplate`, and Kafka property bindings. |
+| 3 | **Business Logic** | `PricingCalculatorTest` | Pure Unit Test (No mocks) | Validates reducing balance EMI formulas, risk tier adjustments, credit score thresholds, and boundary conditions. |
+| 4 | **Business Logic** | `PricingServiceTest` | Unit Test (Mockito) | Verifies orchestration of eligibility, calculation, audit persistence, and asynchronous Kafka domain event dispatch. |
+| 5 | **REST Controllers** | `PricingControllerTest` | `MockMvc` (Standalone) | Tests synchronous `/api/v1/pricing` contract, HTTP status codes (201, 400, 404, 422), and validation error responses. |
+| 6 | **REST Controllers** | `HealthControllerTest` | `MockMvc` (Standalone) | Tests `/api/v1/health` custom liveness and readiness probe responses. |
+| 7 | **REST Controllers** | `TemporalPricingControllerTest` | `MockMvc` (Standalone) | Verifies durable workflow REST API (`/api/v1/workflow/pricing/*`), including start, approve, reject, and status queries. |
+| 8 | **Temporal Workflows** | `LoanPricingWorkflowTest` | In-Memory Temporal Test | Executes `LoanPricingWorkflowImpl` inside Temporal's `TestWorkflowEnvironment`, testing timers, approval signals, and expirations. |
+| 9 | **Temporal Workflows** | `PricingActivitiesImplTest` | Unit Test (Mockito) | Validates activity methods, database updates for quote states, and `publishStatusEvent` calls. |
+| 10 | **Temporal Workflows** | `TemporalPricingServiceTest` | Unit Test (Mockito) | Tests Temporal workflow stub instantiation, signal dispatching, and workflow client management. |
+| 11 | **Temporal Workflows** | `TemporalWorkflowLiveIntegrationTest` | Integration Test | Verifies end-to-end workflow execution against a live Temporal server instance. |
+| 12 | **Messaging & Kafka** | `LoanPricingEventTest` | Jackson JSON Test | Tests bidirectional serialization/deserialization, snake_case/camelCase aliases, and ISO-8601 millisecond timestamps. |
+| 13 | **Messaging & Kafka** | `PricingEventProducerTest` | Unit Test (Mockito) | Verifies `KafkaPricingEventProducer`, 3000ms fail-fast exception handling, disabled flag handling, and traceparent injection. |
+| 14 | **Messaging & Kafka** | `KafkaLiveBrokerIntegrationTest` | Integration Test | Publishes domain events to a real or embedded Kafka broker and verifies topic partition assignment and metadata. |
+| 15 | **Database & Migrations**| `DatabaseMigrationInitializerTest` | H2 Integration Test | Executes custom migration runner (V1 through V6 scripts) against PostgreSQL-compatible H2 mode to verify DDL integrity. |
+| 16 | **Database & Persistence**| `PricingPersistenceAtomicityTest` | Persistence Test | Verifies that `pricing_requests` and `pricing_audit_logs` are committed atomically, preventing orphaned rows. |
+| 17 | **Security & Logging** | `StructuredLoggerTest` | Unit Test | Tests PII masking (`maskCustomerId()`), coarse amount bracketing (`amountBracket()`), and Logback JSON structured formatting. |
+
+---
+
+## 3. Deep-Dive: Core Test Suites
+
+### 3.1 Context Bootstrap Tests (`ApplicationContextBootstrapTest` & `KafkaContextBootstrapTest`)
+These tests bootstrap the full Spring Boot application context (`@SpringBootTest`) using the `h2` profile:
+
+```java
+@SpringBootTest
+@ActiveProfiles("h2")
+public class ApplicationContextBootstrapTest {
+
+    @Autowired
+    private ApplicationContext applicationContext;
+
+    @Autowired
+    private PricingService pricingService;
+
+    @Autowired
+    private PricingRepository pricingRepository;
+
+    @Test
+    @DisplayName("Application context must bootstrap successfully with all required beans")
+    void contextLoads() {
+        assertNotNull(applicationContext, "ApplicationContext should not be null");
+        assertNotNull(pricingService, "PricingService bean must be wired");
+        assertNotNull(pricingRepository, "PricingRepository bean must be wired");
+    }
+}
+```
+**Why this matters**: As noted in enterprise engineering guardrails, Mockito unit tests that mock repositories cannot catch broken JPA entity mappings, missing application properties, or circular dependency deadlocks. Full bootstrap tests catch these defects before code leaves CI.
+
+### 3.2 In-Memory Temporal Workflow Tests (`LoanPricingWorkflowTest`)
+Utilizes Temporal's official `TestWorkflowEnvironment` to simulate durable time and signals without running a local Temporal daemon:
+
 ```java
 @Test
-@DisplayName("Should calculate EMI accurately")
-void testCalculateEmi() {
-    BigDecimal emi = pricingCalculator.calculateEmi(
-        new BigDecimal("1000000"), new BigDecimal("8.50"), 120
-    );
-    assertEquals(new BigDecimal("12398.57"), emi);
+void testQuoteApprovalSignalWithinValidityWindow() {
+    testEnv.registerWorkflowImplementationTypes(LoanPricingWorkflowImpl.class);
+    worker.registerActivitiesImplementations(mockActivities);
+    testEnv.start();
+
+    LoanPricingWorkflow workflow = client.newWorkflowStub(LoanPricingWorkflow.class, ...);
+    WorkflowExecution execution = WorkflowClient.start(workflow::processLoanPricing, requestDto, "127.0.0.1", 7);
+
+    // Fast-forward simulated durable time by 2 days
+    testEnv.sleep(Duration.ofDays(2));
+
+    // Signal approval
+    workflow.approveQuote();
+
+    PricingWorkflowResult result = workflow.getWorkflowResult();
+    assertEquals("APPROVED", result.getStatus());
+    verify(mockActivities).recordQuoteApproval(anyString(), anyString());
+}
+```
+
+### 3.3 Kafka Event Streaming Tests (`PricingEventProducerTest` & `LoanPricingEventTest`)
+Verifies that `LoanPricingEvent` JSON serialization adheres to cross-platform contracts and tests the 3000ms fail-fast timeout:
+
+```java
+@Test
+@DisplayName("Producer should record exception on active span and complete exceptionally when Kafka times out")
+void testProducerFailFastTimeout() {
+    when(kafkaOperations.send(any(ProducerRecord.class)))
+        .thenReturn(CompletableFuture.failedFuture(new TimeoutException("Kafka broker timeout after 3000ms")));
+
+    CompletableFuture<SendResult<String, Object>> future = producer.publishPricingEvent(testEvent);
+
+    assertTrue(future.isCompletedExceptionally());
+    verify(span).setStatus(eq(StatusCode.ERROR), contains("Kafka broker timeout"));
 }
 ```
 
 ---
 
-### PricingServiceTest
+## 4. Test Execution & CI Commands
 
-**File:** [`PricingServiceTest.java`](../../src/test/java/com/bank/epricing/service/PricingServiceTest.java)
-**Type:** Unit Tests with Mockito mocking
+All commands adhere to **Windows PowerShell** syntax invariants (using `;` instead of `&&`):
 
-Dependencies mocked:
-- `PricingRepository` (Mockito `mock()`)
-- `PricingAuditRepository` (Mockito `mock()`)
-- `Tracer`, `Span`, `SpanBuilder`, `SpanContext` (Mockito `mock()`)
+```powershell
+# Run the complete test suite (all 17 test classes)
+mvn clean test
 
-Real implementations used:
-- `PricingCalculator` (no side effects — real object)
-- `PricingMetrics` with `SimpleMeterRegistry` (real Micrometer, no I/O)
-- `StructuredLogger` (real object — only logs)
-- `PricingAuditService` (real, thin wrapper)
+# Run only Context Bootstrap Tests
+mvn test -Dtest=ApplicationContextBootstrapTest,KafkaContextBootstrapTest
 
-| Test Method | What's tested |
-|---|---|
-| `testCalculatePricing_Success` | Full service flow — saves twice, returns response |
-| `testGetPricingHistory_WithCustomerId` | Customer filter delegates to `findByCustomerId` |
-| `testGetPricingHistory_BlankCustomerId` | Blank customer ID uses `findTop10ByOrderByCreatedAtDesc` |
-| `testGetPricingById_Success` | Finds by ID and maps to DTO |
+# Run only Temporal Workflow Tests
+mvn test -Dtest=LoanPricingWorkflowTest,PricingActivitiesImplTest,TemporalPricingControllerTest
 
-**OTel Mock Setup:**
-```java
-SpanContext spanContext = mock(SpanContext.class);
-when(spanContext.getTraceId()).thenReturn("mock-trace-id-12345");
-when(span.getSpanContext()).thenReturn(spanContext);
-when(spanBuilder.startSpan()).thenReturn(span);
-when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
-```
+# Run only Kafka Messaging Tests
+mvn test -Dtest=LoanPricingEventTest,PricingEventProducerTest,KafkaContextBootstrapTest
 
-The OTel mocks ensure `PricingService.calculatePricing()` can call `tracer.spanBuilder()` and `span.setStatus()` without `NullPointerException` during tests.
-
-**Repository save verification:**
-```java
-verify(pricingRepository, times(2)).save(any(PricingRequest.class));
-```
-
-`PricingService` saves the entity twice: once as `PENDING` (pre-calculation) and once as `CALCULATED` (post-calculation). The test verifies this exact behaviour.
-
----
-
-### PricingControllerTest
-
-**File:** [`PricingControllerTest.java`](../../src/test/java/com/bank/epricing/controller/PricingControllerTest.java)
-**Type:** MockMvc standalone controller tests
-
-Uses `MockMvcBuilders.standaloneSetup()` — no full Spring context. This is faster than `@SpringBootTest` and tests only the controller layer.
-
-```java
-mockMvc = MockMvcBuilders.standaloneSetup(pricingController)
-    .setControllerAdvice(exceptionHandler)
-    .build();
-```
-
-`GlobalExceptionHandler` is registered with MockMvc to test error responses.
-
-| Test Method | Verifies |
-|---|---|
-| `testCalculatePricing_ValidRequest` | `201 Created` + response fields |
-| `testCalculatePricing_InvalidCustomerId` | `400 Bad Request` + `PRICING_VALIDATION_FAILED` |
-| `testGetPricingHistory` | `200 OK` + customer history array |
-| `testGetPricingById` | `200 OK` + single record by ID |
-| `testGetPricingById_NotFound` | `404 Not Found` + `PRICING_REQUEST_NOT_FOUND` error code |
-| `testCalculatePricing_LowCreditScore` | `422 Unprocessable Entity` + `PRICING_INSUFFICIENT_CREDIT_SCORE` |
-| `testCalculatePricing_UnsupportedProductType` | `400 Bad Request` + `PRICING_VALIDATION_FAILED` |
-
-**Example controller test:**
-```java
-@Test
-void testCalculatePricing_ValidRequest() throws Exception {
-    PricingRequestDto dto = PricingRequestDto.builder()
-        .customerId("CUST001234")
-        .productType("HOME_LOAN")
-        .loanAmount(new BigDecimal("5000000.00"))
-        .loanTenureMonths(240)
-        .creditScore(780)
-        .annualIncome(new BigDecimal("2400000.00"))
-        .build();
-
-    when(pricingRepository.save(any(PricingRequest.class))).thenAnswer(invocation -> {
-        PricingRequest req = invocation.getArgument(0);
-        if (req.getId() == null) req.setId(101L);
-        return req;
-    });
-
-    mockMvc.perform(post("/pricing")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(dto)))
-        .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.request_id").value(101))
-        .andExpect(jsonPath("$.interest_rate_pa").value(8.00));
-}
+# Run with full Surefire failure details
+mvn test -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
 ---
 
-## Test Execution
+## 5. Verification Gate & Quality Checklist
 
-```bash
-# Run all 17 tests (PricingCalculatorTest: 6, PricingServiceTest: 4, PricingControllerTest: 7)
-mvn test
-
-# Run specific test class
-mvn test -Dtest=PricingCalculatorTest
-
-# Run with verbose output
-mvn test -Dtest=PricingServiceTest -Dsurefire.failIfNoSpecifiedTests=false
-
-# Generate coverage report (requires JaCoCo plugin)
-mvn verify
-```
-
----
-
-## Coverage Gaps and Future Work
-
-> **Note:** Key controller edge cases (404 Not Found, 422 Low Credit Score, 400 Validation) are fully covered in the 17-test suite. The following scenarios are recommended future additions:
-
-| Recommended Coverage | Priority |
-|---|---|
-| `PricingCalculator` — edge case: zero interest rate EMI | Medium |
-| `PricingCalculator` — loan amount exactly at ₹50L boundary (large loan discount) | Medium |
-| `PricingService` — technical exception path (500 path) | High |
-| `PricingController` — GET with no `customerId` (returns top 10) | Medium |
-| `PricingAuditService` — async execution verification | Low |
-| Integration test — full Spring context with H2 | Low |
-
----
-
-## Cross-References
-
-- [PricingCalculator.md](../utilities/PricingCalculator.md) — tested logic
-- [PricingService.md](../services/PricingService.md) — tested service
-- [PricingController.md](../controllers/PricingController.md) — tested controller
-- [ExceptionHandling.md](../exception-handling/ExceptionHandling.md) — exception paths tested
+Before committing changes or cutting releases:
+1. **Context Loading**: Both `@SpringBootTest` bootstrap tests pass with zero context startup errors.
+2. **Deterministic Replay**: In-memory Temporal workflow tests pass with zero non-deterministic method calls.
+3. **Fail-Fast Producer**: Kafka producer tests pass under simulated broker failure without throwing unhandled runtime exceptions.
+4. **PII Sanitization**: All log output in `StructuredLoggerTest` contains masked identifiers (`CUST****1234`).
+5. **Zero Test Regressions**: All 17 test classes complete with 0 failures and 0 errors.

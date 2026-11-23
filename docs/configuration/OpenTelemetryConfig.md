@@ -111,13 +111,53 @@ try (Scope scope = span.makeCurrent()) {
 POST /api/v1/pricing  [201]  [142ms]
   └── pricing-calculation  [89ms]
         attributes:
-          customer.id: CUST001234
+          customer.id: CUST****1234
           product.type: HOME_LOAN
           loan.amount: 5000000
           credit.score: 780
-        ├── SELECT pricing_requests  [12ms]   (Hibernate auto-span)
-        └── INSERT pricing_requests  [18ms]   (Hibernate auto-span)
+        ├── validateEligibility  [5ms]
+        ├── computeInterestRate  [10ms]
+        ├── savePricingWithAudit  [35ms]
+        └── kafka.publish.loan-pricing-events  [8ms]  (SpanKind.PRODUCER)
+              headers: traceparent="00-4bf92f3577b34da6...-01"
 ```
+
+---
+
+## Kafka Distributed Trace Propagation & Messaging Spans
+
+OpenTelemetry context propagation extends across asynchronous event streaming boundaries:
+1. When `KafkaPricingEventProducer` prepares a `ProducerRecord`, it creates a child producer span named `kafka.publish.<topic>`.
+2. The current span context (`traceId`, `spanId`, and sampling flags) is serialized into standard W3C `traceparent` byte format (`00-<traceId>-<spanId>-<flags>`).
+3. This byte array is appended to `ProducerRecord.headers().add("traceparent", ...)` before transmitting to Kafka broker `29092`.
+4. Downstream streaming consumers (e.g., Lakehouse ingestion jobs) extract this header using OpenTelemetry propagators, rendering a unified trace waterfall in Grafana Tempo connecting HTTP requests to asynchronous streaming events.
+
+---
+
+## JVM Re-Entrancy & Global SDK Fallback Resilience
+
+During test execution with multiple Spring contexts (e.g. `@SpringBootTest` suites), initializing OpenTelemetry SDK multiple times can throw `IllegalStateException: GlobalOpenTelemetry.set has already been called`.
+
+`OpenTelemetryConfig.java` implements a resilient re-entrancy fallback:
+```java
+try {
+    return AutoConfiguredOpenTelemetrySdk.builder()
+        .addPropertiesSupplier(this::buildOtelProperties)
+        .build()
+        .getOpenTelemetrySdk();
+} catch (IllegalStateException e) {
+    log.warn("GlobalOpenTelemetry already registered in JVM ({}); reusing existing global instance", e.getMessage());
+    try {
+        return io.opentelemetry.api.GlobalOpenTelemetry.get();
+    } catch (Exception ex) {
+        return AutoConfiguredOpenTelemetrySdk.builder()
+            .addPropertiesSupplier(this::buildOtelProperties)
+            .build()
+            .getOpenTelemetrySdk();
+    }
+}
+```
+This guarantees that test suites run cleanly without unhandled global registration collisions.
 
 ---
 
@@ -160,4 +200,4 @@ With the bridge, Micrometer Tracing and OTel SDK share the same trace context �
 - [PricingService.md](../services/PricingService.md) — creates custom spans
 - [LoggingStrategy.md](../logging/LoggingStrategy.md) — traceId in log MDC
 - [DockerCompose.md](../docker/DockerCompose.md) — OTel Collector service
-- [OpenTelemetry.md](./OpenTelemetry.md) — full OTel pipeline doc
+- [OpenTelemetry.md](../monitoring/OpenTelemetry.md) — full OTel pipeline doc

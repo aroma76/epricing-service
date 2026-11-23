@@ -147,11 +147,14 @@ class PricingControllerTest {
             .status(PricingRequest.PricingStatus.CALCULATED)
             .build();
 
+        when(pricingRepository.findByCustomerId(org.mockito.ArgumentMatchers.eq("CUST001234"), any(org.springframework.data.domain.Pageable.class)))
+            .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(entity)));
         when(pricingRepository.findByCustomerId("CUST001234")).thenReturn(List.of(entity));
 
         mockMvc.perform(get("/pricing?customerId=CUST001234"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].customer_id").value("CUST001234"));
+            .andExpect(jsonPath("$.content[0].customer_id").value("CUST001234"))
+            .andExpect(jsonPath("$.total_elements").value(1));
     }
 
     @Test

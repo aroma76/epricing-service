@@ -3,6 +3,7 @@ package com.bank.epricing.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,30 +11,22 @@ import org.springframework.web.bind.annotation.RestController;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  HealthController.java — Custom Health and Info Endpoints               ║
+ * ║  HealthController.java — Health, Liveness, and Readiness Endpoints       ║
  * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  WHY THIS EXISTS ALONGSIDE /actuator/health:                            ║
- * ║  /actuator/health: Spring Boot's automatic health endpoint.            ║
- * ║    - Checks: DB connectivity, disk space, custom HealthIndicators      ║
- * ║    - Returns: {"status": "UP"} or {"status": "DOWN"}                   ║
- * ║    - Lives on port 8081 (management port)                              ║
+ * ║  ISSUE-09 FIX: Decoupled Kubernetes Liveness Probe from external         ║
+ * ║  database connectivity to prevent cascading pod restarts during DB blips║
  * ║                                                                          ║
- * ║  /api/v1/health: Our custom health endpoint on the MAIN port (8080).   ║
- * ║    - Can be called by clients, load balancers, Kubernetes probes       ║
- * ║    - Returns richer business context                                    ║
- * ║    - Shows which version is deployed (from build-info.properties)      ║
- * ║                                                                          ║
- * ║  In Kubernetes: This endpoint is used for liveness probes.             ║
- * ║    livenessProbe:                                                       ║
- * ║      httpGet:                                                           ║
- * ║        path: /api/v1/health                                             ║
- * ║        port: 8080                                                       ║
+ * ║  - GET /health/liveness: Checks internal JVM process health only         ║
+ * ║    (memory, processors). Never acquires database connections.           ║
+ * ║  - GET /health/readiness: Checks database connectivity to determine       ║
+ * ║    whether the pod is ready to accept user traffic.                      ║
+ * ║  - GET /health: Combined overview endpoint for backward compatibility.   ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 @RestController
@@ -53,22 +46,74 @@ public class HealthController {
     }
 
     /**
-     * GET /api/v1/health
-     * Returns application health with database connectivity check.
+     * GET /health/liveness
+     * Kubernetes Liveness Probe: Checks only in-memory JVM health.
+     * Must NEVER touch external dependencies like the database.
+     */
+    @GetMapping("/liveness")
+    public ResponseEntity<Map<String, Object>> liveness() {
+        Map<String, Object> liveness = new LinkedHashMap<>();
+        liveness.put("status", "UP");
+        liveness.put("timestamp", Instant.now().toString());
+        liveness.put("jvm", getJvmMetrics());
+        return ResponseEntity.ok(liveness);
+    }
+
+    /**
+     * GET /health/readiness
+     * Kubernetes Readiness Probe: Verifies database connectivity.
+     * Pod is removed from service endpoints if DB is unavailable, without killing the container.
+     */
+    @GetMapping("/readiness")
+    public ResponseEntity<Map<String, Object>> readiness() {
+        Map<String, Object> readiness = new LinkedHashMap<>();
+        readiness.put("service", "epricing-service");
+        readiness.put("timestamp", Instant.now().toString());
+
+        Map<String, String> db = checkDatabaseHealth();
+        readiness.put("database", db);
+
+        boolean dbHealthy = "UP".equals(db.get("status"));
+        if (!dbHealthy) {
+            readiness.put("status", "DOWN");
+            readiness.put("reason", "Database connectivity unavailable");
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(readiness);
+        }
+
+        readiness.put("status", "UP");
+        return ResponseEntity.ok(readiness);
+    }
+
+    /**
+     * GET /health
+     * Returns application health with database connectivity check (backward compatibility).
      */
     @GetMapping
     public ResponseEntity<Map<String, Object>> health() {
         Map<String, Object> health = new LinkedHashMap<>();
         health.put("status", "UP");
         health.put("service", "epricing-service");
-        // Version read from build-info.properties generated by spring-boot:build-info Maven goal.
-        // Auto-updates when pom.xml <version> changes — no manual editing needed.
         health.put("version", buildProperties != null ? buildProperties.getVersion() : "unknown");
-        health.put("timestamp", LocalDateTime.now().toString());
+        health.put("timestamp", Instant.now().toString());
 
-        // Database connectivity check
+        Map<String, String> db = checkDatabaseHealth();
+        health.put("database", db);
+        boolean dbHealthy = "UP".equals(db.get("status"));
+        if (!dbHealthy) {
+            health.put("status", "DOWN");
+        }
+
+        health.put("jvm", getJvmMetrics());
+
+        log.info("Health check completed | status={}", health.get("status"));
+        if (!dbHealthy) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(health);
+        }
+        return ResponseEntity.ok(health);
+    }
+
+    private Map<String, String> checkDatabaseHealth() {
         Map<String, String> db = new LinkedHashMap<>();
-        boolean dbHealthy = true;
         try (Connection conn = dataSource.getConnection()) {
             db.put("status", "UP");
             db.put("product", conn.getMetaData().getDatabaseProductName());
@@ -77,11 +122,11 @@ public class HealthController {
             log.error("Database health check failed | error={}", e.getMessage());
             db.put("status", "DOWN");
             db.put("error", e.getMessage());
-            health.put("status", "DOWN");
-            dbHealthy = false;
         }
-        health.put("database", db);
+        return db;
+    }
 
+    private Map<String, Object> getJvmMetrics() {
         Map<String, Object> jvm = new LinkedHashMap<>();
         Runtime rt = Runtime.getRuntime();
         long usedMemory = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
@@ -90,13 +135,6 @@ public class HealthController {
         jvm.put("heapMaxMb", maxMemory);
         jvm.put("heapUtilizationPct", String.format("%.1f%%", (double) usedMemory / maxMemory * 100));
         jvm.put("processors", rt.availableProcessors());
-        health.put("jvm", jvm);
-
-        log.info("Health check completed | status={}", health.get("status"));
-        if (!dbHealthy) {
-            return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE).body(health);
-        }
-        return ResponseEntity.ok(health);
+        return jvm;
     }
 }
-

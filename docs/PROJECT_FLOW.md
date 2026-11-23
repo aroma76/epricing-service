@@ -1,253 +1,310 @@
-# ePricing Observability — Project Flow Guide
-## How a Single Pricing Request Flows Through the Complete Stack
+# ePricing Observability & Distributed Streaming — Project Flow Guide
+## How a Pricing Decision Flows Across HTTP, Database, Kafka, Temporal, and Observability
 
 ---
 
-## THE REQUEST LIFECYCLE — From Customer to Grafana
+## 1. THE SYNCHRONOUS REQUEST LIFECYCLE (From Client to Grafana & Kafka)
 
-### PHASE 1: HTTP Request Arrives
+### PHASE 1: HTTP Request Ingress & Context Initialization
 
-```
-Client (Postman / Front-end)
-    POST /api/v1/pricing
-    Headers: X-Customer-ID: CUST001234
-    Body: { productType: "HOME_LOAN", loanAmount: 5000000, ... }
-```
+```http
+POST /api/v1/pricing HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+X-Customer-ID: CUST****1234
+X-Request-ID: REQ-ABC123DEF456
 
-**What happens first:**
-
-1. **Tomcat** receives the TCP connection on port 8080
-2. **MDCFilter** (Servlet Filter, Order=1) intercepts BEFORE any controller:
-   - Generates or extracts `X-Request-ID` header → `requestId = "REQ-ABC123"`
-   - Reads `X-Customer-ID` header → `customerId = "CUST001234"`
-   - Populates MDC: `{requestId, customerId, httpMethod="POST", requestUri="/api/v1/pricing"}`
-   - Logs: `INFO Incoming request | method=POST | uri=/api/v1/pricing`
-3. **OpenTelemetry Spring MVC Instrumentation** (auto-configured) creates the ROOT SPAN:
-   - Generates `traceId = "4bf92f3577b34da6"` (16 bytes, 32 hex chars)
-   - Creates `spanId = "00f067aa0ba902b7"` (8 bytes, 16 hex chars)
-   - Adds `traceId` and `spanId` to MDC automatically (Micrometer Tracing bridge)
-   - Now every log on this thread includes both values automatically
-4. **PricingController.calculatePricing()** receives the deserialized DTO
-5. **@Valid** triggers Bean Validation → if fails → MethodArgumentNotValidException → GlobalExceptionHandler
-
-### PHASE 2: Business Logic
-
-6. **PricingController** delegates immediately to **PricingService.calculatePricing()**
-7. **PricingMetrics.recordPricingRequestReceived()** — increments `pricing_requests_total{type="all"}`
-8. **PricingMetrics.incrementActiveRequests()** — increments `pricing_requests_active` gauge (was 0, now 1)
-9. **PricingMetrics.recordLoanAmount(5000000.0)** — records in distribution summary
-10. **PricingMetrics.recordProductTypeRequest("HOME_LOAN")** — increments product counter
-11. **Tracer.spanBuilder("calculatePricing")** creates CHILD SPAN under root span
-12. **PricingCalculator.validateEligibility()** — validates credit score ≥ 650, FOIR within limits
-    - Child span: "validateEligibility"
-13. **PricingCalculator.calculateInterestRate()** — `BASE_RATE × 1.0 + (-0.50) = 8.00%`
-    - Child span: "computeInterestRate"
-    - Timer records calculation duration: ~2ms
-14. **PricingCalculator.calculateEmi()** — EMI formula with BigDecimal precision
-15. **PricingRepository.save(entity)** — Hibernate INSERT into H2 `pricing_requests` table
-    - Child span: "persistPricingRequest"
-    - HikariCP: gets connection from pool, executes INSERT, returns connection to pool
-16. **StructuredLogger.logPricingCompleted()** → JSON log with all context
-17. **PricingAuditService.recordSuccess()** — runs ASYNCHRONOUSLY on `epricing-async-1` thread
-    - Separate transaction (REQUIRES_NEW)
-    - INSERT into `pricing_audit_logs` table
-18. **PricingMetrics.recordPricingSuccess()** — increments `pricing_requests_total{type="success"}`
-19. **PricingMetrics.decrementActiveRequests()** — gauge decrements (was 1, now 0)
-20. All spans ended in finally blocks (reverse order: child before parent)
-
-### PHASE 3: HTTP Response
-
-21. Controller returns `ResponseEntity.status(201).body(response)`
-22. Jackson serializes PricingResponseDto to JSON
-23. Response headers include: `X-Request-ID: REQ-ABC123`
-24. **MDCFilter** logs: `INFO Request completed | status=201 | durationMs=142`
-25. **MDCFilter finally block**: `MDC.clear()` — CRITICAL for thread pool safety
-26. Thread returned to Tomcat thread pool (with clean MDC)
-
----
-
-## PHASE 4: Metrics Pipeline
-
-```
-Every 15 seconds:
-Prometheus → GET http://epricing-service:8081/actuator/prometheus
-
-Response (excerpt):
-# HELP pricing_requests_total
-pricing_requests_total{application="epricing-service",team="epricing",type="all"} 251.0
-pricing_requests_total{type="success"} 247.0
-pricing_requests_total{type="rejected"} 4.0
-# HELP pricing_requests_active
-pricing_requests_active{service="epricing"} 0.0
-# HELP pricing_calculation_duration_seconds
-pricing_calculation_duration_seconds_count 247.0
-pricing_calculation_duration_seconds_sum 0.497
-pricing_calculation_duration_seconds_bucket{le="0.05"} 190.0
-pricing_calculation_duration_seconds_bucket{le="0.1"} 240.0
-pricing_calculation_duration_seconds_bucket{le="0.2"} 247.0
-...
-
-Prometheus stores each value as a time series:
-(metric_name, labels) → [(timestamp, value), ...]
-```
-
-**In Grafana:**
-- Panel: "P95 Latency" runs `histogram_quantile(0.95, rate(pricing_calculation_duration_seconds_bucket[5m])) * 1000`
-- Result: 47ms (95% of calculations complete within 47ms)
-
----
-
-## PHASE 5: Logs Pipeline
-
-```
-What's in /app/logs/epricing-service.log (one line, formatted for readability):
 {
-  "@timestamp": "2024-01-15T10:30:00.142Z",
+  "productType": "HOME_LOAN",
+  "loanAmount": 5000000.00,
+  "loanTenureMonths": 240,
+  "creditScore": 780,
+  "annualIncome": 2400000.00,
+  "customerId": "CUST****1234"
+}
+```
+
+1. **Tomcat Engine** accepts the TCP connection on port `8080`.
+2. **`MDCFilter`** (Servlet Filter, Order=1) intercepts before controller dispatch:
+   - Extracts or generates `X-Request-ID` → `requestId = "REQ-ABC123DEF456"`.
+   - Reads `X-Customer-ID` and sanitizes it via `StructuredLogger.maskCustomerId()` → `customerId = "CUST****1234"`.
+   - Populates SLF4J MDC: `{requestId, customerId="CUST****1234", httpMethod="POST", requestUri="/api/v1/pricing"}`.
+   - Logs: `INFO Incoming request | method=POST | uri=/api/v1/pricing`.
+3. **OpenTelemetry Spring MVC Instrumentation** creates the ROOT TRACE SPAN:
+   - Generates W3C `traceId = "4bf92f3577b34da6a3ce929d0e0e4736"` (32 hex characters).
+   - Generates `spanId = "00f067aa0ba902b7"` (16 hex characters).
+   - Bridges `traceId` and `spanId` into MDC so all subsequent log appenders include trace coordinates automatically.
+4. **`PricingController.calculatePricing()`** receives the deserialized `PricingRequestDto`.
+5. **Hibernate Validator (`@Valid`)** validates input bounds (e.g. loan amount > 0, credit score between 300 and 900). If validation fails, `MethodArgumentNotValidException` routes immediately to `GlobalExceptionHandler`.
+
+---
+
+### PHASE 2: Core Pricing Engine Execution & Persistence
+
+6. **Controller** delegates to **`PricingService.calculatePricing(requestDto, clientIp)`**.
+7. **Micrometer Metrics** record ingress signals:
+   - `pricing_requests_total{type="all"}` incremented.
+   - `pricing_requests_active` gauge incremented (0 → 1).
+   - `pricing.loan.amount` distribution summary updated (`5000000.0`).
+8. **`Tracer.spanBuilder("calculatePricing")`** creates child span under the root trace.
+9. **`PricingCalculator.validateEligibility()`**:
+   - Evaluates credit score against product thresholds (e.g., minimum 650).
+   - Computes Fixed Obligation to Income Ratio (FOIR ≤ 50%).
+   - Child span: `validateEligibility`.
+10. **`PricingCalculator.calculateInterestRate()`**:
+    - Computes: `BASE_RATE (8.50%) + Product Margin + Credit Score Adjustment (-1.00%) + Volume Discount (-0.25%) = 8.00%`.
+    - Child span: `computeInterestRate`.
+11. **`PricingCalculator.calculateEmi()`**:
+    - Evaluates reducing balance amortization formula using exact `BigDecimal` rounding (`HALF_EVEN`).
+    - Produces monthly EMI: ₹41,822.00; Total Interest: ₹50,37,280.00.
+12. **`auditService.savePricingWithAudit()`**:
+    - Confines the atomic database write to `PricingAuditService` via `@Transactional(rollbackFor = Exception.class)` against **YugabyteDB** (or in-memory H2 during local tests). Note that `PricingService.calculatePricing()` is intentionally non-transactional to avoid HikariCP connection-pool starvation deadlocks.
+    - `pricingRepository.save(entity)`: Inserts pricing record with status `CALCULATED`.
+    - `auditRepository.save(auditLog)`: Inserts immutable audit entry with action `PRICING_CALCULATED`.
+    - Child span: `PricingRepository.save`.
+13. **`StructuredLogger.logPricingCompleted()`**:
+    - Emits structured JSON log containing masked customer ID (`CUST****1234`), coarse bracket (`"10L-1Cr"`), and duration.
+14. **Metrics Completion**:
+    - `pricing_requests_total{type="success"}` incremented.
+    - `pricing_requests_active` gauge decremented (1 → 0).
+    - `pricing_calculation_duration_seconds` timer records latency.
+
+---
+
+### PHASE 2.5: Asynchronous Kafka Domain Event Publishing
+
+15. **Event Construction (`LoanPricingEvent`)**:
+    - Constructs strongly-typed domain event `LoanPricingEvent` containing calculation snapshot, status `CALCULATED`, and active `traceId`.
+16. **Fail-Fast Producer Dispatch (`KafkaPricingEventProducer`)**:
+    - Starts OTel producer span: `kafka.publish.loan-pricing-events`.
+    - Injects W3C `traceparent` (`00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01`) into Kafka `ProducerRecord` headers.
+    - Assigns message key = `customerId` (`"CUST****1234"`), ensuring partition affinity across 3 partitions.
+    - If executed within an active transaction, dispatch is registered via `TransactionSynchronizationManager.registerSynchronization(afterCommit)` to guarantee events are only published post-commit. If outside a transaction, dispatches immediately.
+    - Publishes to Kafka broker on `kafka:29092` with **3000ms fail-fast timeout** (`max.block.ms: 3000`).
+    - **Error Decoupling**: If Kafka is partitioned or degraded, the 3-second timeout triggers an asynchronous error log and span exception without failing the database transaction or aborting the HTTP 201 response.
+
+---
+
+### PHASE 3: HTTP Response Delivery
+
+17. **Controller** returns `ResponseEntity.status(HttpStatus.CREATED).body(responseDto)`:
+    ```json
+    {
+      "request_id": 1042,
+      "customer_id": "CUST****1234",
+      "product_type": "HOME_LOAN",
+      "loan_amount": 5000000.00,
+      "interest_rate_pa": 8.00,
+      "emi_amount": 41822.00,
+      "loan_tenure_months": 240,
+      "total_payable_amount": 10037280.00,
+      "total_interest_payable": 5037280.00,
+      "risk_category": "LOW_MEDIUM",
+      "pricing_status": "CALCULATED",
+      "rate_valid_until": "2026-11-26T10:30:00"
+    }
+    ```
+18. **MDCFilter Completion**:
+    - Logs: `INFO Request completed | status=201 | durationMs=142`.
+    - Invokes `MDC.clear()` in a `finally` block to prevent MDC leakage across pooled Tomcat threads.
+    - Closes root trace span.
+
+---
+
+## 2. THE DURABLE WORKFLOW LIFECYCLE (Temporal Orchestration)
+
+When a borrower requests a quote with guaranteed rate locking, the request flows through **Temporal Durable Orchestration**:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Borrower as Borrower / Mobile CRM
+    participant Controller as TemporalPricingController
+    participant Temporal as Temporal Server (:7233)
+    participant Worker as Temporal Worker (PricingActivitiesImpl)
+    participant DB as YugabyteDB (:5433)
+    participant Kafka as Apache Kafka (:29092)
+    participant OTel as OpenTelemetry / Tempo
+
+    Borrower->>Controller: POST /api/v1/workflow/pricing/start
+    Controller->>Temporal: Start Workflow: LoanPricingWorkflow (ID: LP-REQ-1042)
+    Controller-->>Borrower: 202 Accepted (workflowId: LP-REQ-1042)
+
+    Temporal->>Worker: Activity Task: calculateAndPersistPricing()
+    Worker->>DB: Atomically persist pricing_requests (CALCULATED) & audit_logs
+    Worker->>Kafka: publishPricingEvent(LoanPricingEvent: CALCULATED)
+    Worker-->>Temporal: Return quote result (8.00%, EMI ₹41,822, 7-day validity)
+
+    Temporal->>Temporal: Durable Timer: Workflow.await(7 days OR approval/rejection signal)
+    Note over Temporal: JVM threads released! State stored durably in Temporal PostgreSQL.
+
+    alt Path A: Borrower Approves Quote
+        Borrower->>Controller: POST /api/v1/workflow/pricing/LP-REQ-1042/approve
+        Controller->>Temporal: Signal: approveQuote()
+        Temporal->>Worker: Activity Task: recordQuoteApproval()
+        Worker->>DB: UPDATE pricing_requests SET status = 'APPROVED'
+        Worker->>DB: INSERT pricing_audit_logs (action = 'RATE_APPROVED')
+        Worker->>Kafka: publishStatusEvent(LoanPricingEvent: APPROVED)
+    else Path B: Borrower Declines Offer
+        Borrower->>Controller: POST /api/v1/workflow/pricing/LP-REQ-1042/reject?reason=FoundLowerRate
+        Controller->>Temporal: Signal: rejectQuote("FoundLowerRate")
+        Temporal->>Worker: Activity Task: recordQuoteRejection()
+        Worker->>DB: UPDATE pricing_requests SET status = 'REJECTED'
+        Worker->>DB: INSERT pricing_audit_logs (action = 'RATE_REJECTED')
+        Worker->>Kafka: publishStatusEvent(LoanPricingEvent: REJECTED)
+    else Path C: 7 Days Elapse Without Response
+        Temporal->>Worker: Activity Task: recordQuoteExpiration()
+        Worker->>DB: UPDATE pricing_requests SET status = 'EXPIRED'
+        Worker->>DB: INSERT pricing_audit_logs (action = 'RATE_EXPIRED')
+        Worker->>Kafka: publishStatusEvent(LoanPricingEvent: EXPIRED)
+    end
+```
+
+---
+
+## 3. TELEMETRY PIPELINE (Metrics, Logs, and Distributed Tracing)
+
+### 3.1 Metrics Pipeline (Prometheus & Actuator)
+- Every 15 seconds, Prometheus scrapes `http://epricing-service:8081/actuator/prometheus` (mapped to host port `8089`).
+- Exposes JVM memory, HikariCP pool saturation, HTTP request durations, and custom business metrics (`pricing_requests_total`, `pricing_calculation_duration_seconds`).
+- Grafana renders real-time P95 latency and throughput panels from these PromQL queries.
+
+### 3.2 Logs Pipeline (Loki & Promtail with PII Hygiene)
+The application writes JSON-formatted log lines to the shared volume `/app/logs/epricing-service.log`:
+
+```json
+{
+  "@timestamp": "2026-11-19T10:30:00.142Z",
   "level": "INFO",
   "thread_name": "http-nio-8080-exec-3",
   "logger_name": "com.bank.epricing.service.PricingService",
-  "message": "Pricing calculation completed | event_type=PRICING_COMPLETED | customerId=CUST001234 | productType=HOME_LOAN | rate=8.00% | emi=41822.18 | durationMs=142",
+  "message": "Pricing calculation completed | event_type=PRICING_COMPLETED | customerId=CUST****1234 | productType=HOME_LOAN | rate=8.00% | emi=41822.00 | durationMs=142",
   "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
   "spanId": "00f067aa0ba902b7",
-  "customerId": "CUST001234",
-  "requestId": "REQ-ABC123",
+  "customerId": "CUST****1234",
+  "requestId": "REQ-ABC123DEF456",
   "application": "epricing-service",
   "environment": "docker"
 }
-
-Promtail reads this line:
-  → Stage 1 (json): Parses JSON, extracts fields
-  → Stage 2 (labels): Sets Loki labels: {level="INFO", application="epricing-service", traceId="4bf92f3577b34da6a3ce929d0e0e4736"}
-  → Stage 3 (timestamp): Uses @timestamp as Loki entry time
-  → Stage 4 (output): Uses "message" field as log line content
-  → Ships to Loki: POST http://loki:3100/loki/api/v1/push
 ```
 
-**In Grafana:**
-- Logs panel query: `{application="epricing-service"} | json | event_type="PRICING_COMPLETED"`
-- To find all logs for one request: `{application="epricing-service"} | json | traceId = "4bf92f3577b34da6a3ce929d0e0e4736"`
+- Promtail tails `/var/log/epricing/*.log`, parses JSON labels, and pushes to Loki on port `3100`.
+- All customer identifiers are strictly masked (`CUST****1234`), ensuring compliance with RBI and data privacy regulations.
+
+### 3.3 Distributed Traces Pipeline (Tempo & OpenTelemetry)
+- Application spans are collected by the OpenTelemetry SDK BatchSpanProcessor and exported via OTLP HTTP to `http://otel-collector:4318/v1/traces`.
+- The OpenTelemetry Collector batches and forwards traces to **Grafana Tempo** on port `3200`.
+- Grafana correlates logs to traces in a single click: clicking `traceId` in Loki opens the Tempo waterfall view displaying root HTTP spans, internal calculation spans, database statements, and `kafka.publish.loan-pricing-events`.
 
 ---
 
-## PHASE 6: Traces Pipeline
+### 3.4 Downstream Analytics Lakehouse & Streaming Pipeline (Kafka & CDC to BigQuery / Iceberg)
+
+Analytical queries must never run directly against operational OLTP instances to prevent table lock contention. Transactional data flows to the analytical Lakehouse via two decoupled streams:
 
 ```
-OTel SDK in Spring Boot collects spans in memory:
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                              DOWNSTREAM ANALYTICS STREAMING FLOW                                      │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-Trace: 4bf92f3577b34da6a3ce929d0e0e4736
-├── Span: POST /api/v1/pricing (0ms - 142ms) ← auto-created
-│   Attributes: http.method=POST, http.url=/api/v1/pricing, http.status_code=201
-│   ├── Span: calculatePricing (2ms - 140ms) ← PricingService
-│   │   Attributes: customer.id=CUST001234, product.type=HOME_LOAN, loan.amount=5000000
-│   │   ├── Span: validateEligibility (2ms - 7ms)
-│   │   │   Attributes: credit.score=780
-│   │   │   Events: "Eligibility validation passed"
-│   │   ├── Span: computeInterestRate (7ms - 17ms)
-│   │   │   Attributes: calculated.rate=8.00
-│   │   │   Events: "Interest rate computed successfully"
-│   │   └── Span: persistPricingRequest (17ms - 140ms)  ← DB is bottleneck!
-│   │       Attributes: db.operation=INSERT, db.table=pricing_requests, db.row.id=42
-│   │       Events: "Pricing request persisted to database"
-
-OTel BatchSpanProcessor queues spans
-OTel OTLP HTTP Exporter: POST http://otel-collector:4318/v1/traces
-OTel Collector: memory_limiter → batch → debug exporter (prints to collector logs)
+  Transactional OLTP (YugabyteDB)             Real-Time Domain Events (Apache Kafka KRaft)
+     pricing_requests (:5433)                    Topic: loan-pricing-events (:29092)
+     pricing_audit_logs (:5433)                  Key = customerId (3 Partitions)
+               │                                                    │
+               ▼                                                    ▼
+    Debezium CDC Connector / Batch                        Apache Beam / Spark Streaming
+               │                                                    │
+               └───────────────────────────┬────────────────────────┘
+                                           │
+                                           ▼
+                    ┌──────────────────────────────────────────────┐
+                    │ Bronze Layer (Raw Ingestion Tables)          │
+                    │ - Append-only Kafka messages & CDC changelogs│
+                    └──────────────────────┬───────────────────────┘
+                                           │
+                                           ▼ Data Quality & PII Cleaning
+                    ┌──────────────────────────────────────────────┐
+                    │ Silver Layer (Sanitized & Standardized)      │
+                    │ - RBI Masking: CUST****1234                  │
+                    │ - Salted HMAC-SHA256 Token for joins         │
+                    │ - UTC Temporal Alignment & Deduplication     │
+                    └──────────────────────┬───────────────────────┘
+                                           │
+                                           ▼ Star Schema Dimensional Modeling
+                    ┌──────────────────────────────────────────────┐
+                    │ Gold Layer: Analytics Star Schema (BigQuery) │
+                    ├──────────────────────────────────────────────┤
+                    │ Dimensions:                                  │
+                    │ ├─ dim_customer (SCD Type 2, credit tiers)   │
+                    │ ├─ dim_loan_product (risk multipliers)       │
+                    │ └─ dim_date (fiscal quarters, banking days)  │
+                    │ Facts:                                       │
+                    │ ├─ fact_pricing_decisions (EMIs, rates, FOIR)│
+                    │ └─ fact_audit_events (actions, durations)    │
+                    └──────────────────────────────────────────────┘
 ```
 
-**In Grafana Tempo** (when Tempo is added to docker-compose):
-- Search by traceId: `4bf92f3577b34da6a3ce929d0e0e4736`
-- See waterfall showing: DB took 123ms of the 142ms total → optimization target
+1. **Kafka Stream Ingestion**:
+   - `LoanPricingEvent` JSON payloads emitted by `KafkaPricingEventProducer` are consumed by streaming engines (Apache Beam / Google Cloud Dataflow or Spark Streaming).
+   - Ingestion preserves causal ordering per customer by partitioning on `customerId`.
+2. **PII Sanitization & Pseudonymization (RBI & DPDP Act 2023)**:
+   - Plaintext customer identifiers are masked (`CUST****1234`) for regulatory reporting.
+   - A cryptographic salted HMAC SHA-256 token (`customer_hash_token`) is generated for cross-table analytics without exposing PII.
+3. **Kimball Star Schema Materialization**:
+   - Populates `fact_pricing_decisions` (grain: 1 row per calculation, partitioned by `DATE(created_timestamp)`, clustered by `product_key`, `status_code`).
+   - Populates `fact_audit_events` (grain: 1 row per state transition/audit event).
+   - Enriches `dim_customer` (SCD Type 2) and `dim_loan_product`.
+   > Full field mapping details and SQL transformation logic are specified in [`docs/mapping-manifesto.md`](mapping-manifesto.md).
 
 ---
 
-## ERROR SCENARIO: Low Credit Score
-
-**What happens differently:**
-
-1. Steps 1-12 same as above
-2. **PricingCalculator.validateEligibility()** detects creditScore=620 < 650 (minimum)
-3. Throws: `InsufficientCreditScoreException`
-4. In PricingService catch block:
-   - `pricingMetrics.recordPricingRejection()` → counter `pricing_requests_total{type="rejected"}` increments
-   - `structuredLogger.logPricingRejected(...)` → WARN level log
-   - `auditService.recordRejection(...)` → async audit INSERT
-   - `validationSpan.setStatus(ERROR, "Credit score too low")`
-   - Exception rethrown
-5. **GlobalExceptionHandler** catches the exception:
-   - `meterRegistry.counter("pricing.errors.total", "error_type", "PRICING_INSUFFICIENT_CREDIT_SCORE").increment()`
-   - `log.warn("Business exception handled | errorCode=...")` — WARN not ERROR (business rule, not bug)
-   - `Span.current().setStatus(ERROR, message)` + `recordException(ex)`
-6. **HTTP Response 422** (Unprocessable Entity):
-   ```json
-   {
-     "status": 422,
-     "error_code": "PRICING_INSUFFICIENT_CREDIT_SCORE",
-     "message": "Customer CUST001234 has credit score 620 which is below minimum 650",
-     "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
-   }
-   ```
-7. **In Grafana:**
-   - Metrics: `pricing_requests_total{type="rejected"}` counter increases
-   - Logs: Search `{application="epricing-service"} | json | event_type = "PRICING_REJECTED"`
-   - Traces: The span is marked RED (ERROR status)
-
----
-
-## COMPLETE TECHNOLOGY INTERACTION MAP
+## 4. COMPLETE TECHNOLOGY INTERACTION MAP
 
 ```
-                         pom.xml (dependencies)
-                              │
-                    application.yml (config)
-                              │
-              ┌───────────────┼───────────────────┐
-              │               │                   │
-        EpricingService    MDCFilter          OpenTelemetry
-        Application.java   (logging ctx)     Config (tracing)
-              │               │                   │
-              ↓               ↓                   ↓
-        [HTTP Layer]     [MDC Thread-Local]   [OTel Context]
-        PricingController                          │
-              │                              traceId in MDC
-              ↓                              (Micrometer bridge)
-        PricingService ─────────────────→ PricingMetrics
-              │              orchestrates    (Micrometer API)
-              ├──────────────────────────→ StructuredLogger
-              │                            (SLF4J/Logback)
-              ├──────────────────────────→ PricingCalculator
-              │                            (pure math)
-              ├──────────────────────────→ PricingRepository
-              │                            (JPA/Hibernate/H2)
-              └──────────────────────────→ PricingAuditService
-                                           (async audit)
-              │
-              ↓
-    [On Error: GlobalExceptionHandler]
-              │
-              ↓
-    ┌─────────────────────────────────┐
-    │         OUTPUT SIGNALS          │
-    ├─────────────────────────────────┤
-    │ METRICS (Micrometer)           │ → /actuator/prometheus (port 8081)
-    │ LOGS (Logback JSON)            │ → /app/logs/epricing-service.log
-    │ TRACES (OTel OTLP)             │ → otel-collector:4318
-    └─────────────────────────────────┘
-              │
-    ┌─────────┼──────────────────────┐
-    ↓         ↓                      ↓
-Prometheus  Promtail→Loki      OTel Collector
-(scrapes)   (reads,ships)      (processes)
-    │              │                 │
-    └──────────────┴─────────────────┘
-                   │
-                   ↓
-            Grafana :3000
-     ┌─────────────────────────┐
-     │  Dashboards             │
-     │  ├─ Metrics (Prometheus)│
-     │  ├─ Logs (Loki)         │
-     │  └─ Traces (Tempo)      │
-     │  Alerts (Prometheus)    │
-     │  Explore (Ad-hoc query) │
-     └─────────────────────────┘
+                         pom.xml (Spring Boot 3.3.4 / Java 21)
+                                      │
+                         application.yml (Multi-tier config)
+                                      │
+         ┌────────────────────────────┼────────────────────────────┐
+         │                            │                            │
+   EpricingServiceApplication      MDCFilter               OpenTelemetryConfig
+   (App Bootstrap & DI)      (PII Sanitized Logging)     (W3C Tracing Bridge)
+         │                            │                            │
+         ▼                            ▼                            ▼
+  [HTTP Layer :8080]          [MDC Thread-Local]          [Active Trace Context]
+  PricingController           (customerId=CUST****1234)    (traceId & spanId)
+  TemporalPricingController                  │                     │
+         │                                   └──────────┬──────────┘
+         ▼                                              │
+  PricingService ─────────────────────────────→ PricingMetrics (Micrometer)
+         │                                              │
+         ├────────────────────────────────────→ StructuredLogger (Logback JSON)
+         │                                              │
+         ├────────────────────────────────────→ PricingCalculator (Reducing EMI)
+         │                                              │
+         ├────────────────────────────────────→ YugabyteDB (:5433 / YSQL)
+         │                                      (pricing_requests & audit_logs)
+         │
+         ├────────────────────────────────────→ KafkaPricingEventProducer
+         │                                      (loan-pricing-events :29092)
+         │                                      Fail-fast 3000ms | Traceparent
+         │
+         └────────────────────────────────────→ Temporal Engine (:7233)
+                                                (7-day durable rate lock)
+         │
+         ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │                           TELEMETRY SIGNALS                            │
+  ├────────────────────────────────────────────────────────────────────────┤
+  │ METRICS :8081/actuator/prometheus ──► Prometheus (:9090)               │
+  │ LOGS    /app/logs/*.log           ──► Promtail ──► Loki (:3100)        │
+  │ TRACES  OTLP HTTP :4318           ──► OTel Col ──► Tempo (:3200)       │
+  │ EVENTS  Kafka Topic :29092        ──► Kafka ──► Lakehouse Star Schema  │
+  └────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+                        Grafana Unified UI (:3000)
+             ┌───────────────────────────────────────────────┐
+             │ Dashboards: Metrics + Logs + Traces + DB      │
+             └───────────────────────────────────────────────┘
 ```

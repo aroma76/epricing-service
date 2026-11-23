@@ -18,6 +18,7 @@
 10. [Is Prometheus storage also dynamic?](#10-is-prometheus-storage-also-dynamic)
 11. [Prometheus runs in Docker — so does it use my laptop's disk?](#11-prometheus-runs-in-docker--so-does-it-use-my-laptops-disk)
 12. [Quick cheat sheet — where is each thing stored?](#12-quick-cheat-sheet--where-is-each-thing-stored)
+13. [Can we use AI in Prometheus or Grafana?](#13-can-we-use-ai-in-prometheus-or-grafana)
 
 ---
 
@@ -415,3 +416,23 @@ in RAM and not saved to a Docker Volume.
 > The **Spring Boot app** is the kitchen — it cooks (calculates) and stores today's orders (H2 DB) in RAM.
 > The **observability stack** (Prometheus + Grafana + Loki) is the security system — it watches,
 > records, and permanently saves everything that happened, even if the kitchen closes for the night.
+
+---
+
+## 13. Can we use AI in Prometheus or Grafana?
+
+### Quick Plain-English Answer:
+
+- **Can we use AI in Prometheus?**
+  - **Not inside Prometheus core directly**: Prometheus is written in Go to be an ultra-fast, deterministic time-series database. It does not run neural networks or LLMs inside its engine so that critical P0/P1 banking alerts never fail probabilistically.
+  - **PromQL Statistical Math**: Prometheus *does* have built-in predictive math functions (like `predict_linear()`, `holt_winters()`, and rolling Z-scores) that forecast memory/connection pool exhaustion hours before it happens.
+  - **AI with Prometheus**: You can connect an external AI service (like a Python Isolation Forest sidecar exporting to `/metrics` or an LLM triage webhook in Alertmanager) that correlates Prometheus metrics with Loki logs and Tempo traces to diagnose root causes automatically.
+
+- **Can we use AI in Grafana?**
+  - **Yes, directly!**
+  - **Grafana LLM Plugin (`grafana-llm-app`)**: Allows you to use natural language (in plain English) to ask Grafana to generate PromQL/LogQL/TraceQL queries, explain complex flame graphs and distributed traces in Tempo, and summarize dashboard metrics.
+  - **Grafana Machine Learning (Grafana ML)**: Automatically trains machine learning models to draw dynamic confidence bands and detect anomalies without writing manual thresholds.
+  - **Private Banking Mode**: Connects directly to local models via **Ollama** (`docker compose --profile ai up -d`) to ensure zero financial telemetry leaves the internal bank network.
+
+👉 For full technical architecture, PromQL examples, and Docker setup instructions, see the comprehensive guide in [`docs/monitoring/AI_IN_PROMETHEUS_AND_GRAFANA.md`](./monitoring/AI_IN_PROMETHEUS_AND_GRAFANA.md).
+

@@ -2,6 +2,7 @@ package com.bank.epricing.temporal.workflow;
 
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.dto.PricingResponseDto;
+import com.bank.epricing.logging.StructuredLogger;
 import com.bank.epricing.temporal.activity.PricingActivities;
 import com.bank.epricing.temporal.dto.PricingWorkflowResult;
 import io.temporal.activity.ActivityOptions;
@@ -13,7 +14,8 @@ import java.time.Duration;
 
 /**
  * Deterministic Temporal Workflow Implementation for Loan Pricing.
- * Handles calculation, rate-lock duration, signals (approval/rejection), and expiration.
+ * Handles calculation, rate-lock duration, signals (approval/rejection), and
+ * expiration.
  * Follows strict Temporal determinism guidelines (zero non-deterministic APIs).
  */
 public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
@@ -28,41 +30,47 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
 
     // Configure resilient activity options with automatic exponential backoff retry
     private final PricingActivities activities = Workflow.newActivityStub(
-        PricingActivities.class,
-        ActivityOptions.newBuilder()
-            .setStartToCloseTimeout(Duration.ofSeconds(30))
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setInitialInterval(Duration.ofSeconds(1))
-                    .setBackoffCoefficient(2.0)
-                    .setMaximumInterval(Duration.ofSeconds(10))
-                    .setMaximumAttempts(5)
-                    .setDoNotRetry(
-                        com.bank.epricing.exception.PricingException.class.getName(),
-                        com.bank.epricing.exception.PricingException.InsufficientCreditScoreException.class.getName(),
-                        com.bank.epricing.exception.PricingException.LoanAmountExceedsEligibilityException.class.getName(),
-                        com.bank.epricing.exception.PricingException.FoirExceededException.class.getName(),
-                        com.bank.epricing.exception.PricingException.UnsupportedProductTypeException.class.getName()
-                    )
-                    .build()
-            )
-            .build()
-    );
+            PricingActivities.class,
+            ActivityOptions.newBuilder()
+                    .setStartToCloseTimeout(Duration.ofSeconds(30))
+                    .setRetryOptions(
+                            RetryOptions.newBuilder()
+                                    .setInitialInterval(Duration.ofSeconds(1))
+                                    .setBackoffCoefficient(2.0)
+                                    .setMaximumInterval(Duration.ofSeconds(10))
+                                    .setMaximumAttempts(5)
+                                    .setDoNotRetry(
+                                            com.bank.epricing.exception.PricingException.class.getName(),
+                                            com.bank.epricing.exception.PricingException.InsufficientCreditScoreException.class
+                                                    .getName(),
+                                            com.bank.epricing.exception.PricingException.LoanAmountExceedsEligibilityException.class
+                                                    .getName(),
+                                            com.bank.epricing.exception.PricingException.FoirExceededException.class
+                                                    .getName(),
+                                            com.bank.epricing.exception.PricingException.UnsupportedProductTypeException.class
+                                                    .getName(),
+                                            // ISSUE-06 FIX: PricingCalculationException must be in doNotRetry;
+                                            // Temporal does NOT respect Java inheritance for setDoNotRetry matching.
+                                            // Without this entry, any calculation failure causes 5x retry storms
+                                            // and 5x duplicate error records in pricing_requests.
+                                            com.bank.epricing.exception.PricingException.PricingCalculationException.class
+                                                    .getName())
+                                    .build())
+                    .build());
 
     @Override
     public PricingWorkflowResult processLoanPricing(PricingRequestDto requestDto, String requestIp, int rateValidDays) {
         String workflowId = Workflow.getInfo().getWorkflowId();
         log.info("Starting LoanPricingWorkflow | workflowId={} | customerId={}",
-            workflowId, requestDto.getCustomerId());
+            workflowId, StructuredLogger.maskCustomerId(requestDto.getCustomerId()));
 
         // Initialize snapshot immediately so early queries do not return null
         result = new PricingWorkflowResult(
-            workflowId,
-            requestDto.getCustomerId(),
-            requestDto.getProductType(),
-            status,
-            null
-        );
+                workflowId,
+                requestDto.getCustomerId(),
+                requestDto.getProductType(),
+                status,
+                null);
 
         // Step 1: Calculate and persist pricing quote
         PricingResponseDto quote;
@@ -73,7 +81,7 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
             result.setQuote(quote);
         } catch (Exception e) {
             log.warn("Pricing calculation failed/rejected in workflow | workflowId={} | error={}",
-                workflowId, e.getMessage());
+                    workflowId, e.getMessage());
             status = "REJECTED";
             result.setStatus(status);
             String failureReason = (e.getCause() != null && e.getCause().getMessage() != null && !e.getCause().getMessage().isBlank())
@@ -85,8 +93,8 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
         }
 
         String quoteId = quote.getRequestId() != null
-            ? quote.getRequestId().toString()
-            : null;
+                ? quote.getRequestId().toString()
+                : null;
 
         // Step 2: Durable wait for approval/rejection or rate-lock expiration
         int days = rateValidDays > 0 ? rateValidDays : 7;

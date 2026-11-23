@@ -360,6 +360,27 @@
         </dependency>
 
         <!-- ═══════════════════════════════════════════════════
+             GROUP 3.6: Apache Kafka Event Streaming
+             ═══════════════════════════════════════════════════ -->
+        <!--
+          spring-kafka
+          WHY: Provides high-throughput, low-latency, distributed event streaming
+          for loan pricing domain events, enabling downstream analytics, risk auditing,
+          and asynchronous event-driven integrations.
+        -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- spring-kafka-test for unit and slice testing -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ═══════════════════════════════════════════════════
              GROUP 4: Data Layer — JPA + H2
              ═══════════════════════════════════════════════════ -->
 
