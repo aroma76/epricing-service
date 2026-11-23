@@ -735,7 +735,7 @@
               </button>
               <button onclick="setProduct('AUTO_LOAN')" id="prod-AUTO_LOAN" class="prod-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs text-center transition hover:border-slate-700">
                 Auto Loan
-                <span class="block text-[10px] text-slate-400 font-mono mt-0.5">Base: 8.50% × 1.20</span>
+                <span class="block text-[10px] text-slate-400 font-mono mt-0.5">Base: 8.50% × 1.10</span>
               </button>
               <button onclick="setProduct('PERSONAL_LOAN')" id="prod-PERSONAL_LOAN" class="prod-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs text-center transition hover:border-slate-700">
                 Personal Loan
@@ -743,7 +743,7 @@
               </button>
               <button onclick="setProduct('EDUCATION_LOAN')" id="prod-EDUCATION_LOAN" class="prod-btn p-3 rounded-xl border border-slate-800 bg-slate-900/60 text-slate-300 font-semibold text-xs text-center transition hover:border-slate-700">
                 Education Loan
-                <span class="block text-[10px] text-slate-400 font-mono mt-0.5">Base: 8.50% × 1.10</span>
+                <span class="block text-[10px] text-slate-400 font-mono mt-0.5">Base: 8.50% × 1.05</span>
               </button>
             </div>
           </div>
@@ -1857,9 +1857,10 @@ Batching: 1024 spans, timeout 1s`,
     let selectedProduct = 'HOME_LOAN';
     const productMultipliers = {
       HOME_LOAN: 1.00,
-      AUTO_LOAN: 1.20,
+      AUTO_LOAN: 1.10,
+      BUSINESS_LOAN: 1.30,
       PERSONAL_LOAN: 1.50,
-      EDUCATION_LOAN: 1.10
+      EDUCATION_LOAN: 1.05
     };
 
     function setProduct(prod) {
@@ -1882,15 +1883,22 @@ Batching: 1024 spans, timeout 1s`,
       const credit = parseInt(document.getElementById('slider-credit').value);
       const income = parseFloat(document.getElementById('slider-income').value);
 
+      // Credit tier & score readout matching PricingCalculator.java
+      let creditTierLabel = 'High Risk (<650 Statutory Rejection)';
+      if (credit >= 800) creditTierLabel = 'Prime (Excellent, -1.00%)';
+      else if (credit >= 750) creditTierLabel = 'Low Risk (Good, -0.50%)';
+      else if (credit >= 700) creditTierLabel = 'Medium Risk (Average, +0.00%)';
+      else if (credit >= 650) creditTierLabel = 'Medium-High Risk (Below Avg, +0.50%)';
+
       // Update text readouts with proper Rupee symbol ₹
       document.getElementById('readout-amount').innerText = '₹' + amount.toLocaleString('en-IN');
       document.getElementById('readout-tenure').innerText = `${tenure} Months (${(tenure/12).toFixed(0)} Years)`;
-      document.getElementById('readout-credit').innerText = `${credit} — ${credit >= 750 ? 'Prime Borrower' : (credit >= 650 ? 'Medium Risk' : 'High Risk (Rejected)')}`;
+      document.getElementById('readout-credit').innerText = `${credit} — ${creditTierLabel}`;
       document.getElementById('readout-income').innerText = '₹' + income.toLocaleString('en-IN') + ' / year';
 
-      // 1. Credit Score Underwriting Policy Check
+      // 1. Credit Score Underwriting Policy Check (RBI guideline: MINIMUM_CREDIT_SCORE = 650)
       if (credit < 650) {
-        displayRejection(`REJECTED: Credit score (${credit}) is below statutory threshold of 650.`);
+        displayRejection(`REJECTED: Credit score (${credit}) is below statutory threshold of 650 (PricingException.InsufficientCreditScoreException).`);
         return;
       }
 
@@ -1900,36 +1908,63 @@ Batching: 1024 spans, timeout 1s`,
         return;
       }
 
-      // 3. Base Rate Calculation
+      // 3. Base Rate & Product Multiplier Calculation
+      // PricingCalculator: productRate = baseRate.multiply(productMultiplier).setScale(2, RoundingMode.HALF_UP)
       const baseRate = 8.50;
       const multiplier = productMultipliers[selectedProduct] || 1.00;
-      let calculatedRate = baseRate * multiplier;
+      const productRate = Math.round((baseRate * multiplier) * 100) / 100;
+      let calculatedRate = productRate;
 
-      // Credit score adjustments
-      if (credit >= 800) calculatedRate -= 1.00;
-      else if (credit >= 750) calculatedRate -= 0.50;
-      else if (credit >= 700) calculatedRate += 0.00;
-      else calculatedRate += 1.50; // 650 - 699
+      // Credit score adjustments:
+      // Excellent (800+): -1.00%
+      // Good (750-799): -0.50%
+      // Average (700-749): +0.00%
+      // Below Average (650-699): +0.50%
+      // Poor (<650): +1.50%
+      let creditAdj = 0.00;
+      if (credit >= 800) creditAdj = -1.00;
+      else if (credit >= 750) creditAdj = -0.50;
+      else if (credit >= 700) creditAdj = 0.00;
+      else if (credit >= 650) creditAdj = 0.50;
+      else creditAdj = 1.50;
+      calculatedRate += creditAdj;
 
-      // Statutory bounds enforcement (7.00% to 24.00%)
+      // Large loan discount: Loans strictly > ₹50 lakh (5,000,000) get -0.25%
+      let largeLoanDiscount = 0.00;
+      if (amount > 5000000) {
+        largeLoanDiscount = 0.25;
+        calculatedRate -= 0.25;
+      }
+
+      // Statutory bounds enforcement: floor 7.00% to ceiling 24.00%
       if (calculatedRate < 7.00) calculatedRate = 7.00;
       if (calculatedRate > 24.00) calculatedRate = 24.00;
+      calculatedRate = Math.round(calculatedRate * 100) / 100;
 
-      // 4. Reducing-Balance EMI Calculation
+      // 4. Reducing-Balance EMI Calculation (Matching PricingCalculator.calculateEmi BigDecimal HALF_UP)
       const monthlyRate = calculatedRate / (12 * 100);
-      const emi = (amount * monthlyRate * Math.pow(1 + monthlyRate, tenure)) / (Math.pow(1 + monthlyRate, tenure) - 1);
+      const compoundFactor = Math.pow(1 + monthlyRate, tenure);
+      const emi = (amount * monthlyRate * compoundFactor) / (compoundFactor - 1);
       const totalPayable = emi * tenure;
       const totalInterest = totalPayable - amount;
 
-      // 5. FOIR Policy Check (Max 50% monthly income)
+      // 5. FOIR Policy Check (Max 50% monthly income - validateFoir)
       const monthlyIncome = income / 12;
       const foir = (emi / monthlyIncome) * 100;
       const lti = (amount / income);
 
       if (foir > 50.0) {
-        displayRejection(`REJECTED: Monthly EMI (₹${Math.round(emi).toLocaleString('en-IN')}) requires ${foir.toFixed(1)}% of monthly income, violating the 50% FOIR ceiling.`);
+        displayRejection(`REJECTED: Monthly EMI (₹${Math.round(emi).toLocaleString('en-IN')}) requires ${foir.toFixed(1)}% of monthly income, violating the 50% FOIR ceiling (PricingException.FoirExceededException).`);
         return;
       }
+
+      // Determine Risk Category matching PricingCalculator.determineRiskCategory()
+      let riskCategory = "MEDIUM";
+      if (credit >= 800) riskCategory = "LOW";
+      else if (credit >= 750) riskCategory = "LOW_MEDIUM";
+      else if (credit >= 700) riskCategory = "MEDIUM";
+      else if (credit >= 650) riskCategory = "MEDIUM_HIGH";
+      else riskCategory = "HIGH";
 
       // Display Approval
       const outputBox = document.getElementById('output-box');
@@ -1943,9 +1978,15 @@ Batching: 1024 spans, timeout 1s`,
       document.getElementById('output-foir').innerText = `${foir.toFixed(1)}% (Safe ≤ 50%)`;
       document.getElementById('output-foir').className = 'font-bold text-emerald-400';
       document.getElementById('output-lti').innerText = `${lti.toFixed(2)}x (Safe ≤ 10x)`;
-      document.getElementById('output-risk').innerText = credit >= 750 ? 'LOW_RISK (PRIME)' : 'MEDIUM_RISK';
+      document.getElementById('output-risk').innerText = riskCategory;
+
+      let formulaBreakdown = `Base (${baseRate.toFixed(2)}%) × Multiplier (${multiplier.toFixed(2)})`;
+      if (creditAdj !== 0) formulaBreakdown += ` ${creditAdj > 0 ? '+' : '-'} Credit Adj (${Math.abs(creditAdj).toFixed(2)}%)`;
+      if (largeLoanDiscount > 0) formulaBreakdown += ` - Large Loan Discount (0.25%)`;
+      formulaBreakdown += ` = <strong>${calculatedRate.toFixed(2)}% p.a.</strong>`;
+
       document.getElementById('output-note').className = 'mt-4 p-3 rounded-lg bg-emerald-950/30 border border-emerald-800/40 text-xs text-emerald-300';
-      document.getElementById('output-note').innerHTML = `<strong>Underwriting Approved:</strong> Base (${baseRate}%) × Multiplier (${multiplier.toFixed(2)}) + Credit Adjustment = <strong>${calculatedRate.toFixed(2)}% p.a.</strong> Rate locked for 7 days in Temporal.`;
+      document.getElementById('output-note').innerHTML = `<strong>Underwriting Approved:</strong> ${formulaBreakdown}. Rate locked for 7 days in Temporal.`;
     }
 
     function displayRejection(reason) {

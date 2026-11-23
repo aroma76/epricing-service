@@ -255,7 +255,7 @@
           <div class="space-y-2">
             <div class="flex justify-between items-center text-xs font-mono">
               <label class="text-slate-300 font-bold">CREDIT SCORE (CIBIL)</label>
-              <span id="demo-score-val" class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold">780 — Excellent</span>
+              <span id="demo-score-val" class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold">780 — Good (-0.50%)</span>
             </div>
             <input type="range" id="demo-score" min="300" max="900" step="10" value="780" class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500" oninput="updateDemoPricing()">
             <div class="flex justify-between text-[10px] font-mono text-slate-500">
@@ -270,7 +270,7 @@
         <div class="lg:col-span-5 p-6 rounded-2xl glass-card flex flex-col items-center justify-between space-y-4">
           <div class="w-full flex items-center justify-between border-b border-slate-800 pb-2">
             <span class="text-xs font-mono text-slate-400">AMORTIZATION SPLIT</span>
-            <span id="demo-rate-badge" class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold">8.50% p.a.</span>
+            <span id="demo-rate-badge" class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono text-xs font-bold">8.00% p.a.</span>
           </div>
 
           <!-- SVG Donut Chart -->
@@ -282,7 +282,7 @@
             </svg>
             <div class="absolute flex flex-col items-center justify-center text-center">
               <span class="text-[10px] font-mono text-slate-400">MONTHLY EMI</span>
-              <span id="demo-emi" class="text-lg font-extrabold text-white">₹12,398</span>
+              <span id="demo-emi" class="text-lg font-extrabold text-white">₹12,133</span>
             </div>
           </div>
 
@@ -296,7 +296,7 @@
             <div class="flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
               <span class="text-slate-400">Interest:</span>
-              <span id="demo-interest-text" class="text-emerald-400 font-bold">₹4,87,828</span>
+              <span id="demo-interest-text" class="text-emerald-400 font-bold">₹4,55,931</span>
             </div>
           </div>
         </div>
@@ -390,11 +390,26 @@
       document.getElementById('demo-tenure-val').textContent = tenure + ' Months (' + (tenure/12).toFixed(1) + ' Yrs)';
       
       let tier = "Average";
-      let rate = 10.50;
-      if (score >= 800) { tier = "Excellent"; rate = 8.50; }
-      else if (score >= 750) { tier = "Good"; rate = 9.00; }
-      else if (score >= 650) { tier = "Average"; rate = 10.50; }
-      else { tier = "High Risk"; rate = 14.00; }
+      let creditAdj = 0.00;
+      if (score >= 800) { tier = "Excellent (-1.00%)"; creditAdj = -1.00; }
+      else if (score >= 750) { tier = "Good (-0.50%)"; creditAdj = -0.50; }
+      else if (score >= 700) { tier = "Average (+0.00%)"; creditAdj = 0.00; }
+      else if (score >= 650) { tier = "Below Average (+0.50%)"; creditAdj = 0.50; }
+      else { tier = "High Risk (<650 Rejection)"; creditAdj = 1.50; }
+
+      // Standard retail Home Loan baseline: 8.50% base rate x 1.00 multiplier
+      const baseRate = 8.50;
+      let rate = baseRate + creditAdj;
+
+      // Large loan discount: Loans strictly > ₹50 lakh (5,000,000) get -0.25%
+      if (amount > 5000000) {
+        rate -= 0.25;
+      }
+
+      // Regulatory statutory bounds: [7.00%, 24.00%]
+      if (rate < 7.00) rate = 7.00;
+      if (rate > 24.00) rate = 24.00;
+      rate = Math.round(rate * 100) / 100;
 
       document.getElementById('demo-score-val').textContent = score + ' — ' + tier;
       document.getElementById('demo-rate-badge').textContent = rate.toFixed(2) + '% p.a.';
