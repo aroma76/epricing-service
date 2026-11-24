@@ -83,7 +83,7 @@ services:
   yugabytedb:
     image: yugabytedb/yugabyte:2.20.1.0-b97
     container_name: epricing-yugabytedb
-    command: [ "bash", "-c", "bin/yugabyted start --advertise_address=172.20.100.10 --base_dir=/var/lib/yugabyte --ui=false && until bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -c 'SELECT 1;' > /dev/null 2>&1; do sleep 2; done && bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -c 'CREATE DATABASE epricingdb;' || true && tail -f /dev/null" ]
+    command: [ "bash", "-c", "rm -rf /tmp/.yb.* /tmp/.s.PGSQL* && bin/yugabyted start --advertise_address=172.20.100.10 --base_dir=/var/lib/yugabyte --ui=false && until bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -c 'SELECT 1;' > /dev/null 2>&1; do sleep 2; done && bin/ysqlsh -h 172.20.100.10 -p 5433 -U yugabyte -c 'CREATE DATABASE epricingdb;' || true && tail -f /dev/null" ]
     ports:
       - "5433:5433"   # YSQL API port (PostgreSQL wire-compatible)
       - "7000:7000"   # Master Admin UI
