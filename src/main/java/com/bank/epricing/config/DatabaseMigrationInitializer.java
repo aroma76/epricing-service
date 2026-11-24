@@ -51,17 +51,20 @@ public class DatabaseMigrationInitializer implements InitializingBean {
 
     public void runMigrations() {
         log.info("Starting Enterprise Database Schema Migration Check (pre-JPA initialization)...");
-        try (Connection conn = dataSource.getConnection()) {
+        try (Connection conn = acquireConnectionWithRetry(15, 3000)) {
             String dbProduct = conn.getMetaData().getDatabaseProductName().toLowerCase();
             boolean isPostgresOrYugabyte = dbProduct.contains("postgres") || dbProduct.contains("yugabyte");
             boolean lockAcquired = false;
 
             if (isPostgresOrYugabyte) {
-                log.info("Acquiring distributed PostgreSQL advisory lock ({}) for schema migration...", MIGRATION_LOCK_ID);
+                log.info("Attempting distributed PostgreSQL advisory lock ({}) for schema migration...", MIGRATION_LOCK_ID);
                 try (Statement lockStmt = conn.createStatement()) {
                     lockStmt.execute("SELECT pg_advisory_lock(" + MIGRATION_LOCK_ID + ")");
                     lockAcquired = true;
                     log.info("Acquired distributed PostgreSQL advisory lock for schema migration.");
+                } catch (Exception lockEx) {
+                    log.warn("Advisory locks not supported or disabled on database engine ({}) [{}]. Proceeding with migration safely.",
+                            dbProduct, lockEx.getMessage());
                 }
             }
 
@@ -187,6 +190,27 @@ public class DatabaseMigrationInitializer implements InitializingBean {
             log.error("CRITICAL: Database migration failed — application cannot start safely: {}", e.getMessage(), e);
             throw new RuntimeException("Database migration failed. Fix the migration scripts and restart.", e);
         }
+    }
+
+    private Connection acquireConnectionWithRetry(int maxAttempts, long waitMs) {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return dataSource.getConnection();
+            } catch (Exception connEx) {
+                if (attempt == maxAttempts) {
+                    log.error("CRITICAL: Failed to acquire database connection after {} attempts: {}", maxAttempts, connEx.getMessage());
+                    throw new RuntimeException("Database connection failed during migration. Ensure database is running.", connEx);
+                }
+                log.warn("Database connection not ready yet (attempt {}/{}): {}. Retrying in {}ms...", attempt, maxAttempts, connEx.getMessage(), waitMs);
+                try {
+                    Thread.sleep(waitMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException("Migration interrupted while waiting for database", ie);
+                }
+            }
+        }
+        throw new IllegalStateException("Failed to acquire connection");
     }
 
     @Component
