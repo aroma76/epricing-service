@@ -59,8 +59,6 @@
       z-index: 0;
       contain: strict;
       overflow: hidden;
-      transform: translate3d(0, 0, 0);
-      will-change: transform;
     }
 
     .scenic-backdrop svg {
@@ -69,18 +67,18 @@
       object-fit: cover;
     }
 
-    /* Zero-Cost Ambient Radiant Glows: High-performance radial gradients without costly GPU blur filters */
+    /* Hardware-Accelerated Ambient Radiant Glows */
     .ambient-glow-1 {
       position: fixed;
       top: -10%;
       left: 15%;
       width: 620px;
       height: 620px;
-      background: radial-gradient(circle at center, rgba(99, 102, 241, 0.20) 0%, rgba(99, 102, 241, 0.05) 45%, transparent 70%);
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, transparent 70%);
+      filter: blur(85px);
       pointer-events: none;
       z-index: 1;
       transform: translate3d(0, 0, 0);
-      will-change: transform;
       contain: strict;
     }
     .ambient-glow-2 {
@@ -89,11 +87,11 @@
       right: 10%;
       width: 700px;
       height: 700px;
-      background: radial-gradient(circle at center, rgba(56, 189, 248, 0.16) 0%, rgba(56, 189, 248, 0.04) 50%, transparent 72%);
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.13) 0%, transparent 72%);
+      filter: blur(95px);
       pointer-events: none;
       z-index: 1;
       transform: translate3d(0, 0, 0);
-      will-change: transform;
       contain: strict;
     }
     .ambient-glow-3 {
@@ -102,60 +100,63 @@
       right: 28%;
       width: 500px;
       height: 500px;
-      background: radial-gradient(circle at center, rgba(168, 85, 247, 0.14) 0%, rgba(168, 85, 247, 0.03) 45%, transparent 70%);
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.10) 0%, transparent 70%);
+      filter: blur(90px);
       pointer-events: none;
       z-index: 1;
       transform: translate3d(0, 0, 0);
-      will-change: transform;
       contain: strict;
     }
 
     /* ═════════════════════════════════════════════════════════════════════ */
-    /* ULTRA-SLEEK FROSTED GLASS CONTAINERS (Single-Layer Compositor Blur)  */
+    /* ULTRA-SLEEK FROSTED GLASS CONTAINERS (Matching Design Reference)    */
     /* ═════════════════════════════════════════════════════════════════════ */
     .glass-container {
       background: var(--glass-bg);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
       border: 1px solid var(--glass-border);
-      box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.16), inset 0 -1px 1px rgba(255, 255, 255, 0.04);
+      box-shadow: 0 28px 56px -12px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.16), inset 0 -1px 1px rgba(255, 255, 255, 0.04);
       border-radius: 28px;
     }
 
-    /* Child card: Translucent layer with NO nested backdrop-filter (saves ~30ms GPU blur passes per frame) */
     .glass-card {
-      background: rgba(18, 28, 48, 0.65);
+      background: var(--glass-card-bg);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
       border: 1px solid rgba(255, 255, 255, 0.09);
-      box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
-      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease, box-shadow 0.18s ease;
+      box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.50), inset 0 1px 1px rgba(255, 255, 255, 0.10);
+      border-radius: 22px;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
     }
     .glass-card:hover {
       border-color: rgba(99, 102, 241, 0.40);
       transform: translateY(-2px);
-      box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.60), 0 0 20px -4px rgba(99, 102, 241, 0.20);
+      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 24px -6px rgba(99, 102, 241, 0.25);
     }
 
     /* ═════════════════════════════════════════════════════════════════════ */
-    /* CONTROL SQUIRCLE TOGGLE TILES (Instant Tactile Response)             */
+    /* CONTROL SQUIRCLE TOGGLE TILES (Quick Settings Style from Reference)  */
     /* ═════════════════════════════════════════════════════════════════════ */
     .tile-btn {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 18px;
-      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 20px;
+      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
       cursor: pointer;
       user-select: none;
     }
     .tile-btn:hover {
       background: rgba(255, 255, 255, 0.09);
       border-color: rgba(255, 255, 255, 0.20);
-      transform: translateY(-1px);
+      transform: translateY(-2px);
     }
     .tile-btn.active {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(56, 189, 248, 0.22) 100%);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.38) 0%, rgba(56, 189, 248, 0.24) 100%);
       border-color: rgba(129, 140, 248, 0.70);
-      box-shadow: 0 0 24px -4px rgba(99, 102, 241, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+      box-shadow: 0 0 28px -4px rgba(99, 102, 241, 0.40), inset 0 1px 1px rgba(255, 255, 255, 0.30);
     }
 
     /* ═════════════════════════════════════════════════════════════════════ */
@@ -208,7 +209,7 @@
       cursor: pointer;
     }
 
-    /* WebKit Track & Thumb (Immediate 60fps tracking without gradient interpolation lag) */
+    /* WebKit Track & Thumb */
     input[type="range"]::-webkit-slider-runnable-track {
       width: 100%;
       height: var(--slider-track-size);
@@ -220,6 +221,7 @@
         #38bdf8 var(--slider-progress),
         var(--slider-track-color) var(--slider-progress)
       );
+      transition: background 0.05s ease;
     }
 
     input[type="range"]::-webkit-slider-thumb {
@@ -319,9 +321,9 @@
       border-color: rgba(255, 255, 255, 0.22);
     }
 
-    /* Amortization Donut Chart Snappy Transitions */
+    /* Amortization Donut Chart Smooth Transitions */
     .donut-segment {
-      transition: stroke-dasharray 0.15s ease-out, stroke-dashoffset 0.15s ease-out;
+      transition: stroke-dasharray 0.45s cubic-bezier(0.16, 1, 0.3, 1), stroke-dashoffset 0.45s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     /* Native Modal Dialog (Modern Web Guidance Compliant) */
@@ -329,7 +331,9 @@
       overscroll-behavior: contain;
     }
     dialog::backdrop {
-      background: rgba(4, 7, 14, 0.85);
+      background: rgba(4, 7, 14, 0.80);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
     }
     dialog[open] {
       opacity: 1;
@@ -521,7 +525,7 @@
 
     <!-- PRESENTATION MODULE NAVIGATION TABS (Modern Web Guidance Tabs Pattern) -->
     <div class="pt-6 pb-2 overflow-x-auto no-scrollbar">
-      <div role="tablist" aria-label="Showcase Sections" class="inline-flex p-1.5 rounded-2xl bg-slate-900/80 border border-white/10 gap-1.5 text-xs sm:text-sm font-semibold">
+      <div role="tablist" aria-label="Showcase Sections" class="inline-flex p-1.5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl gap-1.5 text-xs sm:text-sm font-semibold">
         <button type="button" role="tab" aria-selected="true" id="tab-calculator" onclick="switchTab('calculator')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-white">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
           <span>Live Pricing Calculator</span>
@@ -1256,7 +1260,7 @@ public interface PricingRateLockWorkflow {
   <!-- ═══════════════════════════════════════════════════════════════════════ -->
   <!-- NATIVE MODAL DIALOG (MODERN WEB GUIDANCE COMPLIANT)                     -->
   <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <dialog id="spec-modal" closedby="any" aria-labelledby="modal-title" class="p-0 rounded-3xl bg-[#0b101c] border border-white/15 text-slate-100 max-w-2xl w-[92vw] shadow-2xl backdrop:bg-black/85">
+  <dialog id="spec-modal" closedby="any" aria-labelledby="modal-title" class="p-0 rounded-3xl bg-[#0b101c] border border-white/15 text-slate-100 max-w-2xl w-[92vw] shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-md">
     <div class="p-6 sm:p-8 space-y-4 max-h-[85vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-white/10">
         <h3 id="modal-title" class="text-base sm:text-lg font-bold text-white tracking-tight">Specification Details</h3>
@@ -1280,7 +1284,7 @@ public interface PricingRateLockWorkflow {
   <!-- ═══════════════════════════════════════════════════════════════════════ -->
   <!-- FOOTER                                                                  -->
   <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <footer class="mt-auto border-t border-white/10 bg-[#060911]/95 py-6 px-4 sm:px-8">
+  <footer class="mt-auto border-t border-white/10 bg-[#060911]/85 backdrop-blur-md py-6 px-4 sm:px-8">
     <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 font-mono">
       <div class="flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -1568,98 +1572,51 @@ public interface PricingRateLockWorkflow {
     // 2. FINANCIAL CALCULATOR & UNDERWRITING LOGIC (Matches PricingCalculator.java)
     // ═════════════════════════════════════════════════════════════════════
     let selectedProduct = 'HOME_LOAN';
-    let calcPending = false;
+    let calcRafId = null;
     let latestQuoteData = null;
-    let cachedDOM = null;
-
-    function getDOM() {
-      if (!cachedDOM) {
-        cachedDOM = {
-          amountSlider: document.getElementById('slider-amount'),
-          tenureSlider: document.getElementById('slider-tenure'),
-          creditSlider: document.getElementById('slider-credit'),
-          incomeSlider: document.getElementById('slider-income'),
-          readoutAmount: document.getElementById('readout-amount'),
-          readoutTenure: document.getElementById('readout-tenure'),
-          readoutCredit: document.getElementById('readout-credit'),
-          readoutIncome: document.getElementById('readout-income'),
-          readoutMonthlyIncome: document.getElementById('readout-monthly-income'),
-          readoutMaxEmi: document.getElementById('readout-max-emi'),
-          readoutCreditTier: document.getElementById('readout-credit-tier'),
-          readoutDiscountTag: document.getElementById('readout-discount-tag'),
-          selectedProductLabel: document.getElementById('selected-product-label'),
-          productTiles: document.querySelectorAll('#product-tiles .tile-btn'),
-          rejectionBox: document.getElementById('rejection-box'),
-          rejectionReason: document.getElementById('rejection-reason'),
-          approvalBox: document.getElementById('approval-metrics-box'),
-          badgeDecision: document.getElementById('badge-decision'),
-          statusBeacon: document.getElementById('status-beacon'),
-          outEmi: document.getElementById('out-emi'),
-          outRate: document.getElementById('out-rate'),
-          outRiskCategory: document.getElementById('out-risk-category'),
-          outFoir: document.getElementById('out-foir'),
-          outLti: document.getElementById('out-lti'),
-          outPrincipalVal: document.getElementById('out-principal-val'),
-          outInterestVal: document.getElementById('out-interest-val'),
-          outTotalVal: document.getElementById('out-total-val'),
-          donutPrincipal: document.getElementById('donut-principal'),
-          donutInterest: document.getElementById('donut-interest'),
-          donutCenterTenure: document.getElementById('donut-center-tenure'),
-          legendPctPrincipal: document.getElementById('legend-pct-principal'),
-          legendPctInterest: document.getElementById('legend-pct-interest'),
-          outFormula: document.getElementById('out-formula')
-        };
-      }
-      return cachedDOM;
-    }
 
     function setProduct(productKey) {
       selectedProduct = productKey;
-      const dom = getDOM();
-      dom.productTiles.forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('#product-tiles .tile-btn').forEach(btn => btn.classList.remove('active'));
       const activeBtn = document.getElementById(`prod-${productKey}`);
       if (activeBtn) activeBtn.classList.add('active');
 
       const mult = SHOWCASE_DATA.productMultipliers[productKey] || 1.00;
-      if (dom.selectedProductLabel) dom.selectedProductLabel.textContent = `${mult.toFixed(2)}x risk multiplier`;
+      const label = document.getElementById('selected-product-label');
+      if (label) label.innerText = `${mult.toFixed(2)}x risk multiplier`;
 
       calculateLivePricing();
     }
 
     function setAmountPreset(amount) {
-      const dom = getDOM();
-      if (dom.amountSlider) {
-        dom.amountSlider.value = amount;
+      const slider = document.getElementById('slider-amount');
+      if (slider) {
+        slider.value = amount;
         calculateLivePricing();
       }
     }
 
     function setTenurePreset(months) {
-      const dom = getDOM();
-      if (dom.tenureSlider) {
-        dom.tenureSlider.value = months;
+      const slider = document.getElementById('slider-tenure');
+      if (slider) {
+        slider.value = months;
         calculateLivePricing();
       }
     }
 
     function resetCalculatorDefaults() {
-      const dom = getDOM();
       setProduct('HOME_LOAN');
-      if (dom.amountSlider) dom.amountSlider.value = 5000000;
-      if (dom.tenureSlider) dom.tenureSlider.value = 240;
-      if (dom.creditSlider) dom.creditSlider.value = 780;
-      if (dom.incomeSlider) dom.incomeSlider.value = 2400000;
+      document.getElementById('slider-amount').value = 5000000;
+      document.getElementById('slider-tenure').value = 240;
+      document.getElementById('slider-credit').value = 780;
+      document.getElementById('slider-income').value = 2400000;
       calculateLivePricing();
     }
 
     function calculateLivePricing() {
-      // Coalesce high-frequency events via requestAnimationFrame to guarantee 60fps/120fps
-      if (calcPending) return;
-      calcPending = true;
-      requestAnimationFrame(() => {
-        calcPending = false;
-        performCalculation();
-      });
+      // Debounce via requestAnimationFrame to ensure rock-solid 60fps on slider scrub
+      if (calcRafId) cancelAnimationFrame(calcRafId);
+      calcRafId = requestAnimationFrame(performCalculation);
     }
 
     // Modern Web Guidance: Sync live range value to CSS variable for custom track fill
@@ -1673,11 +1630,10 @@ public interface PricingRateLockWorkflow {
     }
 
     function performCalculation() {
-      const dom = getDOM();
-      const amountSlider = dom.amountSlider;
-      const tenureSlider = dom.tenureSlider;
-      const creditSlider = dom.creditSlider;
-      const incomeSlider = dom.incomeSlider;
+      const amountSlider = document.getElementById('slider-amount');
+      const tenureSlider = document.getElementById('slider-tenure');
+      const creditSlider = document.getElementById('slider-credit');
+      const incomeSlider = document.getElementById('slider-income');
 
       if (!amountSlider || !tenureSlider || !creditSlider || !incomeSlider) return;
 
@@ -1692,15 +1648,15 @@ public interface PricingRateLockWorkflow {
       const credit = parseInt(creditSlider.value, 10);
       const income = parseFloat(incomeSlider.value);
 
-      // Readout updates using fast textContent (never triggers forced synchronous reflow)
-      if (dom.readoutAmount) dom.readoutAmount.textContent = '₹' + amount.toLocaleString('en-IN');
-      if (dom.readoutTenure) dom.readoutTenure.textContent = `${tenure} Months (${(tenure/12).toFixed(0)} Years)`;
-      if (dom.readoutCredit) dom.readoutCredit.textContent = credit.toString();
-      if (dom.readoutIncome) dom.readoutIncome.textContent = '₹' + income.toLocaleString('en-IN') + ' / year';
+      // Readout updates
+      document.getElementById('readout-amount').innerText = '₹' + amount.toLocaleString('en-IN');
+      document.getElementById('readout-tenure').innerText = `${tenure} Months (${(tenure/12).toFixed(0)} Years)`;
+      document.getElementById('readout-credit').innerText = credit.toString();
+      document.getElementById('readout-income').innerText = '₹' + income.toLocaleString('en-IN') + ' / year';
 
       const monthlyIncome = income / 12;
-      if (dom.readoutMonthlyIncome) dom.readoutMonthlyIncome.textContent = '₹' + Math.round(monthlyIncome).toLocaleString('en-IN');
-      if (dom.readoutMaxEmi) dom.readoutMaxEmi.textContent = '₹' + Math.round(monthlyIncome * 0.50).toLocaleString('en-IN');
+      document.getElementById('readout-monthly-income').innerText = '₹' + Math.round(monthlyIncome).toLocaleString('en-IN');
+      document.getElementById('readout-max-emi').innerText = '₹' + Math.round(monthlyIncome * 0.50).toLocaleString('en-IN');
 
       // Credit tier classification
       let creditTierText = 'Prime (-1.00%)';
@@ -1721,7 +1677,7 @@ public interface PricingRateLockWorkflow {
         creditTierText = 'High Risk (<650 Rejection)';
         riskCategory = 'HIGH';
       }
-      if (dom.readoutCreditTier) dom.readoutCreditTier.textContent = creditTierText;
+      document.getElementById('readout-credit-tier').innerText = creditTierText;
 
       // ── Underwriting Policy Validation 1: Credit Score < 650
       if (credit < 650) {
@@ -1755,12 +1711,13 @@ public interface PricingRateLockWorkflow {
 
       // Step 5: Large loan discount: strictly > ₹50 Lakh (5,000,000)
       let largeLoanDiscount = 0.00;
+      const discountTag = document.getElementById('readout-discount-tag');
       if (amount > 5000000) {
         largeLoanDiscount = 0.25;
         finalRate -= 0.25;
-        if (dom.readoutDiscountTag) dom.readoutDiscountTag.classList.remove('hidden');
+        if (discountTag) discountTag.classList.remove('hidden');
       } else {
-        if (dom.readoutDiscountTag) dom.readoutDiscountTag.classList.add('hidden');
+        if (discountTag) discountTag.classList.add('hidden');
       }
 
       // Step 6: Regulatory bounds floor 7.00% to ceiling 24.00%
@@ -1816,45 +1773,39 @@ public interface PricingRateLockWorkflow {
     }
 
     function renderRejection(reason) {
-      const dom = getDOM();
-      if (dom.rejectionBox) dom.rejectionBox.classList.remove('hidden');
-      if (dom.rejectionReason) dom.rejectionReason.textContent = reason;
-      if (dom.approvalBox) dom.approvalBox.classList.add('hidden');
+      document.getElementById('rejection-box').classList.remove('hidden');
+      document.getElementById('rejection-reason').innerText = reason;
+      document.getElementById('approval-metrics-box').classList.add('hidden');
       
-      if (dom.badgeDecision) {
-        dom.badgeDecision.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30';
-        dom.badgeDecision.textContent = 'REJECTED';
-      }
+      const badge = document.getElementById('badge-decision');
+      badge.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30';
+      badge.innerText = 'REJECTED';
 
-      if (dom.statusBeacon) {
-        dom.statusBeacon.className = 'w-3 h-3 rounded-full bg-rose-400';
-      }
+      const beacon = document.getElementById('status-beacon');
+      beacon.className = 'w-3 h-3 rounded-full bg-rose-400';
     }
 
     function renderApproval(data) {
-      const dom = getDOM();
-      if (dom.rejectionBox) dom.rejectionBox.classList.add('hidden');
-      if (dom.approvalBox) dom.approvalBox.classList.remove('hidden');
+      document.getElementById('rejection-box').classList.add('hidden');
+      document.getElementById('approval-metrics-box').classList.remove('hidden');
 
-      if (dom.badgeDecision) {
-        dom.badgeDecision.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-        dom.badgeDecision.textContent = 'APPROVED';
-      }
+      const badge = document.getElementById('badge-decision');
+      badge.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+      badge.innerText = 'APPROVED';
 
-      if (dom.statusBeacon) {
-        dom.statusBeacon.className = 'w-3 h-3 rounded-full bg-emerald-400 animate-pulse';
-      }
+      const beacon = document.getElementById('status-beacon');
+      beacon.className = 'w-3 h-3 rounded-full bg-emerald-400 animate-pulse';
 
-      if (dom.outEmi) dom.outEmi.textContent = '₹' + Math.round(data.emi).toLocaleString('en-IN');
-      if (dom.outRate) dom.outRate.textContent = `${data.rate.toFixed(2)}% p.a.`;
-      if (dom.outRiskCategory) dom.outRiskCategory.textContent = `${data.riskCategory} Risk`;
+      document.getElementById('out-emi').innerText = '₹' + Math.round(data.emi).toLocaleString('en-IN');
+      document.getElementById('out-rate').innerText = `${data.rate.toFixed(2)}% p.a.`;
+      document.getElementById('out-risk-category').innerText = `${data.riskCategory} Risk`;
 
-      if (dom.outFoir) dom.outFoir.textContent = `${data.foir.toFixed(1)}%`;
-      if (dom.outLti) dom.outLti.textContent = `${data.lti.toFixed(2)}x`;
+      document.getElementById('out-foir').innerText = `${data.foir.toFixed(1)}%`;
+      document.getElementById('out-lti').innerText = `${data.lti.toFixed(2)}x`;
 
-      if (dom.outPrincipalVal) dom.outPrincipalVal.textContent = '₹' + Math.round(data.amount).toLocaleString('en-IN');
-      if (dom.outInterestVal) dom.outInterestVal.textContent = '₹' + Math.round(data.totalInterest).toLocaleString('en-IN');
-      if (dom.outTotalVal) dom.outTotalVal.textContent = '₹' + Math.round(data.totalPayable).toLocaleString('en-IN');
+      document.getElementById('out-principal-val').innerText = '₹' + Math.round(data.amount).toLocaleString('en-IN');
+      document.getElementById('out-interest-val').innerText = '₹' + Math.round(data.totalInterest).toLocaleString('en-IN');
+      document.getElementById('out-total-val').innerText = '₹' + Math.round(data.totalPayable).toLocaleString('en-IN');
 
       // Update Amortization Split Donut Chart (Guarded against NaN and cleanly aligned)
       const circumference = 2 * Math.PI * 40; // ~251.327
@@ -1865,24 +1816,27 @@ public interface PricingRateLockWorkflow {
       const principalLength = principalFraction * circumference;
       const interestLength = interestFraction * circumference;
 
-      if (dom.donutPrincipal && dom.donutInterest) {
-        dom.donutPrincipal.setAttribute('stroke-dasharray', `${principalLength.toFixed(2)} ${circumference.toFixed(2)}`);
-        dom.donutPrincipal.setAttribute('stroke-dashoffset', '0');
+      const principalCircle = document.getElementById('donut-principal');
+      const interestCircle = document.getElementById('donut-interest');
 
-        dom.donutInterest.setAttribute('stroke-dasharray', `${interestLength.toFixed(2)} ${circumference.toFixed(2)}`);
-        dom.donutInterest.setAttribute('stroke-dashoffset', `${(-principalLength).toFixed(2)}`);
+      if (principalCircle && interestCircle) {
+        principalCircle.setAttribute('stroke-dasharray', `${principalLength.toFixed(2)} ${circumference.toFixed(2)}`);
+        principalCircle.setAttribute('stroke-dashoffset', '0');
+
+        interestCircle.setAttribute('stroke-dasharray', `${interestLength.toFixed(2)} ${circumference.toFixed(2)}`);
+        interestCircle.setAttribute('stroke-dashoffset', `${(-principalLength).toFixed(2)}`);
       }
 
-      if (dom.donutCenterTenure) dom.donutCenterTenure.textContent = `${(data.tenure / 12).toFixed(0)} Yrs`;
-      if (dom.legendPctPrincipal) dom.legendPctPrincipal.textContent = `${Math.round(principalFraction * 100)}%`;
-      if (dom.legendPctInterest) dom.legendPctInterest.textContent = `${Math.round(interestFraction * 100)}%`;
+      document.getElementById('donut-center-tenure').innerText = `${(data.tenure / 12).toFixed(0)} Yrs`;
+      document.getElementById('legend-pct-principal').innerText = `${Math.round(principalFraction * 100)}%`;
+      document.getElementById('legend-pct-interest').innerText = `${Math.round(interestFraction * 100)}%`;
 
       // Formula breakdown text
       let formulaText = `Base (${data.baseRate.toFixed(2)}%) × Multiplier (${data.multiplier.toFixed(2)})`;
       if (data.creditAdj !== 0) formulaText += ` ${data.creditAdj > 0 ? '+' : '-'} Credit (${Math.abs(data.creditAdj).toFixed(2)}%)`;
       if (data.largeLoanDiscount > 0) formulaText += ` - Large Loan Discount (0.25%)`;
       formulaText += ` = ${data.rate.toFixed(2)}% p.a.`;
-      if (dom.outFormula) dom.outFormula.textContent = formulaText;
+      document.getElementById('out-formula').innerText = formulaText;
     }
 
     function copyQuotePayload() {
@@ -1986,28 +1940,28 @@ public interface PricingRateLockWorkflow {
       });
 
       if (flowKey === 'sync') {
-        if (title) title.textContent = 'Active Perspective: Instant Pricing Flow (Sync REST)';
-        if (desc) desc.textContent = 'Tier 1 Ingress -> Tier 2 Core Engine -> Tier 3 YugabyteDB. Responds in < 5ms.';
+        title.innerText = 'Active Perspective: Instant Pricing Flow (Sync REST)';
+        desc.innerText = 'Tier 1 Ingress -> Tier 2 Core Engine -> Tier 3 YugabyteDB. Responds in < 5ms.';
         if (cards[3]) cards[3].style.opacity = '0.35';
         if (cards[4]) cards[4].style.opacity = '0.35';
         if (cards[0]) cards[0].style.borderColor = 'rgba(56, 189, 248, 0.6)';
         if (cards[1]) cards[1].style.borderColor = 'rgba(99, 102, 241, 0.8)';
         if (cards[2]) cards[2].style.borderColor = 'rgba(168, 85, 247, 0.6)';
       } else if (flowKey === 'temporal') {
-        if (title) title.textContent = 'Active Perspective: 7-Day Rate Lock Flow (Temporal Saga)';
-        if (desc) desc.textContent = 'Tier 2 Core Engine -> Tier 3 Temporal gRPC & temporal-db -> Tier 4 Kafka events.';
+        title.innerText = 'Active Perspective: 7-Day Rate Lock Flow (Temporal Saga)';
+        desc.innerText = 'Tier 2 Core Engine -> Tier 3 Temporal gRPC & temporal-db -> Tier 4 Kafka events.';
         if (cards[0]) cards[0].style.opacity = '0.35';
         if (cards[4]) cards[4].style.opacity = '0.35';
         if (cards[1]) cards[1].style.borderColor = 'rgba(99, 102, 241, 0.8)';
         if (cards[2]) cards[2].style.borderColor = 'rgba(168, 85, 247, 0.8)';
         if (cards[3]) cards[3].style.borderColor = 'rgba(245, 158, 11, 0.8)';
       } else if (flowKey === 'otel') {
-        if (title) title.textContent = 'Active Perspective: SRE Observability Mesh (OTLP / PromQL / Loki)';
-        if (desc) desc.textContent = 'All tiers emit spans & metrics to Tier 5 OpenTelemetry Collector -> Tempo & Prometheus.';
+        title.innerText = 'Active Perspective: SRE Observability Mesh (OTLP / PromQL / Loki)';
+        desc.innerText = 'All tiers emit spans & metrics to Tier 5 OpenTelemetry Collector -> Tempo & Prometheus.';
         if (cards[4]) cards[4].style.borderColor = 'rgba(16, 185, 129, 0.8)';
       } else {
-        if (title) title.textContent = 'Active Perspective: All Tiers';
-        if (desc) desc.textContent = 'Click any tier above to inspect ports, protocol contracts, and resilience policies.';
+        title.innerText = 'Active Perspective: All Tiers';
+        desc.innerText = 'Click any tier above to inspect ports, protocol contracts, and resilience policies.';
       }
     }
 
@@ -2061,12 +2015,9 @@ public interface PricingRateLockWorkflow {
       }
 
       const step = temporalStepsData[currentTemporalStep - 1];
-      const tagEl = document.getElementById('step-box-tag');
-      const titleEl = document.getElementById('step-box-title');
-      const descEl = document.getElementById('step-box-desc');
-      if (tagEl) tagEl.textContent = step.tag;
-      if (titleEl) titleEl.textContent = step.title;
-      if (descEl) descEl.textContent = step.desc;
+      document.getElementById('step-box-tag').innerText = step.tag;
+      document.getElementById('step-box-title').innerText = step.title;
+      document.getElementById('step-box-desc').innerText = step.desc;
     }
 
     // ═════════════════════════════════════════════════════════════════════
@@ -2138,7 +2089,7 @@ public interface PricingRateLockWorkflow {
       const resultBox = document.getElementById('probe-result-box');
 
       btn.disabled = true;
-      if (pingText) pingText.textContent = 'Probing stack...';
+      pingText.innerText = 'Probing stack...';
       pingIcon.classList.add('animate-spin');
 
       const probePromises = SHOWCASE_DATA.containers.map(async c => {
@@ -2185,18 +2136,18 @@ public interface PricingRateLockWorkflow {
       const totalOnlineContainers = SHOWCASE_DATA.containers.filter(c => c.status === 'live').length;
 
       btn.disabled = false;
-      if (pingText) pingText.textContent = 'Re-Probe Localhost Stack';
+      pingText.innerText = 'Re-Probe Localhost Stack';
       pingIcon.classList.remove('animate-spin');
 
       // Update Nav Dot with true count
       const navDot = document.getElementById('nav-stack-dot');
       const navText = document.getElementById('nav-stack-text');
       if (stackIsLive) {
-        if (navDot) navDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
-        if (navText) navText.textContent = `${totalOnlineContainers}/17 Containers (Live)`;
+        navDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+        navText.innerText = `${totalOnlineContainers}/17 Containers (Live)`;
       } else {
-        if (navDot) navDot.className = 'w-2 h-2 rounded-full bg-amber-400';
-        if (navText) navText.textContent = '17 Containers (Offline)';
+        navDot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        navText.innerText = '17 Containers (Offline)';
       }
 
       // Banner Display
@@ -2240,14 +2191,10 @@ public interface PricingRateLockWorkflow {
 
     function resetContainerStatuses() {
       SHOWCASE_DATA.containers.forEach(c => c.status = 'standby');
-      const probeBox = document.getElementById('probe-result-box');
-      if (probeBox) probeBox.classList.add('hidden');
-      const navDot = document.getElementById('nav-stack-dot');
-      if (navDot) navDot.className = 'w-2 h-2 rounded-full bg-amber-400';
-      const navText = document.getElementById('nav-stack-text');
-      if (navText) navText.textContent = '17 Containers';
-      const pingText = document.getElementById('ping-text');
-      if (pingText) pingText.textContent = 'Ping Localhost Stack';
+      document.getElementById('probe-result-box').classList.add('hidden');
+      document.getElementById('nav-stack-dot').className = 'w-2 h-2 rounded-full bg-amber-400';
+      document.getElementById('nav-stack-text').innerText = '17 Containers';
+      document.getElementById('ping-text').innerText = 'Ping Localhost Stack';
       renderContainerGrid();
     }
 
@@ -2258,8 +2205,7 @@ public interface PricingRateLockWorkflow {
       const tier = SHOWCASE_DATA.tiers[tierKey];
       if (!tier) return;
 
-      const titleEl = document.getElementById('modal-title');
-      if (titleEl) titleEl.textContent = tier.title;
+      document.getElementById('modal-title').innerText = tier.title;
       document.getElementById('modal-body').innerHTML = `
         <div class="space-y-3 font-mono text-xs">
           <div class="bg-black/40 p-4 rounded-2xl border border-white/10 space-y-2">
@@ -2280,8 +2226,7 @@ public interface PricingRateLockWorkflow {
       const container = SHOWCASE_DATA.containers.find(c => c.name === containerName);
       if (!container) return;
 
-      const titleEl = document.getElementById('modal-title');
-      if (titleEl) titleEl.textContent = `Container: ${container.name}`;
+      document.getElementById('modal-title').innerText = `Container: ${container.name}`;
       document.getElementById('modal-body').innerHTML = `
         <div class="space-y-3 font-mono text-xs">
           <div class="bg-black/40 p-4 rounded-2xl border border-white/10 space-y-2">
@@ -2332,6 +2277,7 @@ public interface PricingRateLockWorkflow {
     // ═════════════════════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', () => {
       calculateLivePricing();
+      renderContainerGrid();
     });
   </script>
 </body>
