@@ -1727,7 +1727,7 @@
           "show": false
         },
         "showHeader": true,
-        "cellHeight": "lg"
+        "cellHeight": "sm"
       },
       "fieldConfig": {
         "defaults": {

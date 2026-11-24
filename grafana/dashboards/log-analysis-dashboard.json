@@ -102,7 +102,7 @@
       "title": "All Error Types (Cumulative)",
       "description": "Cumulative count of pricing errors by error type",
       "type": "bargauge",
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 6 },
+      "gridPos": { "h": 8, "w": 7, "x": 0, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
       "options": {
         "displayMode": "gradient",
@@ -139,7 +139,7 @@
       "title": "Error Rate Over Time",
       "description": "Rate of pricing errors per second by error type",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 6 },
+      "gridPos": { "h": 8, "w": 9, "x": 7, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "prometheus-uid" },
       "options": {
         "tooltip": { "mode": "multi" },
@@ -169,7 +169,7 @@
       "id": 11,
       "title": "Log Volume by Level",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 6 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 6 },
       "datasource": { "type": "loki", "uid": "loki-uid" },
       "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
       "fieldConfig": { "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10 } } },

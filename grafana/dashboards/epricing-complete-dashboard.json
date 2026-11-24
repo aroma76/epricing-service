@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "ePricing Service — Complete Observability Dashboard. CRMNXT color scheme. Real Prometheus metrics + DB queries.",
+  "description": "ePricing Service \u2014 Complete Observability Dashboard. CRMNXT color scheme. Real Prometheus metrics + DB queries.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
@@ -61,7 +61,7 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 3,
+        "w": 6,
         "x": 0,
         "y": 1
       },
@@ -126,8 +126,8 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 3,
+        "w": 6,
+        "x": 6,
         "y": 1
       },
       "datasource": {
@@ -173,8 +173,8 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 6,
+        "w": 6,
+        "x": 12,
         "y": 1
       },
       "datasource": {
@@ -220,8 +220,8 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 9,
+        "w": 6,
+        "x": 18,
         "y": 1
       },
       "datasource": {
@@ -271,9 +271,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 12,
-        "y": 1
+        "w": 6,
+        "x": 0,
+        "y": 5
       },
       "datasource": {
         "type": "prometheus",
@@ -326,9 +326,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 15,
-        "y": 1
+        "w": 6,
+        "x": 6,
+        "y": 5
       },
       "datasource": {
         "type": "prometheus",
@@ -382,9 +382,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 18,
-        "y": 1
+        "w": 6,
+        "x": 12,
+        "y": 5
       },
       "datasource": {
         "type": "prometheus",
@@ -438,9 +438,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 3,
-        "x": 21,
-        "y": 1
+        "w": 6,
+        "x": 18,
+        "y": 5
       },
       "datasource": {
         "type": "prometheus",
@@ -495,7 +495,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 9
       },
       "collapsed": false
     },
@@ -507,7 +507,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 10
       },
       "datasource": {
         "type": "prometheus",
@@ -555,7 +555,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 6
+        "y": 10
       },
       "datasource": {
         "type": "prometheus",
@@ -608,7 +608,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 18
       },
       "collapsed": false
     },
@@ -618,10 +618,10 @@
       "description": "Total pricing requests grouped by loan product type",
       "type": "bargauge",
       "gridPos": {
-        "h": 8,
-        "w": 10,
+        "h": 9,
+        "w": 9,
         "x": 0,
-        "y": 15
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -633,7 +633,9 @@
         "showUnfilled": true,
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         }
       },
@@ -662,9 +664,9 @@
       "type": "stat",
       "gridPos": {
         "h": 3,
-        "w": 14,
-        "x": 10,
-        "y": 15
+        "w": 15,
+        "x": 9,
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -730,10 +732,10 @@
       "title": "Pricing Calculation Duration Over Time",
       "type": "timeseries",
       "gridPos": {
-        "h": 5,
-        "w": 14,
-        "x": 10,
-        "y": 18
+        "h": 6,
+        "w": 15,
+        "x": 9,
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -788,19 +790,19 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 28
       },
       "collapsed": false
     },
     {
       "id": 31,
-      "title": "5XX Errors by Type",
+      "title": "Errors by Type (Last Range)",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 24
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -851,7 +853,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 24
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -902,7 +904,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -950,7 +952,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 37
       },
       "collapsed": false
     },
@@ -962,7 +964,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 33
+        "y": 38
       },
       "datasource": {
         "type": "prometheus",
@@ -1019,7 +1021,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 33
+        "y": 38
       },
       "datasource": {
         "type": "prometheus",
@@ -1066,19 +1068,19 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 46
       },
       "collapsed": false
     },
     {
       "id": 51,
-      "title": "JVM Memory — Heap Used vs Max",
+      "title": "JVM Memory \u2014 Heap Used vs Max",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 42
+        "y": 47
       },
       "datasource": {
         "type": "prometheus",
@@ -1126,7 +1128,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 42
+        "y": 47
       },
       "datasource": {
         "type": "prometheus",
