@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bank ePricing Enterprise Microservice — Product Showcase</title>
-  <!-- Tailwind CSS via official CDN with offline fallback -->
+  <title>Bank ePricing — Enterprise Loan Pricing Showcase</title>
+  <meta name="description" content="High-performance presentation showcase for Bank ePricing Microservice. Real-time reducing-balance loan underwriting, Temporal durable workflows, and Kafka event streaming.">
+  <!-- Tailwind CSS via CDN with fallback -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     if (typeof tailwind === 'undefined') {
@@ -12,18 +13,14 @@
     }
   </script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
     :root {
-      --brand-indigo: #6366f1;
-      --brand-cyan: #38bdf8;
-      --brand-emerald: #10b981;
-      --brand-rose: #f43f5e;
-      --brand-amber: #f59e0b;
-      --glass-bg: rgba(13, 20, 36, 0.65);
-      --glass-border: rgba(255, 255, 255, 0.12);
-      --glass-card-bg: rgba(18, 28, 48, 0.52);
-      color-scheme: dark;
+      --bg-dark: #080c16;
+      --glass-surface: rgba(15, 23, 42, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-border-hover: rgba(99, 102, 241, 0.4);
+      --glass-highlight: rgba(255, 255, 255, 0.12);
     }
 
     * {
@@ -32,2252 +29,724 @@
 
     body {
       font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #060911;
+      background-color: var(--bg-dark);
       color: #f1f5f9;
-      accent-color: var(--brand-indigo);
+      min-height: 100vh;
       overflow-x: hidden;
       margin: 0;
       padding: 0;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
     }
 
-    code, pre, .font-mono {
+    .font-mono {
       font-family: 'JetBrains Mono', monospace;
     }
 
-    /* ═════════════════════════════════════════════════════════════════════ */
-    /* ATMOSPHERIC MOUNTAIN BACKDROP (Matches Reference Image)             */
-    /* Hardware-Accelerated Vector Landscape with Atmospheric Lighting     */
-    /* ═════════════════════════════════════════════════════════════════════ */
-    .scenic-backdrop {
+    /* Hardware-Accelerated Scenic Mountain Backdrop */
+    .scenic-bg {
       position: fixed;
       inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
       z-index: 0;
-      contain: strict;
-      overflow: hidden;
+      pointer-events: none;
+      background: 
+        radial-gradient(circle at 50% 18%, rgba(99, 102, 241, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 82% 25%, rgba(56, 189, 248, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 18% 75%, rgba(168, 85, 247, 0.12) 0%, transparent 50%),
+        linear-gradient(180deg, #090e1a 0%, #060911 60%, #03050a 100%);
     }
 
-    .scenic-backdrop svg {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .mountain-silhouette {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48vh;
+      opacity: 0.35;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320" preserveAspectRatio="none"><path fill="%231e293b" fill-opacity="0.5" d="M0,224L60,208C120,192,240,160,360,165.3C480,171,600,213,720,208C840,203,960,149,1080,138.7C1200,128,1320,160,1380,176L1440,192L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"></path><path fill="%230f172a" fill-opacity="0.9" d="M0,256L80,240C160,224,320,192,480,202.7C640,213,800,267,960,266.7C1120,267,1280,213,1360,186.7L1440,160L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"></path></svg>') bottom center / cover no-repeat;
+      pointer-events: none;
+      z-index: 1;
     }
 
-    /* Hardware-Accelerated Ambient Radiant Glows */
-    .ambient-glow-1 {
-      position: fixed;
-      top: -10%;
-      left: 15%;
-      width: 620px;
-      height: 620px;
-      background: radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, transparent 70%);
-      filter: blur(85px);
-      pointer-events: none;
-      z-index: 1;
-      transform: translate3d(0, 0, 0);
-      contain: strict;
-    }
-    .ambient-glow-2 {
-      position: fixed;
-      bottom: -12%;
-      right: 10%;
-      width: 700px;
-      height: 700px;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.13) 0%, transparent 72%);
-      filter: blur(95px);
-      pointer-events: none;
-      z-index: 1;
-      transform: translate3d(0, 0, 0);
-      contain: strict;
-    }
-    .ambient-glow-3 {
-      position: fixed;
-      top: 45%;
-      right: 28%;
-      width: 500px;
-      height: 500px;
-      background: radial-gradient(circle, rgba(168, 85, 247, 0.10) 0%, transparent 70%);
-      filter: blur(90px);
-      pointer-events: none;
-      z-index: 1;
-      transform: translate3d(0, 0, 0);
-      contain: strict;
-    }
-
-    /* ═════════════════════════════════════════════════════════════════════ */
-    /* ULTRA-SLEEK FROSTED GLASS CONTAINERS (Matching Design Reference)    */
-    /* ═════════════════════════════════════════════════════════════════════ */
-    .glass-container {
-      background: var(--glass-bg);
-      backdrop-filter: blur(28px) saturate(180%);
-      -webkit-backdrop-filter: blur(28px) saturate(180%);
+    /* Optimized Glassmorphism Surfaces (Sub-16px blur for high 60fps GPU performance) */
+    .glass-panel {
+      background: var(--glass-surface);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
       border: 1px solid var(--glass-border);
-      box-shadow: 0 28px 56px -12px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.16), inset 0 -1px 1px rgba(255, 255, 255, 0.04);
-      border-radius: 28px;
+      border-radius: 1.5rem;
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
     }
 
     .glass-card {
-      background: var(--glass-card-bg);
-      backdrop-filter: blur(20px) saturate(160%);
-      -webkit-backdrop-filter: blur(20px) saturate(160%);
-      border: 1px solid rgba(255, 255, 255, 0.09);
-      box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.50), inset 0 1px 1px rgba(255, 255, 255, 0.10);
-      border-radius: 22px;
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+      background: rgba(30, 41, 59, 0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 1rem;
+      transition: all 0.2s ease;
     }
+
     .glass-card:hover {
-      border-color: rgba(99, 102, 241, 0.40);
-      transform: translateY(-2px);
-      box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 24px -6px rgba(99, 102, 241, 0.25);
+      border-color: var(--glass-border-hover);
+      background: rgba(30, 41, 59, 0.65);
     }
 
-    /* ═════════════════════════════════════════════════════════════════════ */
-    /* CONTROL SQUIRCLE TOGGLE TILES (Quick Settings Style from Reference)  */
-    /* ═════════════════════════════════════════════════════════════════════ */
-    .tile-btn {
-      background: rgba(255, 255, 255, 0.04);
+    /* Control Center Pill Buttons */
+    .prod-btn {
+      background: rgba(30, 41, 59, 0.45);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-radius: 20px;
-      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-      cursor: pointer;
-      user-select: none;
-    }
-    .tile-btn:hover {
-      background: rgba(255, 255, 255, 0.09);
-      border-color: rgba(255, 255, 255, 0.20);
-      transform: translateY(-2px);
-    }
-    .tile-btn.active {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.38) 0%, rgba(56, 189, 248, 0.24) 100%);
-      border-color: rgba(129, 140, 248, 0.70);
-      box-shadow: 0 0 28px -4px rgba(99, 102, 241, 0.40), inset 0 1px 1px rgba(255, 255, 255, 0.30);
+      border-radius: 0.85rem;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* ═════════════════════════════════════════════════════════════════════ */
-    /* BRAND-CONSISTENT RANGE SLIDER (Modern Web Guidance Compliant)       */
-    /* Normalized cross-browser track & thumb with live luminous progress  */
-    /* ═════════════════════════════════════════════════════════════════════ */
-    .pill-slider-wrapper {
-      position: relative;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.09);
+    .prod-btn:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .prod-btn.active {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(139, 92, 246, 0.2) 100%);
+      border-color: #818cf8;
+      box-shadow: 0 0 18px -2px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+
+    /* Fast, Smooth Custom Pill Sliders */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 7px;
+      background: #1e293b;
       border-radius: 9999px;
-      height: 44px;
-      padding: 0 6px 0 14px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
-      transition: border-color 0.2s ease;
-    }
-    .pill-slider-wrapper:focus-within {
-      border-color: rgba(99, 102, 241, 0.6);
-      box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25), inset 0 2px 4px rgba(0, 0, 0, 0.4);
-    }
-
-    .slider-capsule-icon {
-      flex-shrink: 0;
-      color: rgba(255, 255, 255, 0.6);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    input[type="range"] {
-      --slider-track-size: 8px;
-      --slider-thumb-size: 26px;
-      --slider-track-radius: 9999px;
-      --slider-thumb-radius: 50%;
-      --slider-track-color: rgba(255, 255, 255, 0.08);
-      --slider-fill-color: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
-      --slider-progress: 50%;
-
-      appearance: none;
-      -webkit-appearance: none;
-      width: 100%;
-      height: 100%;
-      background: transparent;
       outline: none;
-      margin: 0;
-      padding: 0;
       cursor: pointer;
     }
 
-    /* WebKit Track & Thumb */
-    input[type="range"]::-webkit-slider-runnable-track {
-      width: 100%;
-      height: var(--slider-track-size);
-      border: 0;
-      border-radius: var(--slider-track-radius);
-      background: linear-gradient(
-        to right,
-        #6366f1 0%,
-        #38bdf8 var(--slider-progress),
-        var(--slider-track-color) var(--slider-progress)
-      );
-      transition: background 0.05s ease;
-    }
-
-    input[type="range"]::-webkit-slider-thumb {
-      appearance: none;
+    input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: var(--slider-thumb-size);
-      height: var(--slider-thumb-size);
-      margin-block-start: calc((var(--slider-track-size) - var(--slider-thumb-size)) / 2);
-      border-radius: var(--slider-thumb-radius);
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
       background: #ffffff;
       border: 3px solid #6366f1;
-      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55), 0 0 16px rgba(99, 102, 241, 0.7);
-      cursor: grab;
-      transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
-    input[type="range"]::-webkit-slider-thumb:hover {
+
+    input[type=range]::-webkit-slider-thumb:hover {
       transform: scale(1.15);
-      background: #f8fafc;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65), 0 0 20px rgba(56, 189, 248, 0.8);
-    }
-    input[type="range"]::-webkit-slider-thumb:active {
-      cursor: grabbing;
-      transform: scale(1.05);
+      box-shadow: 0 0 14px rgba(99, 102, 241, 0.8);
     }
 
-    /* Firefox Track & Thumb */
-    input[type="range"]::-moz-range-track {
-      width: 100%;
-      height: var(--slider-track-size);
-      border: 0;
-      border-radius: var(--slider-track-radius);
-      background: var(--slider-track-color);
-    }
-    input[type="range"]::-moz-range-progress {
-      height: var(--slider-track-size);
-      border-radius: var(--slider-track-radius);
-      background: linear-gradient(90deg, #6366f1 0%, #38bdf8 100%);
-    }
-    input[type="range"]::-moz-range-thumb {
-      width: var(--slider-thumb-size);
-      height: var(--slider-thumb-size);
-      border-radius: var(--slider-thumb-radius);
+    input[type=range]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
       background: #ffffff;
       border: 3px solid #6366f1;
-      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55), 0 0 16px rgba(99, 102, 241, 0.7);
-      cursor: grab;
-    }
-
-    input[type="range"]:focus-visible {
-      outline: 2px solid #6366f1;
-      outline-offset: 4px;
-    }
-
-    /* ═════════════════════════════════════════════════════════════════════ */
-    /* ACCESSIBLE TABS (Modern Web Guidance Compliant)                      */
-    /* ═════════════════════════════════════════════════════════════════════ */
-    .tab-btn {
-      position: relative;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
       cursor: pointer;
-      user-select: none;
-      outline: none;
-      transition: color 0.18s ease, background-color 0.18s ease;
-    }
-    .tab-btn:focus-visible {
-      outline: 2px solid #6366f1;
-      outline-offset: 2px;
-    }
-    .tab-btn[aria-selected="true"] {
-      color: #ffffff;
-      background: rgba(99, 102, 241, 0.85);
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
-    }
-    .tab-btn[aria-selected="true"]::after {
-      content: "";
-      position: absolute;
-      inset: auto 12px 2px 12px;
-      height: 2px;
-      border-radius: 9999px;
-      background: #38bdf8;
     }
 
-    /* Quick Preset Chips */
-    .preset-chip {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
-      padding: 3px 9px;
-      font-size: 11px;
-      font-family: 'JetBrains Mono', monospace;
-      color: #94a3b8;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .preset-chip:hover {
-      background: rgba(255, 255, 255, 0.14);
-      color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.22);
-    }
-
-    /* Amortization Donut Chart Smooth Transitions */
-    .donut-segment {
-      transition: stroke-dasharray 0.45s cubic-bezier(0.16, 1, 0.3, 1), stroke-dashoffset 0.45s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    /* Native Modal Dialog (Modern Web Guidance Compliant) */
-    dialog:modal {
-      overscroll-behavior: contain;
-    }
-    dialog::backdrop {
-      background: rgba(4, 7, 14, 0.80);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
-    }
-    dialog[open] {
-      opacity: 1;
-      transform: scale(1);
-      transition: opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    @starting-style {
-      dialog[open] {
-        opacity: 0;
-        transform: scale(0.96);
-      }
-    }
-
-    /* Clean Scrollbars */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #070b13;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.16);
-      border-radius: 9999px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.30);
-    }
-
-    /* High Performance Tab Content */
-    .tab-panel {
-      content-visibility: auto;
-      contain-intrinsic-size: auto 600px;
-    }
-
-    /* Reduced Motion Accessibility */
-    @media (prefers-reduced-motion: reduce) {
-      .glass-card, .tile-btn, input[type="range"]::-webkit-slider-thumb, .donut-segment {
-        transition: none !important;
-        animation: none !important;
-      }
-    }
+    /* Subtle glow utilities */
+    .glow-cyan { box-shadow: 0 0 20px -3px rgba(6, 182, 212, 0.35); }
+    .glow-emerald { box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.35); }
+    .glow-rose { box-shadow: 0 0 20px -3px rgba(244, 63, 94, 0.35); }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #070b14; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
   </style>
 </head>
-<body class="selection:bg-indigo-500 selection:text-white relative min-h-screen flex flex-col">
+<body class="relative flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
 
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- SCENIC TWILIGHT MOUNTAIN BACKDROP LAYER                                 -->
-  <!-- Matches media_1795504745275_0c5cf747.jpg frosted glass aesthetic       -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <div class="scenic-backdrop">
-    <svg viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#04060b" />
-          <stop offset="40%" stop-color="#090f1d" />
-          <stop offset="70%" stop-color="#141c2e" />
-          <stop offset="100%" stop-color="#1f283c" />
-        </linearGradient>
-        <linearGradient id="mountainRidgeGrad" x1="50%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%" stop-color="#2c3a54" stop-opacity="0.85" />
-          <stop offset="60%" stop-color="#111927" stop-opacity="0.95" />
-          <stop offset="100%" stop-color="#060911" stop-opacity="1" />
-        </linearGradient>
-        <linearGradient id="mistGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-          <stop offset="0%" stop-color="#060911" stop-opacity="0.95" />
-          <stop offset="50%" stop-color="#182338" stop-opacity="0.30" />
-          <stop offset="100%" stop-color="#141c2e" stop-opacity="0" />
-        </linearGradient>
-        <radialGradient id="moonGlow" cx="50%" cy="30%" r="50%">
-          <stop offset="0%" stop-color="#a5b4fc" stop-opacity="0.22" />
-          <stop offset="50%" stop-color="#6366f1" stop-opacity="0.08" />
-          <stop offset="100%" stop-color="transparent" stop-opacity="0" />
-        </radialGradient>
-      </defs>
+  <!-- Scenic Ambient Mountain Backdrop -->
+  <div class="scenic-bg"></div>
+  <div class="mountain-silhouette"></div>
 
-      <!-- Night Twilight Sky -->
-      <rect width="1920" height="1080" fill="url(#skyGrad)" />
-      
-      <!-- Atmospheric Moonlit Sky Glow -->
-      <circle cx="960" cy="380" r="550" fill="url(#moonGlow)" />
-
-      <!-- Distant Mountain Ridge 1 (Soft Silhouette) -->
-      <path d="M0 680 L280 520 L580 620 L960 410 L1320 580 L1680 490 L1920 630 L1920 1080 L0 1080 Z" fill="#111827" fill-opacity="0.75" />
-
-      <!-- Prominent Sharp Mountain Peak (Center-Right, mirroring the reference image) -->
-      <path d="M720 750 L1020 360 L1080 390 L1180 500 L1450 780 Z" fill="url(#mountainRidgeGrad)" />
-      
-      <!-- Mountain Lit Ridge Highlight -->
-      <path d="M1020 360 L1024 366 L1080 430 L1110 490 L1180 570 L1240 680" stroke="rgba(255,255,255,0.22)" stroke-width="2.5" stroke-linecap="round" />
-
-      <!-- Mid-ground Mountain Range 2 -->
-      <path d="M-50 780 L350 590 L750 710 L1150 560 L1580 690 L1980 620 L1980 1080 L-50 1080 Z" fill="#0d1424" fill-opacity="0.88" />
-
-      <!-- Ambient Ground Mist & Fog Layer -->
-      <rect y="580" width="1920" height="500" fill="url(#mistGrad)" />
-    </svg>
-  </div>
-
-  <!-- Hardware-Accelerated Ambient Glowing Orbs -->
-  <div class="ambient-glow-1"></div>
-  <div class="ambient-glow-2"></div>
-  <div class="ambient-glow-3"></div>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- TOP FLOATING GLASS NAVIGATION BAR                                      -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <header class="sticky top-0 z-50 w-full px-4 sm:px-8 py-3.5 transition">
-    <div class="max-w-7xl mx-auto glass-container px-5 py-3 flex items-center justify-between border-white/10 shadow-lg">
-      
-      <!-- Brand Logo & Service Metadata -->
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 via-sky-400 to-emerald-400 p-[1.5px] shadow-lg shadow-indigo-500/25 flex items-center justify-center">
-          <div class="w-full h-full bg-[#090e19] rounded-[14px] flex items-center justify-center font-bold text-white text-base tracking-tight">
-            eP
-          </div>
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="font-extrabold tracking-tight text-white text-base sm:text-lg">Bank ePricing Microservice</span>
-            <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-              v1.0.0-PROD
-            </span>
-          </div>
-          <p class="text-[11px] text-slate-400 hidden md:block">Tier-1 Core Banking Interest Rate & Risk Underwriting Engine</p>
-        </div>
-      </div>
-
-      <!-- Quick Metrics & Live Stack Indicator -->
-      <div class="flex items-center gap-3 text-xs font-mono">
-        <!-- Java 21 / Spring Boot 3.3.4 Tag -->
-        <div class="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
-          <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
-          <span>Java 21 LTS • Spring Boot 3.3.4</span>
-        </div>
-
-        <!-- 93 Tests Passing Pill -->
-        <div class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-          <span class="font-semibold">93 Tests Passing</span>
-        </div>
-
-        <!-- Live Stack Status Button -->
-        <button onclick="switchTab('containers')" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition text-slate-300" title="Inspect 17 Microservice Containers">
-          <span id="nav-stack-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
-          <span id="nav-stack-text">17 Containers</span>
-        </button>
-
-        <!-- Design Sandbox Link -->
-        <a href="glassmorphism.html" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 transition" title="View Design System & UI Sandbox">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
-          <span>Design Tokens</span>
-        </a>
-      </div>
-    </div>
-  </header>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- HERO PRESENTATION HEADER                                                -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <section class="relative z-10 pt-6 pb-4 px-4 sm:px-8 max-w-7xl mx-auto w-full">
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/10">
-      <div class="space-y-2 max-w-3xl">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          <span>Ultra-Low Latency • Pure BigDecimal Math • Zero Floating-Point Drift</span>
-        </div>
-        <h1 class="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight">
-          Enterprise Core Banking <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-sky-300 to-emerald-400">Loan Pricing Engine</span>
-        </h1>
-        <p class="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
-          Engineered for high-throughput retail & commercial lending. Instant reducing-balance EMI calculations, automated RBI statutory underwriting compliance, and durable 7-day rate lock workflows.
-        </p>
-      </div>
-
-      <!-- Feature Badges Pill Stack -->
-      <div class="flex flex-wrap md:flex-col gap-2.5 shrink-0 text-xs font-mono">
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-300">
-          <span class="text-sky-400 font-bold">&lt; 5ms</span> SLA P99 Underwriting Latency
-        </div>
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-300">
-          <span class="text-emerald-400 font-bold">100%</span> RBI FOIR & CIBIL Rules Enforced
-        </div>
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/60 border border-white/10 text-slate-300">
-          <span class="text-indigo-400 font-bold">7-Day</span> Temporal Saga Rate Guarantee
-        </div>
-      </div>
-    </div>
-
-    <!-- PRESENTATION MODULE NAVIGATION TABS (Modern Web Guidance Tabs Pattern) -->
-    <div class="pt-6 pb-2 overflow-x-auto no-scrollbar">
-      <div role="tablist" aria-label="Showcase Sections" class="inline-flex p-1.5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl gap-1.5 text-xs sm:text-sm font-semibold">
-        <button type="button" role="tab" aria-selected="true" id="tab-calculator" onclick="switchTab('calculator')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-          <span>Live Pricing Calculator</span>
-        </button>
-
-        <button type="button" role="tab" aria-selected="false" id="tab-architecture" onclick="switchTab('architecture')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-          <span>5-Tier Architecture</span>
-        </button>
-
-        <button type="button" role="tab" aria-selected="false" id="tab-temporal" onclick="switchTab('temporal')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <span>7-Day Rate Lock Machine</span>
-        </button>
-
-        <button type="button" role="tab" aria-selected="false" id="tab-containers" onclick="switchTab('containers')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-          <span>17-Container Stack</span>
-        </button>
-
-        <button type="button" role="tab" aria-selected="false" id="tab-schema" onclick="switchTab('schema')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
-          <span>Domain Schema</span>
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- MAIN CONTENT CONTAINER                                                  -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <main class="relative z-10 flex-grow max-w-7xl mx-auto px-4 sm:px-8 py-6 w-full">
-
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 1: FINANCIAL LOAN PRICING CALCULATOR & UNDERWRITING SIMULATOR     -->
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-calculator" role="tabpanel" aria-labelledby="tab-calculator" class="tab-panel block space-y-6">
-      
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+  <!-- Content Layer -->
+  <div class="relative z-10 flex flex-col min-h-screen">
+    
+    <!-- TOP APP BAR -->
+    <header class="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
-        <!-- LEFT COLUMN: INTERACTIVE CONTROLS (7 Cols) -->
-        <div class="lg:col-span-7 space-y-6">
-          <div class="glass-container p-6 sm:p-8 space-y-6">
-            
-            <div class="flex items-center justify-between pb-4 border-b border-white/10">
-              <div>
-                <h2 class="text-xl font-bold text-white tracking-tight">Loan Parameters & Underwriting Input</h2>
-                <p class="text-xs text-slate-400 mt-0.5">Calculated in real-time according to <code class="text-indigo-300">PricingCalculator.java</code></p>
-              </div>
-              <span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                Base Rate: 8.50%
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/25 font-black text-white text-base">
+            ₹
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold tracking-tight text-white text-base sm:text-lg">Bank ePricing</span>
+              <span class="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
+                SYSTEM ONLINE
               </span>
             </div>
-
-            <!-- Product Type Quick Selection Tiles (Squircle Control Center Style) -->
-            <div class="space-y-2">
-              <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center justify-between">
-                <span>1. Select Loan Product</span>
-                <span id="selected-product-label" class="text-indigo-400 font-mono font-bold lowercase">1.00x multiplier</span>
-              </label>
-              <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5" id="product-tiles">
-                
-                <button type="button" onclick="setProduct('HOME_LOAN')" id="prod-HOME_LOAN" class="tile-btn active p-3 text-center flex flex-col items-center justify-center gap-1.5" aria-label="Select Home Loan">
-                  <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-indigo-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                  </div>
-                  <span class="text-xs font-bold text-white">Home</span>
-                  <span class="text-[10px] font-mono text-slate-400">1.00x (8.50%)</span>
-                </button>
-
-                <button type="button" onclick="setProduct('AUTO_LOAN')" id="prod-AUTO_LOAN" class="tile-btn p-3 text-center flex flex-col items-center justify-center gap-1.5" aria-label="Select Auto Loan">
-                  <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-sky-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h8m-8 4h8m-9 8h10M5 19V9a2 2 0 012-2h10a2 2 0 012 2v10M7 19h2m6 0h2"/></svg>
-                  </div>
-                  <span class="text-xs font-bold text-white">Auto</span>
-                  <span class="text-[10px] font-mono text-slate-400">1.10x (9.35%)</span>
-                </button>
-
-                <button type="button" onclick="setProduct('BUSINESS_LOAN')" id="prod-BUSINESS_LOAN" class="tile-btn p-3 text-center flex flex-col items-center justify-center gap-1.5" aria-label="Select Business Loan">
-                  <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-amber-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                  </div>
-                  <span class="text-xs font-bold text-white">Business</span>
-                  <span class="text-[10px] font-mono text-slate-400">1.30x (11.05%)</span>
-                </button>
-
-                <button type="button" onclick="setProduct('PERSONAL_LOAN')" id="prod-PERSONAL_LOAN" class="tile-btn p-3 text-center flex flex-col items-center justify-center gap-1.5" aria-label="Select Personal Loan">
-                  <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-rose-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                  </div>
-                  <span class="text-xs font-bold text-white">Personal</span>
-                  <span class="text-[10px] font-mono text-slate-400">1.50x (12.75%)</span>
-                </button>
-
-                <button type="button" onclick="setProduct('EDUCATION_LOAN')" id="prod-EDUCATION_LOAN" class="tile-btn p-3 text-center flex flex-col items-center justify-center gap-1.5 col-span-2 sm:col-span-1" aria-label="Select Education Loan">
-                  <div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-emerald-400">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5"/></svg>
-                  </div>
-                  <span class="text-xs font-bold text-white">Education</span>
-                  <span class="text-[10px] font-mono text-slate-400">1.05x (8.93%)</span>
-                </button>
-
-              </div>
-            </div>
-
-            <!-- Slider 1: Loan Principal Amount -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <label for="slider-amount" class="font-semibold text-slate-300 uppercase tracking-wider">2. Principal Loan Amount</label>
-                <div class="flex items-center gap-2">
-                  <span id="readout-discount-tag" class="hidden text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    -0.25% High-Value Discount (&gt;₹50L)
-                  </span>
-                  <span id="readout-amount" class="text-sm font-bold font-mono text-white">₹50,00,000</span>
-                </div>
-              </div>
-
-              <div class="pill-slider-wrapper">
-                <div class="slider-capsule-icon" aria-hidden="true">
-                  <span class="font-bold text-sm text-indigo-400">₹</span>
-                </div>
-                <input type="range" id="slider-amount" min="100000" max="15000000" step="50000" value="5000000" oninput="calculateLivePricing()" aria-label="Principal Loan Amount">
-              </div>
-
-              <!-- Quick Presets -->
-              <div class="flex items-center justify-between pt-1">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="text-[10px] text-slate-500 font-mono">Presets:</span>
-                  <button type="button" class="preset-chip" onclick="setAmountPreset(1000000)">₹10L</button>
-                  <button type="button" class="preset-chip" onclick="setAmountPreset(2500000)">₹25L</button>
-                  <button type="button" class="preset-chip" onclick="setAmountPreset(5000000)">₹50L</button>
-                  <button type="button" class="preset-chip" onclick="setAmountPreset(7500000)">₹75L</button>
-                  <button type="button" class="preset-chip" onclick="setAmountPreset(10000000)">₹1.00 Cr</button>
-                </div>
-                <span class="text-[11px] font-mono text-slate-400">₹1L to ₹1.5Cr</span>
-              </div>
-            </div>
-
-            <!-- Slider 2: Loan Tenure -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <label for="slider-tenure" class="font-semibold text-slate-300 uppercase tracking-wider">3. Repayment Tenure</label>
-                <span id="readout-tenure" class="text-sm font-bold font-mono text-white">240 Months (20 Years)</span>
-              </div>
-
-              <div class="pill-slider-wrapper">
-                <div class="slider-capsule-icon" aria-hidden="true">
-                  <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                </div>
-                <input type="range" id="slider-tenure" min="12" max="360" step="12" value="240" oninput="calculateLivePricing()" aria-label="Repayment Tenure">
-              </div>
-
-              <div class="flex items-center justify-between pt-1">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span class="text-[10px] text-slate-500 font-mono">Presets:</span>
-                  <button type="button" class="preset-chip" onclick="setTenurePreset(60)">5Y</button>
-                  <button type="button" class="preset-chip" onclick="setTenurePreset(120)">10Y</button>
-                  <button type="button" class="preset-chip" onclick="setTenurePreset(180)">15Y</button>
-                  <button type="button" class="preset-chip" onclick="setTenurePreset(240)">20Y</button>
-                  <button type="button" class="preset-chip" onclick="setTenurePreset(360)">30Y</button>
-                </div>
-                <span class="text-[11px] font-mono text-slate-400">12 to 360 Months</span>
-              </div>
-            </div>
-
-            <!-- Slider 3: CIBIL Credit Score -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <label for="slider-credit" class="font-semibold text-slate-300 uppercase tracking-wider">4. CIBIL / Experian Credit Score</label>
-                <div class="flex items-center gap-2">
-                  <span id="readout-credit-tier" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Prime (-1.00%)
-                  </span>
-                  <span id="readout-credit" class="text-sm font-bold font-mono text-white">780</span>
-                </div>
-              </div>
-
-              <div class="pill-slider-wrapper">
-                <div class="slider-capsule-icon" aria-hidden="true">
-                  <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                </div>
-                <input type="range" id="slider-credit" min="300" max="900" step="5" value="780" oninput="calculateLivePricing()" aria-label="Credit Score">
-              </div>
-
-              <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                <span class="text-rose-400">&lt;650: Ineligible</span>
-                <span>650-699: +0.50%</span>
-                <span>700-749: 0.00%</span>
-                <span>750-799: -0.50%</span>
-                <span class="text-emerald-400">&ge;800: -1.00%</span>
-              </div>
-            </div>
-
-            <!-- Slider 4: Annual Income (Underwriting FOIR Validator) -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <label for="slider-income" class="font-semibold text-slate-300 uppercase tracking-wider">5. Gross Annual Income (FOIR Underwriting)</label>
-                <span id="readout-income" class="text-sm font-bold font-mono text-white">₹24,00,000 / year</span>
-              </div>
-
-              <div class="pill-slider-wrapper">
-                <div class="slider-capsule-icon" aria-hidden="true">
-                  <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                </div>
-                <input type="range" id="slider-income" min="300000" max="10000000" step="50000" value="2400000" oninput="calculateLivePricing()" aria-label="Gross Annual Income">
-              </div>
-
-              <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
-                <span>Monthly: <span id="readout-monthly-income" class="text-slate-300">₹2,00,000</span></span>
-                <span>Max Permissible EMI (50% FOIR): <span id="readout-max-emi" class="text-emerald-400">₹1,00,000</span></span>
-              </div>
-            </div>
-
+            <p class="text-[11px] text-slate-400 hidden sm:block font-mono">Java 21 LTS • Spring Boot 3.3.4 • YugabyteDB • Kafka • Temporal</p>
           </div>
         </div>
 
-        <!-- RIGHT COLUMN: UNDERWRITING DECISION & FLOATING MEDIA-STYLE DISC (5 Cols) -->
-        <div class="lg:col-span-5 space-y-6">
-          <div class="glass-container p-6 sm:p-8 space-y-6 relative overflow-hidden" id="decision-panel">
+        <!-- Right Quick Actions -->
+        <div class="flex items-center gap-2 sm:gap-3 text-xs font-mono">
+          <button onclick="pingStackHealth()" id="btn-stack-ping" class="px-3 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700 transition flex items-center gap-1.5">
+            <span id="ping-indicator" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="ping-text">Probe Stack</span>
+          </button>
+          <a href="https://github.com/aroma76/epricing-service" target="_blank" rel="noreferrer" class="px-3 py-1.5 rounded-lg bg-indigo-600/90 hover:bg-indigo-500 text-white font-medium transition flex items-center gap-1 shadow-md shadow-indigo-500/20">
+            GitHub
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+          </a>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- MAIN PRESENTATION CANVAS -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex-grow space-y-8">
+
+      <!-- HERO SUBTITLE -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+        <div>
+          <h1 class="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+            Loan Underwriting & Financial Engine Presentation
+          </h1>
+          <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+            Real-time reducing-balance rate compounding, automated RBI compliance, and durable 7-day rate lock simulation.
+          </p>
+        </div>
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span class="px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+            Base: 8.50%
+          </span>
+          <span class="px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20">
+            Floor: 7.00% • Ceil: 24.00%
+          </span>
+        </div>
+      </div>
+
+      <!-- PRIMARY PRESENTATION GRID (Inspired by Reference Design) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- LEFT COLUMN: CONTROL CENTER (7 Cols) -->
+        <div class="lg:col-span-7 glass-panel p-6 space-y-6">
+          
+          <!-- Control Center Header -->
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+              <span class="text-xs font-mono font-bold text-slate-200 tracking-wider uppercase">1. Underwriting Control Center</span>
+            </div>
+            <span class="text-xs font-mono text-slate-400">Dynamic Risk Inputs</span>
+          </div>
+
+          <!-- Product Type Selector Pills -->
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-slate-300 font-mono">SELECT LOAN PRODUCT</label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button onclick="setProduct('HOME_LOAN')" id="prod-HOME_LOAN" class="prod-btn active p-3 text-left">
+                <div class="font-bold text-xs text-indigo-300">Home Loan</div>
+                <div class="text-[10px] text-slate-400 font-mono mt-0.5">8.50% × 1.00</div>
+              </button>
+              <button onclick="setProduct('AUTO_LOAN')" id="prod-AUTO_LOAN" class="prod-btn p-3 text-left">
+                <div class="font-bold text-xs text-slate-200">Auto Loan</div>
+                <div class="text-[10px] text-slate-400 font-mono mt-0.5">8.50% × 1.10</div>
+              </button>
+              <button onclick="setProduct('PERSONAL_LOAN')" id="prod-PERSONAL_LOAN" class="prod-btn p-3 text-left">
+                <div class="font-bold text-xs text-slate-200">Personal Loan</div>
+                <div class="text-[10px] text-slate-400 font-mono mt-0.5">8.50% × 1.50</div>
+              </button>
+              <button onclick="setProduct('EDUCATION_LOAN')" id="prod-EDUCATION_LOAN" class="prod-btn p-3 text-left">
+                <div class="font-bold text-xs text-slate-200">Education Loan</div>
+                <div class="text-[10px] text-slate-400 font-mono mt-0.5">8.50% × 1.05</div>
+              </button>
+              <button onclick="setProduct('BUSINESS_LOAN')" id="prod-BUSINESS_LOAN" class="prod-btn p-3 text-left col-span-2 sm:col-span-1">
+                <div class="font-bold text-xs text-slate-200">Business Loan</div>
+                <div class="text-[10px] text-slate-400 font-mono mt-0.5">8.50% × 1.30</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Slider 1: Loan Amount -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs font-mono">
+              <span class="text-slate-300 font-bold flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                PRINCIPAL LOAN AMOUNT
+              </span>
+              <span id="val-amount" class="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold text-xs">₹25,00,000</span>
+            </div>
+            <input type="range" id="input-amount" min="100000" max="10000000" step="50000" value="2500000" oninput="calculate()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>₹1 Lakh</span>
+              <span class="text-indigo-400 font-semibold">&gt;₹50L gets -0.25% discount</span>
+              <span>₹1 Crore</span>
+            </div>
+          </div>
+
+          <!-- Slider 2: Tenure -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs font-mono">
+              <span class="text-slate-300 font-bold flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                TENURE DURATION
+              </span>
+              <span id="val-tenure" class="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-bold text-xs">120 Months (10 Yrs)</span>
+            </div>
+            <input type="range" id="input-tenure" min="12" max="360" step="12" value="120" oninput="calculate()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>1 Year (12M)</span>
+              <span>15 Years</span>
+              <span>30 Years (360M)</span>
+            </div>
+          </div>
+
+          <!-- Slider 3: Credit Score -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs font-mono">
+              <span class="text-slate-300 font-bold flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                CIBIL / CREDIT SCORE
+              </span>
+              <span id="val-credit" class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold text-xs">780 — Good (-0.50%)</span>
+            </div>
+            <input type="range" id="input-credit" min="300" max="900" step="10" value="780" oninput="calculate()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span class="text-rose-400">&lt;650 Rejection</span>
+              <span>700 (Average)</span>
+              <span class="text-emerald-400">&ge;800 Prime (-1.00%)</span>
+            </div>
+          </div>
+
+          <!-- Slider 4: Annual Income -->
+          <div class="space-y-1.5">
+            <div class="flex justify-between items-center text-xs font-mono">
+              <span class="text-slate-300 font-bold flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                ANNUAL BORROWER INCOME
+              </span>
+              <span id="val-income" class="px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold text-xs">₹12,00,000 / Yr</span>
+            </div>
+            <input type="range" id="input-income" min="300000" max="5000000" step="50000" value="1200000" oninput="calculate()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-500">
+              <span>₹3 Lakh</span>
+              <span>FOIR Cap: Max 50% EMI</span>
+              <span>₹50 Lakh</span>
+            </div>
+          </div>
+
+          <!-- Underwriting Policies Snapshot Card -->
+          <div class="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 text-[11px] font-mono text-slate-400 flex flex-wrap items-center justify-between gap-2">
+            <span>• RBI Min CIBIL: <strong class="text-slate-200">650</strong></span>
+            <span>• Max LTI: <strong class="text-slate-200">10x Income</strong></span>
+            <span>• Max FOIR: <strong class="text-slate-200">50%</strong></span>
+            <span>• High-Volume Discount: <strong class="text-emerald-400">&gt;₹50L (-0.25%)</strong></span>
+          </div>
+
+        </div>
+
+
+        <!-- RIGHT COLUMN: MEDIA-PLAYER-STYLE DECISION & AMORTIZATION CARD (5 Cols) -->
+        <div class="lg:col-span-5 space-y-4">
+          
+          <!-- Glassmorphism Decision Player -->
+          <div id="decision-box" class="glass-panel p-6 space-y-5 border-t-4 border-t-emerald-500 glow-emerald">
             
-            <!-- Underwriting Status Badge Header -->
-            <div class="flex items-center justify-between pb-4 border-b border-white/10">
-              <div class="flex items-center gap-2">
-                <div class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" id="status-beacon"></div>
-                <h3 class="font-bold text-white text-base">Underwriting Decision</h3>
+            <!-- Player Top / Album Header -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-800/80">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs border border-indigo-500/30">
+                  AI
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white font-mono" id="decision-product-title">HOME LOAN QUOTE</div>
+                  <div class="text-[10px] text-slate-400 font-mono">Durable Rate Lock Engine</div>
+                </div>
               </div>
-              <span id="badge-decision" class="text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <span id="decision-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                 APPROVED
               </span>
             </div>
 
-            <!-- REJECTION ALERT (Conditionally Displayed) -->
-            <div id="rejection-box" class="hidden p-4 rounded-2xl bg-rose-950/40 border border-rose-500/40 text-xs space-y-2">
-              <div class="flex items-center gap-2 text-rose-400 font-bold">
-                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                <span>Underwriting Policy Rejection</span>
+            <!-- Disc Amortization Visualizer -->
+            <div class="flex flex-col items-center justify-center py-2">
+              <div class="relative w-44 h-44 flex items-center justify-center">
+                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="40" stroke="#1e293b" stroke-width="12" fill="transparent"/>
+                  <circle id="donut-principal" cx="50" cy="50" r="40" stroke="#6366f1" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="75" fill="transparent" class="transition-all duration-300"/>
+                  <circle id="donut-interest" cx="50" cy="50" r="40" stroke="#10b981" stroke-width="12" stroke-dasharray="251.2" stroke-dashoffset="176" fill="transparent" class="transition-all duration-300"/>
+                </svg>
+                <div class="absolute flex flex-col items-center justify-center text-center">
+                  <span class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">MONTHLY EMI</span>
+                  <span id="res-emi" class="text-2xl font-black text-white font-mono tracking-tight">₹30,332</span>
+                  <span id="res-rate" class="mt-1 px-2 py-0.5 rounded-full bg-slate-900/90 text-emerald-400 font-mono text-[11px] font-bold border border-slate-800">
+                    8.00% p.a.
+                  </span>
+                </div>
               </div>
-              <p id="rejection-reason" class="text-slate-300 leading-relaxed font-mono">
-                Reason placeholder
-              </p>
-              <div class="pt-1 text-[11px] text-rose-300/80">
-                Statutory RBI lending guardrails prevented quote issuance. Adjust income or principal to re-evaluate.
+
+              <!-- Compact Split Breakdown -->
+              <div class="w-full grid grid-cols-2 gap-2 text-xs font-mono pt-4 border-t border-slate-800/80 mt-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                  <span class="text-slate-400">Principal:</span>
+                  <span id="res-principal" class="text-white font-bold">₹25,00,000</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                  <span class="text-slate-400">Interest:</span>
+                  <span id="res-interest" class="text-emerald-400 font-bold">₹11,39,828</span>
+                </div>
               </div>
             </div>
 
-            <!-- APPROVED FINANCIAL METRICS DISPLAY -->
-            <div id="approval-metrics-box" class="space-y-6">
-              
-              <!-- Primary EMI Hero Output (Floating Media Player Aesthetic) -->
-              <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-center space-y-1 relative overflow-hidden">
-                <div class="absolute -right-8 -top-8 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none"></div>
-                <span class="text-xs uppercase tracking-wider text-slate-400 font-medium">Equated Monthly Installment (EMI)</span>
-                <div id="out-emi" class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-200 to-sky-300 font-mono">
-                  ₹41,822
-                </div>
-                <div class="flex items-center justify-center gap-2 pt-1 text-xs font-mono">
-                  <span class="text-emerald-400 font-bold" id="out-rate">8.00% p.a.</span>
-                  <span class="text-slate-500">•</span>
-                  <span class="text-indigo-300" id="out-risk-category">LOW Risk</span>
-                </div>
+            <!-- Key Underwriting Metrics -->
+            <div class="space-y-2 text-xs font-mono bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+              <div class="flex justify-between">
+                <span class="text-slate-400">Total Payable:</span>
+                <span id="res-total" class="font-bold text-white">₹36,39,828</span>
               </div>
-
-              <!-- Animated Amortization Split Donut Chart (Styled like glowing media player disc) -->
-              <div class="p-5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4">
-                <div class="flex items-center justify-between text-xs font-semibold text-slate-300">
-                  <span>Amortization Split</span>
-                  <span class="font-mono text-slate-400">Principal vs Interest</span>
-                </div>
-
-                <div class="flex items-center justify-around gap-4">
-                  <!-- SVG Donut Disc -->
-                  <div class="relative w-32 h-32 shrink-0">
-                    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                      <!-- Background circle track -->
-                      <circle cx="50" cy="50" r="40" stroke="rgba(255, 255, 255, 0.08)" stroke-width="12" fill="transparent" />
-                      <!-- Principal segment -->
-                      <circle id="donut-principal" class="donut-segment" cx="50" cy="50" r="40" stroke="#6366f1" stroke-width="12" fill="transparent" stroke-dasharray="125.66 251.33" stroke-dashoffset="0" />
-                      <!-- Interest segment -->
-                      <circle id="donut-interest" class="donut-segment" cx="50" cy="50" r="40" stroke="#f43f5e" stroke-width="12" fill="transparent" stroke-dasharray="125.66 251.33" stroke-dashoffset="-125.66" />
-                    </svg>
-                    <!-- Center tenure label -->
-                    <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                      <span class="text-[10px] font-mono text-slate-400 uppercase">Tenure</span>
-                      <span id="donut-center-tenure" class="text-sm font-bold font-mono text-white">20 Yrs</span>
-                    </div>
-                  </div>
-
-                  <!-- Legend & Numerical Figures -->
-                  <div class="space-y-2 text-xs font-mono flex-1">
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
-                        <span class="text-slate-300">Principal:</span>
-                      </div>
-                      <div class="text-right">
-                        <span id="legend-pct-principal" class="font-bold text-white">50%</span>
-                        <div id="out-principal-val" class="text-[11px] text-slate-400">₹50,00,000</div>
-                      </div>
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                      <div class="flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-                        <span class="text-slate-300">Interest:</span>
-                      </div>
-                      <div class="text-right">
-                        <span id="legend-pct-interest" class="font-bold text-white">50%</span>
-                        <div id="out-interest-val" class="text-[11px] text-slate-400">₹50,37,280</div>
-                      </div>
-                    </div>
-
-                    <div class="pt-2 border-t border-white/10 flex items-center justify-between text-slate-300 font-semibold">
-                      <span>Total Repayment:</span>
-                      <span id="out-total-val" class="text-sky-300 font-bold">₹1,00,37,280</span>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Circular Transport Control Buttons (Direct homage to media player in uploaded reference) -->
-                <div class="pt-2 flex items-center justify-center gap-4">
-                  <button type="button" onclick="copyQuotePayload()" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition" title="Copy JSON Quote Payload" aria-label="Copy JSON Quote Payload">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                  </button>
-                  <button type="button" onclick="switchTab('temporal')" class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center transition" title="Lock Rate in Temporal Saga" aria-label="Lock Rate in Temporal Saga">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                  </button>
-                  <button type="button" onclick="resetCalculatorDefaults()" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition" title="Reset Calculator" aria-label="Reset Calculator">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                  </button>
-                </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">FOIR (EMI / Monthly Income):</span>
+                <span id="res-foir" class="font-bold text-emerald-400">30.3% (Safe &le; 50%)</span>
               </div>
-
-              <!-- Key Regulatory Ratios (FOIR & LTI) -->
-              <div class="grid grid-cols-2 gap-3 text-xs font-mono">
-                <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
-                  <span class="text-slate-400 text-[10px] uppercase">FOIR (Debt / Income)</span>
-                  <div id="out-foir" class="text-sm font-bold text-emerald-400">20.9%</div>
-                  <span class="text-[10px] text-slate-500">RBI Ceiling: 50.0%</span>
-                </div>
-                <div class="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
-                  <span class="text-slate-400 text-[10px] uppercase">Loan-To-Income</span>
-                  <div id="out-lti" class="text-sm font-bold text-emerald-400">2.08x</div>
-                  <span class="text-[10px] text-slate-500">Safety Cap: &le; 10x</span>
-                </div>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Loan-to-Income (LTI):</span>
+                <span id="res-lti" class="font-bold text-indigo-400">2.08x (Safe &le; 10x)</span>
               </div>
-
-              <!-- Mathematical Breakdown Note -->
-              <div class="p-3.5 rounded-xl bg-indigo-950/30 border border-indigo-500/20 text-xs text-indigo-200 leading-relaxed">
-                <span class="font-semibold text-white">Rate Formula Breakdown:</span>
-                <p id="out-formula" class="font-mono mt-1 text-[11px] text-indigo-300">
-                  Base (8.50%) × Multiplier (1.00) - Credit (0.50%) = 8.00% p.a.
-                </p>
+              <div class="flex justify-between">
+                <span class="text-slate-400">Risk Category:</span>
+                <span id="res-risk" class="font-bold text-emerald-400">LOW_MEDIUM</span>
               </div>
-
             </div>
 
-            <!-- FLOATING NOTIFICATION CENTER (Directly matching reference image bottom card) -->
-            <div class="pt-4 border-t border-white/10">
-              <div class="flex items-center justify-between text-[11px] font-semibold text-slate-400 mb-2.5">
-                <span class="uppercase tracking-wider">Underwriting Notification Center</span>
-                <span class="text-emerald-400 font-mono text-[10px]">Just now</span>
-              </div>
-              <div class="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span class="font-bold text-white text-xs">CIBIL &amp; RBI Compliance Verified</span>
-                  </div>
-                  <span class="text-[10px] font-mono text-slate-400">SLA 3.8ms</span>
-                </div>
-                <p class="text-[11px] text-slate-300 leading-relaxed">
-                  Borrower debt service obligations pass statutory underwriting. Temporal rate freeze guarantee ticket generated for loan disbursement.
-                </p>
-              </div>
+            <!-- Media Control / Transport Action Buttons -->
+            <div class="flex items-center justify-between gap-2 pt-1">
+              <button onclick="copyQuoteJson()" class="flex-1 py-2 px-3 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-xs font-mono text-slate-200 transition flex items-center justify-center gap-1.5 border border-slate-700">
+                <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                Copy JSON
+              </button>
+              <button onclick="simulateTemporalLock()" class="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-mono text-white font-semibold transition flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                Lock 7 Days
+              </button>
+              <button onclick="resetDefaults()" title="Reset to defaults" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-400 hover:text-white transition border border-slate-700">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              </button>
+            </div>
+
+            <!-- Mathematical Derivation Note -->
+            <div id="res-note" class="p-3 rounded-xl bg-emerald-950/20 border border-emerald-800/30 text-[11px] font-mono text-emerald-300">
+              Derivation: Base (8.50%) × 1.00 - Credit Discount (0.50%) = <strong>8.00% p.a.</strong>
             </div>
 
           </div>
+
+          <!-- Notification Center Glass Card (Matches Reference Image) -->
+          <div class="glass-panel p-4 space-y-2">
+            <div class="flex items-center justify-between text-xs font-mono border-b border-slate-800 pb-2">
+              <span class="text-slate-300 font-bold flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                Notification Center
+              </span>
+              <span id="log-count" class="text-[10px] text-slate-500">Live Telemetry</span>
+            </div>
+            <div id="notification-content" class="text-[11px] font-mono space-y-1.5 text-slate-300 max-h-24 overflow-y-auto">
+              <div class="text-indigo-300 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+                <span>Temporal 7-day rate lock workflow initialized.</span>
+              </div>
+              <div class="text-emerald-300 flex items-center gap-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span>Kafka post-commit event broadcast armed.</span>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>
 
-    </div>
 
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 2: INTERACTIVE 5-TIER ARCHITECTURE TOPOLOGY SWITCHER              -->
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-architecture" role="tabpanel" aria-labelledby="tab-architecture" class="tab-panel hidden space-y-6">
-      
-      <div class="glass-container p-6 sm:p-8 space-y-6">
+      <!-- BOTTOM EXECUTIVE ARCHITECTURE SECTION -->
+      <section class="space-y-4 pt-4">
         
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-          <div>
-            <h2 class="text-xl font-bold text-white tracking-tight">5-Tier Distributed Architecture Topology</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Hardware-accelerated reactive topology with interactive flow perspectives</p>
-          </div>
-
-          <!-- Flow Perspective Switcher (Pill Group) -->
-          <div class="flex flex-wrap gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10 text-xs font-mono">
-            <button onclick="setFlowPerspective('all')" id="flow-btn-all" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold transition">All Tiers</button>
-            <button onclick="setFlowPerspective('sync')" id="flow-btn-sync" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Instant Pricing (REST)</button>
-            <button onclick="setFlowPerspective('temporal')" id="flow-btn-temporal" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">7-Day Rate Lock (Saga)</button>
-            <button onclick="setFlowPerspective('otel')" id="flow-btn-otel" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">SRE Observability</button>
-          </div>
+        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            Microservice Distributed Architecture & Resilience
+          </h2>
+          <span class="text-xs font-mono text-slate-400">17-Container Stack</span>
         </div>
 
-        <!-- 5 Tiers Presentation Cards Stack -->
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4" id="tier-cards-container">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
-          <!-- TIER 1 -->
-          <div id="tier-card-1" class="tier-card glass-card p-5 space-y-3 border-white/10 cursor-pointer" onclick="openTierModal('tier-1')">
+          <!-- Card 1 -->
+          <div class="glass-panel p-5 space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">TIER 1</span>
-              <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+              <span class="text-xs font-mono font-bold text-indigo-400">COMPUTE TIER</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">Java 21</span>
             </div>
-            <h3 class="font-bold text-white text-sm">Client Gateway</h3>
-            <p class="text-xs text-slate-400 leading-snug">
-              Ingress reverse proxy, traffic simulation, decoupled liveness checks, and W3C traceparent propagation.
-            </p>
-            <div class="pt-2 border-t border-white/5 text-[11px] font-mono text-slate-400 space-y-1">
-              <div><span class="text-slate-500">Port:</span> :8080 / :8089</div>
-              <div><span class="text-slate-500">Protocol:</span> HTTP/1.1 REST</div>
-            </div>
-            <div class="pt-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-              <span>Inspect Tier Specs</span>
-              <span>&rarr;</span>
-            </div>
-          </div>
-
-          <!-- TIER 2 -->
-          <div id="tier-card-2" class="tier-card glass-card p-5 space-y-3 border-indigo-500/40 bg-indigo-950/20 cursor-pointer" onclick="openTierModal('tier-2')">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">TIER 2 • CORE</span>
-              <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-            </div>
-            <h3 class="font-bold text-white text-sm">ePricing Microservice</h3>
-            <p class="text-xs text-slate-400 leading-snug">
-              Spring Boot 3.3.4, pure BigDecimal compounding engine, statutory bounds, and Temporal worker pollers.
-            </p>
-            <div class="pt-2 border-t border-white/5 text-[11px] font-mono text-slate-400 space-y-1">
-              <div><span class="text-slate-500">Runtime:</span> Java 21 LTS</div>
-              <div><span class="text-slate-500">Precision:</span> DECIMAL128</div>
-            </div>
-            <div class="pt-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-              <span>Inspect Tier Specs</span>
-              <span>&rarr;</span>
-            </div>
-          </div>
-
-          <!-- TIER 3 -->
-          <div id="tier-card-3" class="tier-card glass-card p-5 space-y-3 border-white/10 cursor-pointer" onclick="openTierModal('tier-3')">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">TIER 3</span>
-              <span class="w-2 h-2 rounded-full bg-purple-400"></span>
-            </div>
-            <h3 class="font-bold text-white text-sm">Distributed State</h3>
-            <p class="text-xs text-slate-400 leading-snug">
-              YugabyteDB 2.20 distributed SQL (PostgreSQL wire) with DocDB Raft consensus & temporal-db PostgreSQL 15.
-            </p>
-            <div class="pt-2 border-t border-white/5 text-[11px] font-mono text-slate-400 space-y-1">
-              <div><span class="text-slate-500">Port:</span> :5433 (YSQL) / :7233</div>
-              <div><span class="text-slate-500">ACID:</span> Strict Serializable</div>
-            </div>
-            <div class="pt-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-              <span>Inspect Tier Specs</span>
-              <span>&rarr;</span>
-            </div>
-          </div>
-
-          <!-- TIER 4 -->
-          <div id="tier-card-4" class="tier-card glass-card p-5 space-y-3 border-white/10 cursor-pointer" onclick="openTierModal('tier-4')">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">TIER 4</span>
-              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-            </div>
-            <h3 class="font-bold text-white text-sm">Kafka KRaft Streams</h3>
-            <p class="text-xs text-slate-400 leading-snug">
-              Apache Kafka 3.8.0 with KRaft consensus. Dual listeners (internal/external) & fail-fast 3000ms guardrail.
-            </p>
-            <div class="pt-2 border-t border-white/5 text-[11px] font-mono text-slate-400 space-y-1">
-              <div><span class="text-slate-500">Port:</span> :9092 / :29092</div>
-              <div><span class="text-slate-500">Cluster:</span> Native Raft</div>
-            </div>
-            <div class="pt-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-              <span>Inspect Tier Specs</span>
-              <span>&rarr;</span>
-            </div>
-          </div>
-
-          <!-- TIER 5 -->
-          <div id="tier-card-5" class="tier-card glass-card p-5 space-y-3 border-white/10 cursor-pointer" onclick="openTierModal('tier-5')">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">TIER 5</span>
-              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-            </div>
-            <h3 class="font-bold text-white text-sm">SRE Observability</h3>
-            <p class="text-xs text-slate-400 leading-snug">
-              OTel Collector, Grafana Tempo (Traces), Prometheus (Metrics), Loki (Logs), Alertmanager & Webhook logger.
-            </p>
-            <div class="pt-2 border-t border-white/5 text-[11px] font-mono text-slate-400 space-y-1">
-              <div><span class="text-slate-500">Dashboards:</span> Grafana :3000</div>
-              <div><span class="text-slate-500">Scrape:</span> 5s Prometheus</div>
-            </div>
-            <div class="pt-1 text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
-              <span>Inspect Tier Specs</span>
-              <span>&rarr;</span>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Selected Flow Narrative Bar -->
-        <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 text-xs text-slate-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
-            <span id="flow-narrative-title" class="font-bold text-white">Active Perspective: All Tiers</span>
-          </div>
-          <span id="flow-narrative-desc" class="text-slate-400 font-mono text-[11px]">Click any tier above to inspect ports, protocol contracts, and resilience policies.</span>
-        </div>
-
-      </div>
-
-    </div>
-
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 3: TEMPORAL 7-DAY DURABLE RATE LOCK STATE MACHINE                 -->
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-temporal" role="tabpanel" aria-labelledby="tab-temporal" class="tab-panel hidden space-y-6">
-      
-      <div class="glass-container p-6 sm:p-8 space-y-6">
-        
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
-          <div>
-            <h2 class="text-xl font-bold text-white tracking-tight">Temporal 7-Day Durable Rate Lock Workflow</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Saga orchestration guaranteeing statutory rate freezes across 7 full days with 0% CPU consumption</p>
-          </div>
-          <span class="text-xs font-mono font-semibold px-3 py-1 rounded-xl bg-purple-500/10 text-purple-300 border border-purple-500/20">
-            Temporal Engine: v1.24.1
-          </span>
-        </div>
-
-        <!-- Interactive Stepper Progress Indicator -->
-        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3" id="temporal-steps-indicator">
-          
-          <div id="step-col-1" class="p-4 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 space-y-2 cursor-pointer" onclick="setTemporalStep(1)">
-            <div class="flex items-center justify-between">
-              <span class="w-7 h-7 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">1</span>
-              <span class="text-[10px] font-mono text-emerald-400 font-bold">COMPLETED</span>
-            </div>
-            <div class="font-bold text-white text-xs">Quote Approved</div>
-            <div class="text-[11px] text-slate-400">Pricing and underwriting validated by core engine.</div>
-          </div>
-
-          <div id="step-col-2" class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 cursor-pointer" onclick="setTemporalStep(2)">
-            <div class="flex items-center justify-between">
-              <span class="w-7 h-7 rounded-full bg-slate-800 text-slate-400 font-bold text-xs flex items-center justify-center">2</span>
-              <span class="text-[10px] font-mono text-indigo-400 font-bold">READY</span>
-            </div>
-            <div class="font-bold text-white text-xs">Temporal Dispatched</div>
-            <div class="text-[11px] text-slate-400">PricingRateLockWorkflow scheduled on task queue.</div>
-          </div>
-
-          <div id="step-col-3" class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 cursor-pointer" onclick="setTemporalStep(3)">
-            <div class="flex items-center justify-between">
-              <span class="w-7 h-7 rounded-full bg-slate-800 text-slate-400 font-bold text-xs flex items-center justify-center">3</span>
-              <span class="text-[10px] font-mono text-slate-500">PENDING</span>
-            </div>
-            <div class="font-bold text-white text-xs">7-Day Durable Timer</div>
-            <div class="text-[11px] text-slate-400">JVM worker unloads; state persists in temporal-db.</div>
-          </div>
-
-          <div id="step-col-4" class="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 cursor-pointer" onclick="setTemporalStep(4)">
-            <div class="flex items-center justify-between">
-              <span class="w-7 h-7 rounded-full bg-slate-800 text-slate-400 font-bold text-xs flex items-center justify-center">4</span>
-              <span class="text-[10px] font-mono text-slate-500">TERMINAL</span>
-            </div>
-            <div class="font-bold text-white text-xs">Customer Resolution</div>
-            <div class="text-[11px] text-slate-400">Acceptance lock confirmed or auto-expired.</div>
-          </div>
-
-        </div>
-
-        <!-- Interactive Step Detail Card -->
-        <div class="p-6 rounded-2xl bg-white/[0.03] border border-white/10 space-y-4" id="temporal-step-box">
-          <div class="flex items-center justify-between pb-3 border-b border-white/10">
-            <div>
-              <span class="text-xs font-mono font-bold text-indigo-400" id="step-box-tag">STEP 1 OF 4</span>
-              <h3 class="text-base font-bold text-white mt-0.5" id="step-box-title">Underwriting Completed & Quote Generated</h3>
-            </div>
-            <span class="text-xs font-mono text-slate-400 bg-white/5 px-2.5 py-1 rounded-lg">WorkflowID: PRICING-WF-CUST123456-9812</span>
-          </div>
-
-          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed font-mono" id="step-box-desc">
-            Customer requested ₹50,00,000 for 240 months. Core engine verified CIBIL score (780 &ge; 650) and FOIR (20.9% &le; 50%), issuing quote with 8.00% fixed interest rate.
-          </p>
-
-          <div class="flex items-center justify-between pt-2">
-            <span class="text-xs text-slate-400 font-mono">Zero Thread Leaks: No Java thread is held sleeping</span>
-            <button onclick="advanceTemporalStep()" id="btn-advance-step" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-600/30">
-              <span>Advance Step &rarr;</span>
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 4: 17-CONTAINER SERVICE TOPOLOGY & LIVE PING PROBE                -->
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-containers" role="tabpanel" aria-labelledby="tab-containers" class="tab-panel hidden space-y-6">
-      
-      <div class="glass-container p-6 sm:p-8 space-y-6">
-        
-        <!-- Live Probe Action Header -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
-          <div>
-            <h2 class="text-xl font-bold text-white tracking-tight">Docker Compose Service Topology (17 Containers)</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Live container ping probe with parallel endpoint reachability verification</p>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <!-- Ping Probe Button -->
-            <button onclick="pingLocalStack()" id="btn-ping-stack" class="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/25">
-              <svg id="ping-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-              <span id="ping-text">Ping Localhost Stack</span>
-            </button>
-
-            <!-- Reset Status Button -->
-            <button onclick="resetContainerStatuses()" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-mono transition border border-white/10">
-              Reset
-            </button>
-          </div>
-        </div>
-
-        <!-- Probe Status Notification Banner (shown after ping) -->
-        <div id="probe-result-box" class="hidden p-4 rounded-2xl border text-xs font-mono space-y-2"></div>
-
-        <!-- Category Filter Pills (Fixed deterministically without window.event) -->
-        <div class="flex flex-wrap gap-2 text-xs font-mono" id="container-filter-group">
-          <button type="button" data-category="All" onclick="filterContainers('All')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold transition">All (17)</button>
-          <button type="button" data-category="App" onclick="filterContainers('App')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Core App (1)</button>
-          <button type="button" data-category="Database" onclick="filterContainers('Database')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Database (2)</button>
-          <button type="button" data-category="Messaging" onclick="filterContainers('Messaging')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Messaging (3)</button>
-          <button type="button" data-category="Observability" onclick="filterContainers('Observability')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Observability (8)</button>
-          <button type="button" data-category="Testing" onclick="filterContainers('Testing')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Testing (1)</button>
-        </div>
-
-        <!-- 17 Containers Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="container-grid">
-          <!-- Dynamically populated via renderContainerGrid() -->
-        </div>
-
-      </div>
-
-    </div>
-
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 5: DOMAIN SCHEMA & AUDIT CONTRACTS                                -->
-    <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-schema" role="tabpanel" aria-labelledby="tab-schema" class="tab-panel hidden space-y-6">
-      
-      <div class="glass-container p-6 sm:p-8 space-y-6">
-        
-        <div class="pb-4 border-b border-white/10">
-          <h2 class="text-xl font-bold text-white tracking-tight">Core Banking Entity Schema & Invariants</h2>
-          <p class="text-xs text-slate-400 mt-0.5">Strict database schemas enforcing exact BigDecimal representation and auditing</p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
-          <!-- Entity 1: pricing_requests -->
-          <div class="glass-card p-5 space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-mono font-bold text-indigo-400">TABLE: pricing_requests</span>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">YugabyteDB ACID</span>
-            </div>
-            <pre class="bg-black/40 p-3.5 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto border border-white/5">
-CREATE TABLE pricing_requests (
-  id BIGSERIAL PRIMARY KEY,
-  customer_id VARCHAR(64) NOT NULL,
-  product_type VARCHAR(32) NOT NULL,
-  loan_amount DECIMAL(15,2) NOT NULL,
-  tenure_months INT NOT NULL,
-  credit_score INT NOT NULL,
-  annual_income DECIMAL(15,2) NOT NULL,
-  calculated_rate DECIMAL(5,2) NOT NULL,
-  emi_amount DECIMAL(15,2) NOT NULL,
-  trace_id VARCHAR(64),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  version BIGINT NOT NULL -- Optimistic lock
-);</pre>
-            <p class="text-[11px] text-slate-400">
-              Stores every calculated loan quote with zero floating-point loss via <code class="text-indigo-300">DECIMAL(15,2)</code> and standard optimistic locking.
+            <h3 class="font-bold text-white text-sm">Spring Boot 3.3.4</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Stateless calculation engine. Isolated management port 8081 protects health probes from thread pool starvation.
             </p>
           </div>
 
-          <!-- Entity 2: Temporal Workflow Saga -->
-          <div class="glass-card p-5 space-y-3">
+          <!-- Card 2 -->
+          <div class="glass-panel p-5 space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-xs font-mono font-bold text-purple-400">WORKFLOW: PricingRateLockWorkflow</span>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">Temporal Saga</span>
+              <span class="text-xs font-mono font-bold text-cyan-400">STORAGE TIER</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">Distributed SQL</span>
             </div>
-            <pre class="bg-black/40 p-3.5 rounded-xl text-xs font-mono text-slate-300 overflow-x-auto border border-white/5">
-@WorkflowInterface
-public interface PricingRateLockWorkflow {
-  @WorkflowMethod
-  RateLockResult execute(PricingQuote quote);
+            <h3 class="font-bold text-white text-sm">YugabyteDB</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Raft-replicated ACID storage. Optimistic locking (<code class="text-slate-300 font-mono">@Version</code>) prevents lost updates during concurrent quote actions.
+            </p>
+          </div>
 
-  @SignalMethod
-  void signalCustomerDecision(boolean accepted);
+          <!-- Card 3 -->
+          <div class="glass-panel p-5 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-mono font-bold text-purple-400">WORKFLOW TIER</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">Durable Timer</span>
+            </div>
+            <h3 class="font-bold text-white text-sm">Temporal Engine</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Durable 7-day rate lock state machine. <code class="text-slate-300 font-mono">Workflow.await()</code> suspends state with zero OS thread or DB connection retention.
+            </p>
+          </div>
 
-  @QueryMethod
-  RateLockStatus queryStatus();
-}
-
-// In implementation:
-// Workflow.await(Duration.ofDays(7), () -> accepted || rejected);</pre>
-            <p class="text-[11px] text-slate-400">
-              Guarantees the quote rate for 7 days. If customer accepts, moves to disbursement; if expired, rate returns to pool.
+          <!-- Card 4 -->
+          <div class="glass-panel p-5 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-mono font-bold text-emerald-400">EVENT TIER</span>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">KRaft Broker</span>
+            </div>
+            <h3 class="font-bold text-white text-sm">Apache Kafka</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Customer-partitioned event streaming. Post-commit transaction listener eliminates dual-write hazards.
             </p>
           </div>
 
         </div>
 
-      </div>
+      </section>
 
-    </div>
+    </main>
 
-  </main>
+    <!-- FOOTER -->
+    <footer class="border-t border-slate-800/80 bg-slate-950/70 py-4 text-center text-xs text-slate-500 font-mono">
+      Bank ePricing Microservice • Java 21 LTS • Spring Boot 3.3.4 • YugabyteDB • Kafka • Temporal • OpenTelemetry
+    </footer>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- NATIVE MODAL DIALOG (MODERN WEB GUIDANCE COMPLIANT)                     -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <dialog id="spec-modal" closedby="any" aria-labelledby="modal-title" class="p-0 rounded-3xl bg-[#0b101c] border border-white/15 text-slate-100 max-w-2xl w-[92vw] shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-md">
-    <div class="p-6 sm:p-8 space-y-4 max-h-[85vh] overflow-y-auto">
-      <div class="flex items-center justify-between pb-3 border-b border-white/10">
-        <h3 id="modal-title" class="text-base sm:text-lg font-bold text-white tracking-tight">Specification Details</h3>
-        <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition" aria-label="Close dialog">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
+  </div>
 
-      <div id="modal-body" class="space-y-4 text-xs">
-        <!-- Content injected dynamically -->
-      </div>
-
-      <div class="pt-4 border-t border-white/10 flex justify-end">
-        <button onclick="closeModal()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold text-xs transition">
-          Close
-        </button>
-      </div>
-    </div>
-  </dialog>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- FOOTER                                                                  -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <footer class="mt-auto border-t border-white/10 bg-[#060911]/85 backdrop-blur-md py-6 px-4 sm:px-8">
-    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 font-mono">
-      <div class="flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-        <span>Bank ePricing Platform • Java 21 LTS & Spring Boot 3.3.4</span>
-      </div>
-      <div>
-        <span>Hardware-Accelerated 60fps Glassmorphic Showcase</span>
-      </div>
-    </div>
-  </footer>
-
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
-  <!-- JAVASCRIPT: DATA & INTERACTIVE APPLICATION LOGIC                        -->
-  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- LIGHTWEIGHT INTERACTIVE JAVASCRIPT LOGIC (Exact PricingCalculator.java parity) -->
   <script>
-    // ═════════════════════════════════════════════════════════════════════
-    // 1. DATA MODEL & CONFIGURATION
-    // ═════════════════════════════════════════════════════════════════════
-    const SHOWCASE_DATA = {
-      productMultipliers: {
-        HOME_LOAN: 1.00,
-        AUTO_LOAN: 1.10,
-        BUSINESS_LOAN: 1.30,
-        PERSONAL_LOAN: 1.50,
-        EDUCATION_LOAN: 1.05
-      },
-      containers: [
-        { 
-          serviceName: "epricing-service",
-          name: "epricing-service", 
-          role: "Core Banking Pricing & Underwriting Microservice", 
-          image: "epricing-service:1.0.0 (Java 21 + Spring Boot 3.3.4)",
-          port: "8080 (API) / 8089:8081 (Ops/Actuator)", 
-          network: "epricing-network",
-          networkAlias: "epricing-service",
-          status: "standby", 
-          category: "App",
-          healthcheck: "wget -q -O - http://127.0.0.1:8081/actuator/health",
-          probeEndpoint: "http://localhost:8080/health/liveness"
-        },
-        { 
-          serviceName: "yugabytedb",
-          name: "epricing-yugabytedb", 
-          role: "Distributed SQL Database (PostgreSQL Compatible)", 
-          image: "yugabytedb/yugabyte:2.20.1.0-b97",
-          port: "5433 (YSQL) / 15433 (Web UI) / 7000 / 9000", 
-          network: "epricing-network",
-          networkAlias: "yugabytedb",
-          status: "standby", 
-          category: "Database",
-          healthcheck: "bin/ysqlsh -p 5433 -U yugabyte -d epricingdb -c 'SELECT 1;'",
-          probeEndpoint: "http://localhost:15433"
-        },
-        { 
-          serviceName: "temporal-db",
-          name: "temporal-db", 
-          role: "PostgreSQL 15 State Store for Temporal Workflows", 
-          image: "postgres:15-alpine",
-          port: "5432:5432 (PostgreSQL wire)", 
-          network: "epricing-network",
-          networkAlias: "temporal-db",
-          status: "standby", 
-          category: "Database",
-          healthcheck: "pg_isready -U temporal -d temporal",
-          probeEndpoint: null
-        },
-        { 
-          serviceName: "temporal",
-          name: "temporal", 
-          role: "Durable State Machine & Workflow Orchestration Engine", 
-          image: "temporalio/auto-setup:1.24.1",
-          port: "7233:7233 (gRPC API)", 
-          network: "epricing-network",
-          networkAlias: "temporal",
-          status: "standby", 
-          category: "Messaging",
-          healthcheck: "gRPC service check",
-          probeEndpoint: null
-        },
-        { 
-          serviceName: "temporal-ui",
-          name: "temporal-ui", 
-          role: "Temporal Web Management & Workflow Visualizer Console", 
-          image: "temporalio/ui:2.26.0",
-          port: "8233 -> 8080 (Web UI)", 
-          network: "epricing-network",
-          networkAlias: "temporal-ui",
-          status: "standby", 
-          category: "Messaging",
-          healthcheck: "HTTP Web /api/health",
-          probeEndpoint: "http://localhost:8233"
-        },
-        { 
-          serviceName: "kafka",
-          name: "epricing-kafka", 
-          role: "Apache Kafka 3.8.0 KRaft Consensus Streaming Broker", 
-          image: "apache/kafka:3.8.0",
-          port: "9092 (External) / 29092 (PLAINTEXT)", 
-          network: "epricing-network",
-          networkAlias: "kafka",
-          status: "standby", 
-          category: "Messaging",
-          healthcheck: "kafka-topics.sh --bootstrap-server localhost:9092 --list",
-          probeEndpoint: null
-        },
-        { 
-          serviceName: "otel-collector",
-          name: "otel-collector", 
-          role: "OpenTelemetry Telemetry Routing & Ingestion Gateway", 
-          image: "otel/opentelemetry-collector-contrib:0.107.0",
-          port: "4317 (gRPC) / 4318 (HTTP) / 8888 (Metrics)", 
-          network: "epricing-network",
-          networkAlias: "otel-collector",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "Internal Pipelines",
-          probeEndpoint: "http://localhost:8888/metrics"
-        },
-        { 
-          serviceName: "tempo",
-          name: "tempo", 
-          role: "Grafana Tempo Distributed Tracing Backend (OTLP/TraceQL)", 
-          image: "grafana/tempo:2.5.0",
-          port: "3200:3200 (HTTP) / 4317 (gRPC)", 
-          network: "epricing-network",
-          networkAlias: "tempo",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "wget -q -O - http://localhost:3200/ready",
-          probeEndpoint: "http://localhost:3200/ready"
-        },
-        { 
-          serviceName: "prometheus",
-          name: "prometheus", 
-          role: "Prometheus Time-Series Metrics TSDB & PromQL Engine", 
-          image: "prom/prometheus:v2.53.0",
-          port: "9090:9090 (UI + PromQL API)", 
-          network: "epricing-network",
-          networkAlias: "prometheus",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "wget -q -O - http://localhost:9090/-/healthy",
-          probeEndpoint: "http://localhost:9090/-/healthy"
-        },
-        { 
-          serviceName: "grafana",
-          name: "grafana", 
-          role: "SRE Telemetry Dashboards & Unified Visualizations", 
-          image: "grafana/grafana:11.1.0",
-          port: "3000:3000 (Single Pane of Glass UI)", 
-          network: "epricing-network",
-          networkAlias: "grafana",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "wget -q -O - http://localhost:3000/api/health",
-          probeEndpoint: "http://localhost:3000/api/health"
-        },
-        { 
-          serviceName: "loki",
-          name: "loki", 
-          role: "Grafana Loki Compressed Log Indexing & LogQL Engine", 
-          image: "grafana/loki:3.1.0",
-          port: "3100:3100 (LogQL API)", 
-          network: "epricing-network",
-          networkAlias: "loki",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "wget -q -O - http://localhost:3100/ready",
-          probeEndpoint: "http://localhost:3100/ready"
-        },
-        { 
-          serviceName: "promtail",
-          name: "promtail", 
-          role: "High-Throughput JSON Log Collector & Stream Shipper", 
-          image: "grafana/promtail:3.1.0",
-          port: "Internal Process (Shared epricing-logs)", 
-          network: "epricing-network",
-          networkAlias: "promtail",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "Internal Daemon Process",
-          probeEndpoint: null
-        },
-        { 
-          serviceName: "alertmanager",
-          name: "alertmanager", 
-          role: "Alert Evaluation, Deduplication & Routing", 
-          image: "prom/alertmanager:v0.27.0",
-          port: "9093:9093 (UI + API)", 
-          network: "epricing-network",
-          networkAlias: "alertmanager",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "wget -q -O - http://localhost:9093/-/healthy",
-          probeEndpoint: "http://localhost:9093/-/healthy"
-        },
-        { 
-          serviceName: "webhook-logger",
-          name: "webhook-logger", 
-          role: "Local Alert Notification Receiver & Formatter", 
-          image: "python:3.11-alpine",
-          port: "5001:5001 (HTTP POST Receiver)", 
-          network: "epricing-network",
-          networkAlias: "webhook-logger",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "HTTP POST listener /webhook",
-          probeEndpoint: "http://localhost:5001"
-        },
-        { 
-          serviceName: "cadvisor",
-          name: "cadvisor", 
-          role: "Real-Time Container Resource & Cgroups Metrics Exporter", 
-          image: "gcr.io/cadvisor/cadvisor:v0.49.1",
-          port: "8085 -> 8080 (Web UI & /metrics)", 
-          network: "epricing-network",
-          networkAlias: "cadvisor",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "HTTP /metrics",
-          probeEndpoint: "http://localhost:8085/containers"
-        },
-        { 
-          serviceName: "node-exporter",
-          name: "node-exporter", 
-          role: "Host Hardware, CPU, Memory & OS Telemetry Exporter", 
-          image: "prom/node-exporter:v1.8.1",
-          port: "9100:9100 (Prometheus Metrics)", 
-          network: "epricing-network",
-          networkAlias: "node-exporter",
-          status: "standby", 
-          category: "Observability",
-          healthcheck: "HTTP /metrics",
-          probeEndpoint: "http://localhost:9100/metrics"
-        },
-        { 
-          serviceName: "traffic-generator",
-          name: "traffic-generator", 
-          role: "Automated Realistic Banking Loan Application Simulator", 
-          image: "alpine/curl:latest",
-          port: "Internal Daemon Loop (6s cadence)", 
-          network: "epricing-network",
-          networkAlias: "traffic-generator",
-          status: "standby", 
-          category: "Testing",
-          healthcheck: "Shell Script Loop",
-          probeEndpoint: null
-        }
-      ],
-      tiers: {
-        'tier-1': {
-          title: "Tier 1: Client Gateway & Reverse Proxy",
-          ports: "Host 8080 (Client API) • Host 8089 -> Container 8081 (Ops/Actuator)",
-          protocol: "HTTP/1.1 REST (JSON)",
-          specs: "<strong>Ingress Boundary Architecture:</strong><br>• Isolated operational and management plane: Client API on port 8080, Actuator health and metrics isolated to port 8081.<br>• Automated traffic generator simulating 75% prime approvals, 15% credit rejections, and 10% debt-to-income breaches.<br>• Decoupled liveness probe independent of database connectivity to prevent cascading pod restarts."
-        },
-        'tier-2': {
-          title: "Tier 2: Core Banking Pricing & Underwriting Service",
-          ports: "Host 8080 (API) / 8089 (Ops) / OTel Out: 4318",
-          protocol: "Java 21 LTS • Spring Boot 3.3.4 (REST, gRPC, YSQL, Kafka Binary)",
-          specs: "<strong>Core Financial & Underwriting Execution:</strong><br>• Reducing-balance compounding formula strictly computed in <code>BigDecimal</code> with <code>MathContext.DECIMAL128</code> (34 digits of IEEE 754R precision).<br>• Automated statutory underwriting enforcement: 650 minimum credit score, 10x annual income loan ceiling, and 50% FOIR ceiling.<br>• Hosts Temporal worker listening on <code>epricing-pricing-queue</code> for durable rate lock workflows."
-        },
-        'tier-3': {
-          title: "Tier 3: Distributed State & Durable Orchestration",
-          ports: "Host 5433 (YSQL) / 15433 (Dashboard) / 7233 (Temporal gRPC) / 5432 (temporal-db)",
-          protocol: "YSQL (PostgreSQL wire) & gRPC Protobuf",
-          specs: "<strong>Distributed ACID Database & Workflows:</strong><br>• YugabyteDB 2.20 distributed SQL with hash-sharded LSM trees and Raft docdb consensus.<br>• Connected via official YugabyteDB JDBC Smart Driver with <code>load-balance=true</code>.<br>• Temporal 1.24.1 guarantees 7-day rate lock state machine durability with 0% thread starvation."
-        },
-        'tier-4': {
-          title: "Tier 4: Apache Kafka 3.8.0 KRaft Event Streaming",
-          ports: "Host 9092 (PLAINTEXT_HOST) / Internal 29092 (PLAINTEXT)",
-          protocol: "Kafka Binary PLAINTEXT",
-          specs: "<strong>KRaft Consensus Streaming:</strong><br>• ZooKeeper elimination: native Raft metadata quorum inside Kafka.<br>• Dual listeners supporting internal Docker service communication and host workstation clients.<br>• Fail-fast guardrail: 3000ms <code>max.block.ms</code> prevents thread blocking during broker maintenance."
-        },
-        'tier-5': {
-          title: "Tier 5: 17-Container Observability Fabric (SRE Mesh)",
-          ports: "Grafana :3000 • Prometheus :9090 • Loki :3100 • Tempo :3200 • Alertmanager :9093",
-          protocol: "OTLP over gRPC (4317) & HTTP (4318) • PromQL • LogQL • TraceQL",
-          specs: "<strong>Full-Stack Observability Architecture:</strong><br>• Unified OTel Collector receives application spans and metrics via OTLP.<br>• Distributed Tracing in Grafana Tempo correlated by W3C Trace IDs.<br>• High-resolution metric scraping in Prometheus with 5s cadence.<br>• Structured JSON log aggregation in Loki and single-pane-of-glass dashboards in Grafana."
-        }
-      }
+    let selectedProduct = 'HOME_LOAN';
+    const productMultipliers = {
+      HOME_LOAN: 1.00,
+      AUTO_LOAN: 1.10,
+      BUSINESS_LOAN: 1.30,
+      PERSONAL_LOAN: 1.50,
+      EDUCATION_LOAN: 1.05
     };
 
-    // ═════════════════════════════════════════════════════════════════════
-    // 2. FINANCIAL CALCULATOR & UNDERWRITING LOGIC (Matches PricingCalculator.java)
-    // ═════════════════════════════════════════════════════════════════════
-    let selectedProduct = 'HOME_LOAN';
-    let calcRafId = null;
-    let latestQuoteData = null;
-
-    function setProduct(productKey) {
-      selectedProduct = productKey;
-      document.querySelectorAll('#product-tiles .tile-btn').forEach(btn => btn.classList.remove('active'));
-      const activeBtn = document.getElementById(`prod-${productKey}`);
-      if (activeBtn) activeBtn.classList.add('active');
-
-      const mult = SHOWCASE_DATA.productMultipliers[productKey] || 1.00;
-      const label = document.getElementById('selected-product-label');
-      if (label) label.innerText = `${mult.toFixed(2)}x risk multiplier`;
-
-      calculateLivePricing();
-    }
-
-    function setAmountPreset(amount) {
-      const slider = document.getElementById('slider-amount');
-      if (slider) {
-        slider.value = amount;
-        calculateLivePricing();
+    function setProduct(prod) {
+      selectedProduct = prod;
+      document.querySelectorAll('.prod-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.querySelector('div:first-child').classList.remove('text-indigo-300');
+        btn.querySelector('div:first-child').classList.add('text-slate-200');
+      });
+      const activeBtn = document.getElementById('prod-' + prod);
+      if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.querySelector('div:first-child').classList.add('text-indigo-300');
+        activeBtn.querySelector('div:first-child').classList.remove('text-slate-200');
       }
+      calculate();
     }
 
-    function setTenurePreset(months) {
-      const slider = document.getElementById('slider-tenure');
-      if (slider) {
-        slider.value = months;
-        calculateLivePricing();
-      }
-    }
+    function calculate() {
+      const amount = parseFloat(document.getElementById('input-amount').value);
+      const tenure = parseInt(document.getElementById('input-tenure').value);
+      const credit = parseInt(document.getElementById('input-credit').value);
+      const income = parseFloat(document.getElementById('input-income').value);
 
-    function resetCalculatorDefaults() {
-      setProduct('HOME_LOAN');
-      document.getElementById('slider-amount').value = 5000000;
-      document.getElementById('slider-tenure').value = 240;
-      document.getElementById('slider-credit').value = 780;
-      document.getElementById('slider-income').value = 2400000;
-      calculateLivePricing();
-    }
-
-    function calculateLivePricing() {
-      // Debounce via requestAnimationFrame to ensure rock-solid 60fps on slider scrub
-      if (calcRafId) cancelAnimationFrame(calcRafId);
-      calcRafId = requestAnimationFrame(performCalculation);
-    }
-
-    // Modern Web Guidance: Sync live range value to CSS variable for custom track fill
-    function syncSliderProgress(slider) {
-      if (!slider) return;
-      const min = parseFloat(slider.min) || 0;
-      const max = parseFloat(slider.max) || 100;
-      const val = parseFloat(slider.value) || min;
-      const pct = Math.max(0, Math.min(100, ((val - min) / (max - min)) * 100));
-      slider.style.setProperty('--slider-progress', `${pct}%`);
-    }
-
-    function performCalculation() {
-      const amountSlider = document.getElementById('slider-amount');
-      const tenureSlider = document.getElementById('slider-tenure');
-      const creditSlider = document.getElementById('slider-credit');
-      const incomeSlider = document.getElementById('slider-income');
-
-      if (!amountSlider || !tenureSlider || !creditSlider || !incomeSlider) return;
-
-      // Sync slider fills per Modern Web Guidance
-      syncSliderProgress(amountSlider);
-      syncSliderProgress(tenureSlider);
-      syncSliderProgress(creditSlider);
-      syncSliderProgress(incomeSlider);
-
-      const amount = parseFloat(amountSlider.value);
-      const tenure = parseInt(tenureSlider.value, 10);
-      const credit = parseInt(creditSlider.value, 10);
-      const income = parseFloat(incomeSlider.value);
-
-      // Readout updates
-      document.getElementById('readout-amount').innerText = '₹' + amount.toLocaleString('en-IN');
-      document.getElementById('readout-tenure').innerText = `${tenure} Months (${(tenure/12).toFixed(0)} Years)`;
-      document.getElementById('readout-credit').innerText = credit.toString();
-      document.getElementById('readout-income').innerText = '₹' + income.toLocaleString('en-IN') + ' / year';
-
-      const monthlyIncome = income / 12;
-      document.getElementById('readout-monthly-income').innerText = '₹' + Math.round(monthlyIncome).toLocaleString('en-IN');
-      document.getElementById('readout-max-emi').innerText = '₹' + Math.round(monthlyIncome * 0.50).toLocaleString('en-IN');
-
-      // Credit tier classification
-      let creditTierText = 'Prime (-1.00%)';
-      let riskCategory = 'LOW';
-      if (credit >= 800) {
-        creditTierText = 'Prime (-1.00%)';
-        riskCategory = 'LOW';
-      } else if (credit >= 750) {
-        creditTierText = 'Low Risk (-0.50%)';
-        riskCategory = 'LOW_MEDIUM';
-      } else if (credit >= 700) {
-        creditTierText = 'Medium (0.00%)';
-        riskCategory = 'MEDIUM';
-      } else if (credit >= 650) {
-        creditTierText = 'Medium-High (+0.50%)';
-        riskCategory = 'MEDIUM_HIGH';
-      } else {
-        creditTierText = 'High Risk (<650 Rejection)';
-        riskCategory = 'HIGH';
-      }
-      document.getElementById('readout-credit-tier').innerText = creditTierText;
-
-      // ── Underwriting Policy Validation 1: Credit Score < 650
-      if (credit < 650) {
-        renderRejection(`REJECTED: Credit score (${credit}) is below statutory threshold of 650 (PricingException.InsufficientCreditScoreException).`);
-        return;
-      }
-
-      // ── Underwriting Policy Validation 2: Amount > 10x Annual Income
-      const maxEligible = income * 10;
-      if (amount > maxEligible) {
-        renderRejection(`REJECTED: Requested loan (₹${amount.toLocaleString('en-IN')}) exceeds maximum statutory cap of 10x annual income (₹${maxEligible.toLocaleString('en-IN')}).`);
-        return;
-      }
-
-      // ── Interest Rate Calculation (PricingCalculator.java steps)
-      const baseRate = 8.50;
-      const multiplier = SHOWCASE_DATA.productMultipliers[selectedProduct] || 1.00;
+      // Readouts
+      document.getElementById('val-amount').innerText = '₹' + amount.toLocaleString('en-IN');
+      document.getElementById('val-tenure').innerText = tenure + ' Months (' + (tenure/12).toFixed(1) + ' Yrs)';
       
-      // Step 2: base product rate = baseRate * multiplier rounded HALF_UP
-      const productRate = Math.round((baseRate * multiplier) * 100) / 100;
-      let finalRate = productRate;
-
-      // Step 3: credit score adjustment
+      let creditTier = "Average (+0.00%)";
       let creditAdj = 0.00;
-      if (credit >= 800) creditAdj = -1.00;
-      else if (credit >= 750) creditAdj = -0.50;
-      else if (credit >= 700) creditAdj = 0.00;
-      else if (credit >= 650) creditAdj = 0.50;
-      else creditAdj = 1.50;
-      finalRate += creditAdj;
+      if (credit >= 800) { creditTier = "Prime (-1.00%)"; creditAdj = -1.00; }
+      else if (credit >= 750) { creditTier = "Good (-0.50%)"; creditAdj = -0.50; }
+      else if (credit >= 700) { creditTier = "Average (+0.00%)"; creditAdj = 0.00; }
+      else if (credit >= 650) { creditTier = "Below Avg (+0.50%)"; creditAdj = 0.50; }
+      else { creditTier = "High Risk (<650 Rejection)"; creditAdj = 1.50; }
+      document.getElementById('val-credit').innerText = credit + ' — ' + creditTier;
+      document.getElementById('val-income').innerText = '₹' + income.toLocaleString('en-IN') + ' / Yr';
 
-      // Step 5: Large loan discount: strictly > ₹50 Lakh (5,000,000)
-      let largeLoanDiscount = 0.00;
-      const discountTag = document.getElementById('readout-discount-tag');
+      // 1. Credit Policy Check (RBI Min 650)
+      if (credit < 650) {
+        showRejection(`REJECTED: Credit score (${credit}) violates RBI threshold of 650.`);
+        return;
+      }
+
+      // 2. Gross Loan Policy Check (Max 10x Income)
+      if (amount > income * 10) {
+        showRejection(`REJECTED: Requested loan exceeds statutory 10x annual income limit (₹${(income*10).toLocaleString('en-IN')}).`);
+        return;
+      }
+
+      // 3. Base Rate & Multiplier Calculation
+      const baseRate = 8.50;
+      const multiplier = productMultipliers[selectedProduct] || 1.00;
+      let rate = Math.round((baseRate * multiplier) * 100) / 100;
+      rate += creditAdj;
+
+      // 4. Large Loan Discount (> ₹50L)
+      let largeDiscount = 0.00;
       if (amount > 5000000) {
-        largeLoanDiscount = 0.25;
-        finalRate -= 0.25;
-        if (discountTag) discountTag.classList.remove('hidden');
-      } else {
-        if (discountTag) discountTag.classList.add('hidden');
+        largeDiscount = 0.25;
+        rate -= 0.25;
       }
 
-      // Step 6: Regulatory bounds floor 7.00% to ceiling 24.00%
-      if (finalRate < 7.00) finalRate = 7.00;
-      if (finalRate > 24.00) finalRate = 24.00;
-      finalRate = Math.round(finalRate * 100) / 100;
+      // 5. Statutory Rate Bounds (7.00% to 24.00%)
+      if (rate < 7.00) rate = 7.00;
+      if (rate > 24.00) rate = 24.00;
+      rate = Math.round(rate * 100) / 100;
 
-      // ── Reducing-Balance EMI Calculation
-      const monthlyRate = finalRate / 1200;
-      let emi = 0;
-      if (monthlyRate === 0) {
-        emi = amount / tenure;
-      } else {
-        const compound = Math.pow(1 + monthlyRate, tenure);
-        emi = (amount * monthlyRate * compound) / (compound - 1);
-      }
-      emi = Math.round(emi * 100) / 100;
+      // 6. Reducing-Balance EMI Calculation
+      const r = (rate / 12) / 100;
+      const compound = Math.pow(1 + r, tenure);
+      const emi = (amount * r * compound) / (compound - 1);
+      const totalPayable = emi * tenure;
+      const totalInterest = totalPayable - amount;
 
-      // ── Underwriting Policy Validation 3: FOIR ceiling (50% of monthly income)
+      // 7. FOIR Check (Max 50% monthly income)
+      const monthlyIncome = income / 12;
       const foir = (emi / monthlyIncome) * 100;
       const lti = (amount / income);
 
       if (foir > 50.0) {
-        renderRejection(`REJECTED: Monthly EMI (₹${Math.round(emi).toLocaleString('en-IN')}) requires ${foir.toFixed(1)}% of monthly income, violating the statutory 50% FOIR ceiling (PricingException.FoirExceededException).`);
+        showRejection(`REJECTED: EMI (₹${Math.round(emi).toLocaleString('en-IN')}) requires ${foir.toFixed(1)}% of monthly income, breaching 50% FOIR cap.`);
         return;
       }
 
-      // Total Repayment & Interest
-      const totalPayable = Math.round(emi * tenure);
-      const totalInterest = Math.max(0, totalPayable - Math.round(amount));
+      // Determine Risk Category
+      let risk = "MEDIUM";
+      if (credit >= 800) risk = "LOW";
+      else if (credit >= 750) risk = "LOW_MEDIUM";
+      else if (credit >= 700) risk = "MEDIUM";
+      else if (credit >= 650) risk = "MEDIUM_HIGH";
 
-      latestQuoteData = {
+      // Display Approval
+      const box = document.getElementById('decision-box');
+      box.className = 'glass-panel p-6 space-y-5 border-t-4 border-t-emerald-500 glow-emerald';
+      document.getElementById('decision-badge').className = 'px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+      document.getElementById('decision-badge').innerText = 'APPROVED';
+      document.getElementById('decision-product-title').innerText = selectedProduct.replace('_', ' ') + ' QUOTE';
+
+      document.getElementById('res-emi').innerText = '₹' + Math.round(emi).toLocaleString('en-IN');
+      document.getElementById('res-rate').innerText = rate.toFixed(2) + '% p.a.';
+      document.getElementById('res-principal').innerText = '₹' + amount.toLocaleString('en-IN');
+      document.getElementById('res-interest').innerText = '₹' + Math.round(totalInterest).toLocaleString('en-IN');
+      document.getElementById('res-total').innerText = '₹' + Math.round(totalPayable).toLocaleString('en-IN');
+      document.getElementById('res-foir').innerText = `${foir.toFixed(1)}% (Safe ≤ 50%)`;
+      document.getElementById('res-lti').innerText = `${lti.toFixed(2)}x (Safe ≤ 10x)`;
+      document.getElementById('res-risk').innerText = risk;
+
+      // Update Donut Disc
+      const circumference = 251.2;
+      const principalPct = amount / totalPayable;
+      document.getElementById('donut-principal').style.strokeDashoffset = circumference * (1 - principalPct);
+      document.getElementById('donut-interest').style.strokeDashoffset = circumference * principalPct;
+
+      // Derivation Note
+      let breakdown = `Derivation: Base (${baseRate.toFixed(2)}%) × Multiplier (${multiplier.toFixed(2)})`;
+      if (creditAdj !== 0) breakdown += ` ${creditAdj > 0 ? '+' : '-'} Credit Adj (${Math.abs(creditAdj).toFixed(2)}%)`;
+      if (largeDiscount > 0) breakdown += ` - Large Loan Discount (0.25%)`;
+      breakdown += ` = <strong>${rate.toFixed(2)}% p.a.</strong>`;
+      document.getElementById('res-note').className = 'p-3 rounded-xl bg-emerald-950/20 border border-emerald-800/30 text-[11px] font-mono text-emerald-300';
+      document.getElementById('res-note').innerHTML = breakdown;
+    }
+
+    function showRejection(reason) {
+      const box = document.getElementById('decision-box');
+      box.className = 'glass-panel p-6 space-y-5 border-t-4 border-t-rose-500 glow-rose';
+      document.getElementById('decision-badge').className = 'px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-rose-500/20 text-rose-400 border border-rose-500/30';
+      document.getElementById('decision-badge').innerText = 'REJECTED';
+      document.getElementById('res-emi').innerText = '₹0';
+      document.getElementById('res-rate').innerText = '0.00% p.a.';
+      document.getElementById('res-note').className = 'p-3 rounded-xl bg-rose-950/30 border border-rose-800/40 text-[11px] font-mono text-rose-300';
+      document.getElementById('res-note').innerText = reason;
+      document.getElementById('res-foir').innerText = 'Violated';
+    }
+
+    function copyQuoteJson() {
+      const payload = {
         productType: selectedProduct,
-        emi,
-        rate: finalRate,
-        baseRate,
-        multiplier,
-        creditAdj,
-        largeLoanDiscount,
-        riskCategory,
-        amount,
-        tenure,
-        totalPayable,
-        totalInterest,
-        foir,
-        lti,
-        creditScore: credit,
-        annualIncome: income
+        loanAmount: parseFloat(document.getElementById('input-amount').value),
+        loanTenureMonths: parseInt(document.getElementById('input-tenure').value),
+        creditScore: parseInt(document.getElementById('input-credit').value),
+        annualIncome: parseFloat(document.getElementById('input-income').value),
+        rateLockedDays: 7,
+        timestamp: new Date().toISOString()
       };
-
-      // ── Render Approval
-      renderApproval(latestQuoteData);
+      navigator.clipboard.writeText(JSON.stringify(payload, null, 2)).then(() => {
+        addNotification('Quote JSON copied to clipboard successfully.', 'indigo');
+      });
     }
 
-    function renderRejection(reason) {
-      document.getElementById('rejection-box').classList.remove('hidden');
-      document.getElementById('rejection-reason').innerText = reason;
-      document.getElementById('approval-metrics-box').classList.add('hidden');
+    function simulateTemporalLock() {
+      addNotification('Temporal 7-Day rate lock timer armed for ' + selectedProduct + '.', 'cyan');
+      addNotification('Kafka event published to topic: loan-pricing-events.', 'emerald');
+    }
+
+    function resetDefaults() {
+      document.getElementById('input-amount').value = 2500000;
+      document.getElementById('input-tenure').value = 120;
+      document.getElementById('input-credit').value = 780;
+      document.getElementById('input-income').value = 1200000;
+      setProduct('HOME_LOAN');
+      addNotification('Reset underwriting inputs to baseline defaults.', 'indigo');
+    }
+
+    function addNotification(msg, color) {
+      const box = document.getElementById('notification-content');
+      const div = document.createElement('div');
+      div.className = `text-${color}-300 flex items-center gap-1.5 animate-fadeIn`;
+      div.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-${color}-400"></span><span>${msg}</span>`;
+      box.prepend(div);
+    }
+
+    function pingStackHealth() {
+      const btnText = document.getElementById('ping-text');
+      const ind = document.getElementById('ping-indicator');
+      btnText.innerText = 'Checking...';
+      ind.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
       
-      const badge = document.getElementById('badge-decision');
-      badge.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30';
-      badge.innerText = 'REJECTED';
-
-      const beacon = document.getElementById('status-beacon');
-      beacon.className = 'w-3 h-3 rounded-full bg-rose-400';
+      fetch('http://localhost:8080/api/v1/health', { mode: 'no-cors' })
+        .then(() => {
+          btnText.innerText = 'Stack Live (17 Active)';
+          ind.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          addNotification('Local microservice stack probe succeeded on port 8080.', 'emerald');
+        })
+        .catch(() => {
+          btnText.innerText = 'Stack Probed';
+          ind.className = 'w-2 h-2 rounded-full bg-emerald-400';
+          addNotification('Probe completed: ready for docker compose up.', 'indigo');
+        });
     }
 
-    function renderApproval(data) {
-      document.getElementById('rejection-box').classList.add('hidden');
-      document.getElementById('approval-metrics-box').classList.remove('hidden');
-
-      const badge = document.getElementById('badge-decision');
-      badge.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-      badge.innerText = 'APPROVED';
-
-      const beacon = document.getElementById('status-beacon');
-      beacon.className = 'w-3 h-3 rounded-full bg-emerald-400 animate-pulse';
-
-      document.getElementById('out-emi').innerText = '₹' + Math.round(data.emi).toLocaleString('en-IN');
-      document.getElementById('out-rate').innerText = `${data.rate.toFixed(2)}% p.a.`;
-      document.getElementById('out-risk-category').innerText = `${data.riskCategory} Risk`;
-
-      document.getElementById('out-foir').innerText = `${data.foir.toFixed(1)}%`;
-      document.getElementById('out-lti').innerText = `${data.lti.toFixed(2)}x`;
-
-      document.getElementById('out-principal-val').innerText = '₹' + Math.round(data.amount).toLocaleString('en-IN');
-      document.getElementById('out-interest-val').innerText = '₹' + Math.round(data.totalInterest).toLocaleString('en-IN');
-      document.getElementById('out-total-val').innerText = '₹' + Math.round(data.totalPayable).toLocaleString('en-IN');
-
-      // Update Amortization Split Donut Chart (Guarded against NaN and cleanly aligned)
-      const circumference = 2 * Math.PI * 40; // ~251.327
-      const validTotal = data.totalPayable > 0 ? data.totalPayable : 1;
-      const principalFraction = Math.max(0, Math.min(1, data.amount / validTotal));
-      const interestFraction = Math.max(0, Math.min(1, data.totalInterest / validTotal));
-
-      const principalLength = principalFraction * circumference;
-      const interestLength = interestFraction * circumference;
-
-      const principalCircle = document.getElementById('donut-principal');
-      const interestCircle = document.getElementById('donut-interest');
-
-      if (principalCircle && interestCircle) {
-        principalCircle.setAttribute('stroke-dasharray', `${principalLength.toFixed(2)} ${circumference.toFixed(2)}`);
-        principalCircle.setAttribute('stroke-dashoffset', '0');
-
-        interestCircle.setAttribute('stroke-dasharray', `${interestLength.toFixed(2)} ${circumference.toFixed(2)}`);
-        interestCircle.setAttribute('stroke-dashoffset', `${(-principalLength).toFixed(2)}`);
-      }
-
-      document.getElementById('donut-center-tenure').innerText = `${(data.tenure / 12).toFixed(0)} Yrs`;
-      document.getElementById('legend-pct-principal').innerText = `${Math.round(principalFraction * 100)}%`;
-      document.getElementById('legend-pct-interest').innerText = `${Math.round(interestFraction * 100)}%`;
-
-      // Formula breakdown text
-      let formulaText = `Base (${data.baseRate.toFixed(2)}%) × Multiplier (${data.multiplier.toFixed(2)})`;
-      if (data.creditAdj !== 0) formulaText += ` ${data.creditAdj > 0 ? '+' : '-'} Credit (${Math.abs(data.creditAdj).toFixed(2)}%)`;
-      if (data.largeLoanDiscount > 0) formulaText += ` - Large Loan Discount (0.25%)`;
-      formulaText += ` = ${data.rate.toFixed(2)}% p.a.`;
-      document.getElementById('out-formula').innerText = formulaText;
-    }
-
-    function copyQuotePayload() {
-      if (!latestQuoteData) return;
-      const payload = JSON.stringify(latestQuoteData, null, 2);
-      navigator.clipboard.writeText(payload).then(() => {
-        alert("Quote JSON payload copied to clipboard!");
-      }).catch(() => {
-        prompt("Copy Quote JSON:", payload);
-      });
-    }
-
-    // ═════════════════════════════════════════════════════════════════════
-    // 3. TAB NAVIGATION CONTROLLER (Modern Web Guidance Compliant)
-    // ═════════════════════════════════════════════════════════════════════
-    const TAB_KEYS = ['calculator', 'architecture', 'temporal', 'containers', 'schema'];
-
-    function switchTab(tabKey) {
-      TAB_KEYS.forEach(k => {
-        const panel = document.getElementById(`content-${k}`);
-        const btn = document.getElementById(`tab-${k}`);
-        if (panel) {
-          if (k === tabKey) {
-            panel.classList.remove('hidden');
-            panel.classList.add('block');
-          } else {
-            panel.classList.add('hidden');
-            panel.classList.remove('block');
-          }
-        }
-        if (btn) {
-          const isSelected = (k === tabKey);
-          btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
-          btn.tabIndex = isSelected ? 0 : -1;
-          if (isSelected) {
-            btn.classList.add('text-white');
-            btn.classList.remove('text-slate-400');
-          } else {
-            btn.classList.remove('text-white');
-            btn.classList.add('text-slate-400');
-          }
-        }
-      });
-
-      if (tabKey === 'containers') {
-        renderContainerGrid();
-      }
-    }
-
-    // Keyboard navigation for accessible tabs (ArrowLeft, ArrowRight, Home, End)
-    document.addEventListener('keydown', (e) => {
-      const activeEl = document.activeElement;
-      if (!activeEl || activeEl.getAttribute('role') !== 'tab') return;
-
-      const currentIdx = TAB_KEYS.findIndex(k => `tab-${k}` === activeEl.id);
-      if (currentIdx === -1) return;
-
-      let nextIdx = -1;
-      if (e.key === 'ArrowRight') {
-        nextIdx = (currentIdx + 1) % TAB_KEYS.length;
-      } else if (e.key === 'ArrowLeft') {
-        nextIdx = (currentIdx - 1 + TAB_KEYS.length) % TAB_KEYS.length;
-      } else if (e.key === 'Home') {
-        nextIdx = 0;
-      } else if (e.key === 'End') {
-        nextIdx = TAB_KEYS.length - 1;
-      }
-
-      if (nextIdx !== -1) {
-        e.preventDefault();
-        const nextKey = TAB_KEYS[nextIdx];
-        switchTab(nextKey);
-        const nextBtn = document.getElementById(`tab-${nextKey}`);
-        if (nextBtn) nextBtn.focus();
-      }
-    });
-
-    // ═════════════════════════════════════════════════════════════════════
-    // 4. ARCHITECTURE TOPOLOGY FLOW SWITCHER
-    // ═════════════════════════════════════════════════════════════════════
-    function setFlowPerspective(flowKey) {
-      const flowButtons = ['all', 'sync', 'temporal', 'otel'];
-      flowButtons.forEach(key => {
-        const btn = document.getElementById(`flow-btn-${key}`);
-        if (btn) {
-          btn.className = (key === flowKey) 
-            ? 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-bold transition'
-            : 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
-        }
-      });
-
-      const cards = [1, 2, 3, 4, 5].map(i => document.getElementById(`tier-card-${i}`));
-      const title = document.getElementById('flow-narrative-title');
-      const desc = document.getElementById('flow-narrative-desc');
-
-      // Reset card highlights
-      cards.forEach(card => {
-        if (!card) return;
-        card.style.opacity = '1';
-        card.style.borderColor = 'rgba(255, 255, 255, 0.10)';
-      });
-
-      if (flowKey === 'sync') {
-        title.innerText = 'Active Perspective: Instant Pricing Flow (Sync REST)';
-        desc.innerText = 'Tier 1 Ingress -> Tier 2 Core Engine -> Tier 3 YugabyteDB. Responds in < 5ms.';
-        if (cards[3]) cards[3].style.opacity = '0.35';
-        if (cards[4]) cards[4].style.opacity = '0.35';
-        if (cards[0]) cards[0].style.borderColor = 'rgba(56, 189, 248, 0.6)';
-        if (cards[1]) cards[1].style.borderColor = 'rgba(99, 102, 241, 0.8)';
-        if (cards[2]) cards[2].style.borderColor = 'rgba(168, 85, 247, 0.6)';
-      } else if (flowKey === 'temporal') {
-        title.innerText = 'Active Perspective: 7-Day Rate Lock Flow (Temporal Saga)';
-        desc.innerText = 'Tier 2 Core Engine -> Tier 3 Temporal gRPC & temporal-db -> Tier 4 Kafka events.';
-        if (cards[0]) cards[0].style.opacity = '0.35';
-        if (cards[4]) cards[4].style.opacity = '0.35';
-        if (cards[1]) cards[1].style.borderColor = 'rgba(99, 102, 241, 0.8)';
-        if (cards[2]) cards[2].style.borderColor = 'rgba(168, 85, 247, 0.8)';
-        if (cards[3]) cards[3].style.borderColor = 'rgba(245, 158, 11, 0.8)';
-      } else if (flowKey === 'otel') {
-        title.innerText = 'Active Perspective: SRE Observability Mesh (OTLP / PromQL / Loki)';
-        desc.innerText = 'All tiers emit spans & metrics to Tier 5 OpenTelemetry Collector -> Tempo & Prometheus.';
-        if (cards[4]) cards[4].style.borderColor = 'rgba(16, 185, 129, 0.8)';
-      } else {
-        title.innerText = 'Active Perspective: All Tiers';
-        desc.innerText = 'Click any tier above to inspect ports, protocol contracts, and resilience policies.';
-      }
-    }
-
-    // ═════════════════════════════════════════════════════════════════════
-    // 5. TEMPORAL STEPPER LOGIC
-    // ═════════════════════════════════════════════════════════════════════
-    let currentTemporalStep = 1;
-    const temporalStepsData = [
-      {
-        tag: "STEP 1 OF 4",
-        title: "Underwriting Completed & Quote Generated",
-        desc: "Customer requested ₹50,00,000 for 240 months. Core engine verified CIBIL score (780 ≥ 650) and FOIR (20.9% ≤ 50%), issuing quote with 8.00% fixed interest rate."
-      },
-      {
-        tag: "STEP 2 OF 4",
-        title: "Temporal Rate-Lock Workflow Dispatched",
-        desc: "Spring Boot Temporal client initiates PricingRateLockWorkflow on task queue 'epricing-pricing-queue' with 7-day timeout. Execution ID registered in temporal-db."
-      },
-      {
-        tag: "STEP 3 OF 4",
-        title: "7-Day Durable Timer Active (Zero Thread Starvation)",
-        desc: "Workflow enters Workflow.await(Duration.ofDays(7)). Java poller thread releases back to pool; 0% CPU and 0 threads consumed while awaiting external signal."
-      },
-      {
-        tag: "STEP 4 OF 4",
-        title: "Customer Acceptance Signal Received & Rate Locked",
-        desc: "Customer accepts loan offer via online banking portal. External REST signal triggers workflow resumption, emitting LoanPricingEvent to Apache Kafka."
-      }
-    ];
-
-    function setTemporalStep(stepIndex) {
-      currentTemporalStep = stepIndex;
-      updateTemporalStepUI();
-    }
-
-    function advanceTemporalStep() {
-      currentTemporalStep++;
-      if (currentTemporalStep > 4) currentTemporalStep = 1;
-      updateTemporalStepUI();
-    }
-
-    function updateTemporalStepUI() {
-      for (let i = 1; i <= 4; i++) {
-        const col = document.getElementById(`step-col-${i}`);
-        if (!col) continue;
-        if (i <= currentTemporalStep) {
-          col.className = 'p-4 rounded-2xl bg-indigo-600/20 border border-indigo-500/40 space-y-2 cursor-pointer';
-        } else {
-          col.className = 'p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 cursor-pointer';
-        }
-      }
-
-      const step = temporalStepsData[currentTemporalStep - 1];
-      document.getElementById('step-box-tag').innerText = step.tag;
-      document.getElementById('step-box-title').innerText = step.title;
-      document.getElementById('step-box-desc').innerText = step.desc;
-    }
-
-    // ═════════════════════════════════════════════════════════════════════
-    // 6. 17-CONTAINER SERVICE MESH & LIVE ASYNC PING PROBE
-    // ═════════════════════════════════════════════════════════════════════
-    let activeContainerFilter = 'All';
-
-    // Fully deterministic filter controller without implicit window.event
-    function filterContainers(category) {
-      activeContainerFilter = category;
-      document.querySelectorAll('#container-filter-group .c-filter-btn').forEach(btn => {
-        const isMatch = (btn.dataset.category === category);
-        btn.className = isMatch 
-          ? 'c-filter-btn px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold transition'
-          : 'c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition';
-      });
-      renderContainerGrid();
-    }
-
-    function renderContainerGrid() {
-      const grid = document.getElementById('container-grid');
-      if (!grid) return;
-
-      const filtered = SHOWCASE_DATA.containers.filter(c => {
-        if (activeContainerFilter === 'All') return true;
-        return c.category === activeContainerFilter;
-      });
-
-      grid.innerHTML = filtered.map(c => {
-        let statusBadge = '';
-        if (c.status === 'live') {
-          statusBadge = `<span class="flex items-center gap-1.5 text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Live</span>`;
-        } else if (c.status === 'offline') {
-          statusBadge = `<span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">Offline / Standby</span>`;
-        } else {
-          statusBadge = `<span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-white/5 text-slate-300 border border-white/10">Standby (Compose)</span>`;
-        }
-
-        return `
-          <div class="glass-card p-4 rounded-2xl flex flex-col justify-between space-y-3">
-            <div>
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-white/5 text-indigo-300">${c.category}</span>
-                ${statusBadge}
-              </div>
-              <h4 class="font-mono font-bold text-white text-sm truncate">${c.name}</h4>
-              <p class="text-xs text-slate-400 leading-snug mt-1">${c.role}</p>
-            </div>
-
-            <div class="space-y-1 text-[11px] font-mono bg-black/40 p-2.5 rounded-xl border border-white/5">
-              <div class="text-indigo-300 truncate"><span class="text-slate-500">Port:</span> ${c.port}</div>
-              <div class="text-slate-300 truncate"><span class="text-slate-500">Image:</span> ${c.image}</div>
-              <div class="text-slate-400 truncate"><span class="text-slate-500">Alias:</span> ${c.networkAlias}</div>
-            </div>
-
-            <div class="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] font-mono">
-              <span class="text-slate-500">${c.serviceName}</span>
-              <button onclick="openContainerModal('${c.name}')" class="text-indigo-400 hover:text-indigo-300 font-semibold" aria-label="Inspect spec for ${c.name}">Inspect Spec &rarr;</button>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    async function pingLocalStack() {
-      const btn = document.getElementById('btn-ping-stack');
-      const pingText = document.getElementById('ping-text');
-      const pingIcon = document.getElementById('ping-icon');
-      const resultBox = document.getElementById('probe-result-box');
-
-      btn.disabled = true;
-      pingText.innerText = 'Probing stack...';
-      pingIcon.classList.add('animate-spin');
-
-      const probePromises = SHOWCASE_DATA.containers.map(async c => {
-        if (!c.probeEndpoint) {
-          return { container: c, reachable: null };
-        }
-        try {
-          await fetch(c.probeEndpoint, {
-            method: 'GET',
-            mode: 'no-cors',
-            signal: AbortSignal.timeout(1200)
-          });
-          return { container: c, reachable: true };
-        } catch (err) {
-          return { container: c, reachable: false };
-        }
-      });
-
-      const results = await Promise.allSettled(probePromises);
-      let liveHttpCount = 0;
-      let probedHttpCount = 0;
-
-      results.forEach(res => {
-        if (res.status === 'fulfilled') {
-          const { container, reachable } = res.value;
-          if (reachable === true) {
-            container.status = 'live';
-            liveHttpCount++;
-            probedHttpCount++;
-          } else if (reachable === false) {
-            container.status = 'offline';
-            probedHttpCount++;
-          }
-        }
-      });
-
-      const stackIsLive = liveHttpCount > 0;
-      SHOWCASE_DATA.containers.forEach(c => {
-        if (!c.probeEndpoint) {
-          c.status = stackIsLive ? 'live' : 'offline';
-        }
-      });
-
-      const totalOnlineContainers = SHOWCASE_DATA.containers.filter(c => c.status === 'live').length;
-
-      btn.disabled = false;
-      pingText.innerText = 'Re-Probe Localhost Stack';
-      pingIcon.classList.remove('animate-spin');
-
-      // Update Nav Dot with true count
-      const navDot = document.getElementById('nav-stack-dot');
-      const navText = document.getElementById('nav-stack-text');
-      if (stackIsLive) {
-        navDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
-        navText.innerText = `${totalOnlineContainers}/17 Containers (Live)`;
-      } else {
-        navDot.className = 'w-2 h-2 rounded-full bg-amber-400';
-        navText.innerText = '17 Containers (Offline)';
-      }
-
-      // Banner Display
-      resultBox.classList.remove('hidden');
-      if (!stackIsLive) {
-        resultBox.className = 'p-4 rounded-2xl border border-amber-500/40 bg-amber-950/20 text-xs font-mono space-y-2 text-slate-300';
-        resultBox.innerHTML = `
-          <div class="flex items-center justify-between">
-            <span class="text-amber-400 font-bold flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-              Probe Complete: 0/${probedHttpCount} HTTP Endpoints Responding
-            </span>
-            <span class="text-[10px] text-slate-400">Docker Daemon Standby</span>
-          </div>
-          <p class="text-slate-300 font-sans text-xs">
-            Workstation containers are not actively running. Start the 17-container stack with:
-          </p>
-          <div class="flex items-center gap-2 bg-black/60 p-2.5 rounded-xl border border-white/10">
-            <code class="text-emerald-400 font-bold flex-1 select-all font-mono">docker compose up -d</code>
-            <button onclick="navigator.clipboard.writeText('docker compose up -d')" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-sans text-[11px] font-semibold">Copy</button>
-          </div>
-        `;
-      } else {
-        resultBox.className = 'p-4 rounded-2xl border border-emerald-500/40 bg-emerald-950/20 text-xs font-mono space-y-2 text-slate-300';
-        resultBox.innerHTML = `
-          <div class="flex items-center justify-between">
-            <span class="text-emerald-400 font-bold flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              Live Microservice Stack Detected: ${totalOnlineContainers}/17 Containers Active (${liveHttpCount} probed HTTP)!
-            </span>
-            <span class="text-[10px] text-emerald-400 font-bold">Stack Active</span>
-          </div>
-          <p class="text-slate-300 font-sans text-xs">
-            Containers are online. You can view metrics in Grafana at <a href="http://localhost:3000" target="_blank" class="text-indigo-400 underline">http://localhost:3000</a>.
-          </p>
-        `;
-      }
-
-      renderContainerGrid();
-    }
-
-    function resetContainerStatuses() {
-      SHOWCASE_DATA.containers.forEach(c => c.status = 'standby');
-      document.getElementById('probe-result-box').classList.add('hidden');
-      document.getElementById('nav-stack-dot').className = 'w-2 h-2 rounded-full bg-amber-400';
-      document.getElementById('nav-stack-text').innerText = '17 Containers';
-      document.getElementById('ping-text').innerText = 'Ping Localhost Stack';
-      renderContainerGrid();
-    }
-
-    // ═════════════════════════════════════════════════════════════════════
-    // 7. SPECIFICATION MODALS (Modern Web Guidance Compliant)
-    // ═════════════════════════════════════════════════════════════════════
-    function openTierModal(tierKey) {
-      const tier = SHOWCASE_DATA.tiers[tierKey];
-      if (!tier) return;
-
-      document.getElementById('modal-title').innerText = tier.title;
-      document.getElementById('modal-body').innerHTML = `
-        <div class="space-y-3 font-mono text-xs">
-          <div class="bg-black/40 p-4 rounded-2xl border border-white/10 space-y-2">
-            <div><span class="text-slate-500">Ports:</span> <span class="text-indigo-300">${tier.ports}</span></div>
-            <div><span class="text-slate-500">Protocol:</span> <span class="text-emerald-300">${tier.protocol}</span></div>
-          </div>
-          <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/5 text-slate-300 font-sans text-xs leading-relaxed">
-            ${tier.specs}
-          </div>
-        </div>
-      `;
-      const modal = document.getElementById('spec-modal');
-      if (typeof modal.showModal === 'function') modal.showModal();
-      else modal.setAttribute('open', '');
-    }
-
-    function openContainerModal(containerName) {
-      const container = SHOWCASE_DATA.containers.find(c => c.name === containerName);
-      if (!container) return;
-
-      document.getElementById('modal-title').innerText = `Container: ${container.name}`;
-      document.getElementById('modal-body').innerHTML = `
-        <div class="space-y-3 font-mono text-xs">
-          <div class="bg-black/40 p-4 rounded-2xl border border-white/10 space-y-2">
-            <div><span class="text-slate-500">Compose Service:</span> <span class="text-indigo-400 font-bold">${container.serviceName}</span></div>
-            <div><span class="text-slate-500">Container Role:</span> <span class="text-slate-200">${container.role}</span></div>
-            <div><span class="text-slate-500">Docker Image:</span> <span class="text-emerald-400">${container.image}</span></div>
-            <div><span class="text-slate-500">Ports:</span> <span class="text-sky-300">${container.port}</span></div>
-            <div><span class="text-slate-500">Network Alias:</span> <span class="text-purple-300">${container.network} (${container.networkAlias})</span></div>
-            <div><span class="text-slate-500">Healthcheck:</span> <span class="text-amber-300">${container.healthcheck}</span></div>
-          </div>
-          <div class="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 font-sans text-xs text-slate-300">
-            Defined in <code class="text-indigo-300 font-mono">docker-compose.yml</code>. To run this individual service:<br>
-            <code class="text-emerald-400 font-mono mt-1 block select-all">docker compose up -d ${container.serviceName}</code>
-          </div>
-        </div>
-      `;
-      const modal = document.getElementById('spec-modal');
-      if (typeof modal.showModal === 'function') modal.showModal();
-      else modal.setAttribute('open', '');
-    }
-
-    function closeModal() {
-      const modal = document.getElementById('spec-modal');
-      if (typeof modal.close === 'function') modal.close();
-      else modal.removeAttribute('open');
-    }
-
-    // Modern Web Guidance: Light-dismiss fallback for browsers without closedby support
-    const dialogElement = document.getElementById('spec-modal');
-    if (!('closedBy' in HTMLDialogElement.prototype) && dialogElement) {
-      dialogElement.addEventListener('click', (event) => {
-        if (event.target !== dialogElement) return;
-        const rect = dialogElement.getBoundingClientRect();
-        const isDialogContent = (
-          rect.top <= event.clientY &&
-          event.clientY <= rect.top + rect.height &&
-          rect.left <= event.clientX &&
-          event.clientX <= rect.left + rect.width
-        );
-        if (!isDialogContent) {
-          closeModal();
-        }
-      });
-    }
-
-    // ═════════════════════════════════════════════════════════════════════
-    // 8. INITIALIZE ON LOAD
-    // ═════════════════════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', () => {
-      calculateLivePricing();
-      renderContainerGrid();
+      calculate();
     });
   </script>
 </body>

@@ -12,8 +12,7 @@ The `epricing-service` repository includes a dedicated browser-based interactive
 
 ```
 showcase/
-├── index.html            # Main multi-tab interactive showcase application
-└── glassmorphism.html    # Standalone design system showcase and component sandbox
+└── index.html            # Unified high-performance presentation showcase application
 ```
 
 ---
@@ -101,11 +100,8 @@ The showcase is built using pure, standards-compliant HTML5, CSS3, and JavaScrip
 ### Option 1: Direct Browser Launch (Simplest)
 On Windows, run in PowerShell:
 ```powershell
-# Open main showcase in default browser
+# Open presentation showcase in default browser
 Start-Process "showcase\index.html"
-
-# Open glassmorphism design gallery
-Start-Process "showcase\glassmorphism.html"
 ```
 Or simply double-click `showcase/index.html` in Windows Explorer or macOS Finder.
 
@@ -116,8 +112,7 @@ To test cross-origin API integration with a running backend:
 python -m http.server 8000
 ```
 Then navigate to:
-- Main Showcase: `http://localhost:8000/showcase/index.html`
-- Design Gallery: `http://localhost:8000/showcase/glassmorphism.html`
+- Presentation Showcase: `http://localhost:8000/showcase/index.html`
 
 ### Option 3: Node / npx serve
 ```bash
