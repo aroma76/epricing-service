@@ -1,9 +1,10 @@
 # L1 Operations Dashboard
 
-> File: grafana/dashboards/epricing-l1-operations-dashboard.json
-> URL: http://localhost:3000 -> Bank ePricing Monitoring -> ePricing L1 Operations Dashboard
-> Datasources: Prometheus (metrics) + YugabyteDB/PostgreSQL (job records)
-> Auto-refresh: 10 seconds | Default range: Last 30 minutes
+> **File:** `grafana/dashboards/epricing-l1-operations-dashboard.json`  
+> **URL:** `http://localhost:3000` -> Bank ePricing Monitoring -> ePricing L1 Operations Dashboard  
+> **Datasources:** Prometheus (metrics) + YugabyteDB/PostgreSQL (job records)  
+> **Auto-refresh:** 10 seconds | **Default range:** Last 30 minutes  
+> **Detailed Component & Threshold Reference:** [`DASHBOARD_COMPONENTS_REFERENCE.md`](./DASHBOARD_COMPONENTS_REFERENCE.md#1-epricing-l1-operations-dashboard)  
 
 ## Purpose
 

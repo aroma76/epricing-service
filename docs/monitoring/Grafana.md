@@ -19,6 +19,8 @@ Grafana is the **"single pane of glass"** for the ePricing observability stack. 
 
 ## Auto-Provisioning
 
+> **Master Component & Threshold Guide:** See [`DASHBOARD_COMPONENTS_REFERENCE.md`](./DASHBOARD_COMPONENTS_REFERENCE.md) for the complete dictionary of every metric, calculation formula, and Good/Warning/Bad operational threshold across all 4 dashboards.
+
 Grafana is fully configured at startup via provisioning files. No manual setup is required.
 
 ```
