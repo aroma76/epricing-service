@@ -40,7 +40,7 @@ public class PricingAuditLog {
     @Column(name = "performed_by", length = 100, updatable = false)
     private String performedBy;
 
-    @Column(name = "outcome", length = 20, updatable = false)
+    @Column(name = "outcome", length = 50, updatable = false)
     private String outcome;
 
     @Column(name = "metadata", columnDefinition = "TEXT", updatable = false)

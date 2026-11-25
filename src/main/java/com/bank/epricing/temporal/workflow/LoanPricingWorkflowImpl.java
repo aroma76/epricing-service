@@ -96,11 +96,13 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
                 ? quote.getRequestId().toString()
                 : null;
 
-        // Step 2: Durable wait for approval/rejection or rate-lock expiration
+        // Step 2: Durable wait for approval/rejection or rate-lock expiration (unless already signaled)
         int days = rateValidDays > 0 ? rateValidDays : 7;
         log.info("Rate lock active for {} days. Awaiting customer signal | workflowId={}", days, workflowId);
 
-        boolean decisionMade = Workflow.await(Duration.ofDays(days), () -> approved || rejected);
+        if (!approved && !rejected) {
+            Workflow.await(Duration.ofDays(days), () -> approved || rejected);
+        }
 
         String decisionTime = java.time.Instant.ofEpochMilli(Workflow.currentTimeMillis()).toString();
         if (approved) {
@@ -129,7 +131,7 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
 
     @Override
     public void approveQuote() {
-        if (!"QUOTED".equals(status) || approved || rejected) {
+        if (approved || rejected || "EXPIRED".equals(status)) {
             log.warn("Cannot approve quote in state: {} (approved={}, rejected={})", status, approved, rejected);
             return;
         }
@@ -138,7 +140,7 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
 
     @Override
     public void rejectQuote(String reason) {
-        if (!"QUOTED".equals(status) || approved || rejected) {
+        if (approved || rejected || "EXPIRED".equals(status)) {
             log.warn("Cannot reject quote in state: {} (approved={}, rejected={})", status, approved, rejected);
             return;
         }

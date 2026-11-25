@@ -38,6 +38,11 @@ data:
   OTEL_METRICS_EXPORTER: "none"
   OTEL_LOGS_EXPORTER: "none"
 
+  # Kafka domain event streaming
+  KAFKA_ENABLED: "true"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka.streaming.svc.cluster.local:9092"
+  KAFKA_TOPIC: "loan-pricing-events"
+
   # Core pricing domain business parameters
   EPRICING_BASE_RATE: "8.50"
   EPRICING_RATE_VALID_DAYS: "7"
