@@ -138,6 +138,8 @@ services:
       OTEL_TRACES_SAMPLER: parentbased_always_on
       
       # Enterprise Distributed Database (YugabyteDB Smart Driver)
+      DB_USERNAME: yugabyte
+      DB_PASSWORD: yugabyte
       SPRING_DATASOURCE_URL: jdbc:yugabytedb://yugabytedb:5433/epricingdb?load-balance=true&sslmode=disable
       SPRING_DATASOURCE_USERNAME: yugabyte
       SPRING_DATASOURCE_PASSWORD: yugabyte
@@ -200,11 +202,11 @@ services:
     
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider",
-             "http://127.0.0.1:8081/actuator/health"]
+             "http://127.0.0.1:8081/actuator/health/liveness"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 90s  # Give Spring Boot time to start before health checks begin
+      retries: 5
+      start_period: 180s  # Increased for Cloud PC JVM startup and initialization
 
   # ═══════════════════════════════════════════════════════════════════════
   # SERVICE 2: Prometheus — Metrics Time-Series Database

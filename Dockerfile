@@ -57,9 +57,9 @@ EXPOSE 8081
 # Container healthcheck
 HEALTHCHECK --interval=30s \
             --timeout=10s \
-            --start-period=60s \
-            --retries=3 \
-            CMD wget --quiet --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+            --start-period=180s \
+            --retries=5 \
+            CMD wget --quiet --tries=1 --spider http://localhost:8081/actuator/health/liveness || exit 1
 
 # Container-aware JVM tuning flags
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
