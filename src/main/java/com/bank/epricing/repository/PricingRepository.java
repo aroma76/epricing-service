@@ -104,5 +104,15 @@ public interface PricingRepository extends JpaRepository<PricingRequest, Long> {
      * the distributed trace in Grafana Tempo.
      */
     Optional<PricingRequest> findByTraceId(String traceId);
+
+    /**
+     * Idempotent request lookup — prevents duplicate quote persistence across retries.
+     */
+    Optional<PricingRequest> findByIdempotencyKey(String idempotencyKey);
+
+    /**
+     * Correlates Temporal workflow execution back to the persisted pricing quote.
+     */
+    Optional<PricingRequest> findByWorkflowId(String workflowId);
 }
 

@@ -160,4 +160,31 @@ class DatabaseMigrationInitializerTest {
         assertDoesNotThrow(initializer::runMigrations);
         assertEquals(2, getConnCalls.get(), "Expected fresh connection to be acquired after advisory lock failure evicted first connection");
     }
+
+    @Test
+    @DisplayName("Should skip V4 demo seed data when seedDemoData=false and still apply V9 schema hardening tables")
+    void shouldSkipV4SeedDataWhenDisabledAndApplyV9Schema() throws Exception {
+        DriverManagerDataSource dataSource = new DriverManagerDataSource();
+        dataSource.setDriverClassName("org.h2.Driver");
+        dataSource.setUrl("jdbc:h2:mem:migration_prod_skip_v4;DB_CLOSE_DELAY=-1;MODE=PostgreSQL");
+        dataSource.setUsername("sa");
+        dataSource.setPassword("");
+
+        org.springframework.mock.env.MockEnvironment env = new org.springframework.mock.env.MockEnvironment();
+        env.setActiveProfiles("prod");
+        DatabaseMigrationInitializer initializer = new DatabaseMigrationInitializer(dataSource, false, "", env);
+        assertDoesNotThrow(initializer::runMigrations);
+
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM pricing_requests")) {
+                assertTrue(rs.next());
+                assertEquals(0, rs.getInt(1), "V4 dummy customer seed rows must NOT be inserted when seedDemoData=false in prod");
+            }
+            try (ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM outbox_events")) {
+                assertTrue(rs.next());
+                assertEquals(0, rs.getInt(1), "V9 outbox_events table must exist");
+            }
+        }
+    }
 }

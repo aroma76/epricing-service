@@ -80,4 +80,18 @@ class PricingRequestDtoValidationTest {
         assertTrue(violations.stream().anyMatch(v -> "customerId".equals(v.getPropertyPath().toString())),
                 "Expected violation on 'customerId' property for: " + customerId);
     }
+
+    @org.junit.jupiter.api.Test
+    @DisplayName("Null credit score and overflowing annual income fail Bean Validation cleanly")
+    void testMandatoryCreditScoreAndIncomeUpperBound() {
+        PricingRequestDto missingScore = buildValidDtoWithCustomerId("CUST000001");
+        missingScore.setCreditScore(null);
+        Set<ConstraintViolation<PricingRequestDto>> scoreViolations = validator.validate(missingScore);
+        assertTrue(scoreViolations.stream().anyMatch(v -> "creditScore".equals(v.getPropertyPath().toString())));
+
+        PricingRequestDto hugeIncome = buildValidDtoWithCustomerId("CUST000001");
+        hugeIncome.setAnnualIncome(new BigDecimal("10000000000000.00"));
+        Set<ConstraintViolation<PricingRequestDto>> incomeViolations = validator.validate(hugeIncome);
+        assertTrue(incomeViolations.stream().anyMatch(v -> "annualIncome".equals(v.getPropertyPath().toString())));
+    }
 }

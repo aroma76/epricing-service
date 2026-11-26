@@ -21,6 +21,16 @@ epricing:
     enabled: false
   kafka:
     enabled: false
+  outbox:
+    enabled: false
+  migrations:
+    seed-demo-data: false
+  security:
+    enabled: true
+    trust-forwarded-headers: false
+    client-api-key: "test-client-key-0123456789abcdef"
+    operator-api-key: "test-operator-key-0123456789abcdef"
+    admin-api-key: "test-admin-key-0123456789abcdef"
   cors:
     allowed-origins: "http://localhost:3000"
 

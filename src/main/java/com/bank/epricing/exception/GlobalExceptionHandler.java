@@ -62,15 +62,14 @@ public class GlobalExceptionHandler {
             request.getDescription(false)
         );
 
-        ErrorResponse errorResponse = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .status(ex.getHttpStatus().value())
-            .error(ex.getHttpStatus().getReasonPhrase())
-            .errorCode(ex.getErrorCode())
-            .message(ex.getMessage())
-            .path(request.getDescription(false).replace("uri=", ""))
-            .traceId(currentSpan.getSpanContext().getTraceId())
-            .build();
+        ErrorResponse errorResponse = buildError(
+            ex.getHttpStatus(),
+            ex.getErrorCode(),
+            ex.getMessage(),
+            request,
+            null,
+            currentSpan.getSpanContext().getTraceId()
+        );
 
         return ResponseEntity.status(ex.getHttpStatus()).body(errorResponse);
     }
@@ -111,7 +110,7 @@ public class GlobalExceptionHandler {
             .error("Validation Failed")
             .errorCode("PRICING_VALIDATION_FAILED")
             .message("Request validation failed. Check 'fieldErrors' for details.")
-            .path(request.getDescription(false).replace("uri=", ""))
+            .path(extractPath(request))
             .fieldErrors(fieldErrors)
             .traceId(Span.current().getSpanContext().getTraceId())
             .build();
@@ -135,17 +134,12 @@ public class GlobalExceptionHandler {
             request.getDescription(false)
         );
 
-        ErrorResponse errorResponse = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
-            .errorCode("MALFORMED_REQUEST_BODY")
-            .message("Malformed JSON request body or missing required payload.")
-            .path(request.getDescription(false).replace("uri=", ""))
-            .traceId(Span.current().getSpanContext().getTraceId())
-            .build();
-
-        return ResponseEntity.badRequest().body(errorResponse);
+        return ResponseEntity.badRequest().body(buildError(
+            HttpStatus.BAD_REQUEST,
+            "MALFORMED_REQUEST_BODY",
+            "Malformed JSON request body or missing required payload.",
+            request, null, Span.current().getSpanContext().getTraceId()
+        ));
     }
 
     @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
@@ -162,17 +156,12 @@ public class GlobalExceptionHandler {
         log.warn("Method argument type mismatch | parameter={} | value={} | path={}",
             ex.getName(), ex.getValue(), request.getDescription(false));
 
-        ErrorResponse errorResponse = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
-            .errorCode("ARGUMENT_TYPE_MISMATCH")
-            .message(String.format("Parameter '%s' has invalid value '%s'", ex.getName(), ex.getValue()))
-            .path(request.getDescription(false).replace("uri=", ""))
-            .traceId(Span.current().getSpanContext().getTraceId())
-            .build();
-
-        return ResponseEntity.badRequest().body(errorResponse);
+        return ResponseEntity.badRequest().body(buildError(
+            HttpStatus.BAD_REQUEST,
+            "ARGUMENT_TYPE_MISMATCH",
+            String.format("Parameter '%s' has invalid value '%s'", ex.getName(), ex.getValue()),
+            request, null, Span.current().getSpanContext().getTraceId()
+        ));
     }
 
     @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
@@ -189,17 +178,12 @@ public class GlobalExceptionHandler {
         log.warn("HTTP method not supported | method={} | supported={} | path={}",
             ex.getMethod(), ex.getSupportedHttpMethods(), request.getDescription(false));
 
-        ErrorResponse errorResponse = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .status(HttpStatus.METHOD_NOT_ALLOWED.value())
-            .error(HttpStatus.METHOD_NOT_ALLOWED.getReasonPhrase())
-            .errorCode("METHOD_NOT_ALLOWED")
-            .message(String.format("HTTP method '%s' not supported for this endpoint.", ex.getMethod()))
-            .path(request.getDescription(false).replace("uri=", ""))
-            .traceId(Span.current().getSpanContext().getTraceId())
-            .build();
-
-        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(buildError(
+            HttpStatus.METHOD_NOT_ALLOWED,
+            "METHOD_NOT_ALLOWED",
+            String.format("HTTP method '%s' not supported for this endpoint.", ex.getMethod()),
+            request, null, Span.current().getSpanContext().getTraceId()
+        ));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -216,17 +200,12 @@ public class GlobalExceptionHandler {
         log.warn("Invalid argument | message={} | path={}",
             ex.getMessage(), request.getDescription(false));
 
-        ErrorResponse errorResponse = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
-            .errorCode("INVALID_ARGUMENT")
-            .message(ex.getMessage())
-            .path(request.getDescription(false).replace("uri=", ""))
-            .traceId(Span.current().getSpanContext().getTraceId())
-            .build();
-
-        return ResponseEntity.badRequest().body(errorResponse);
+        return ResponseEntity.badRequest().body(buildError(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_ARGUMENT",
+            ex.getMessage(),
+            request, null, Span.current().getSpanContext().getTraceId()
+        ));
     }
 
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
@@ -234,15 +213,31 @@ public class GlobalExceptionHandler {
         org.springframework.web.servlet.resource.NoResourceFoundException ex,
         WebRequest request
     ) {
-        ErrorResponse errorResponse = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .status(HttpStatus.NOT_FOUND.value())
-            .error(HttpStatus.NOT_FOUND.getReasonPhrase())
-            .errorCode("RESOURCE_NOT_FOUND")
-            .message(ex.getMessage())
-            .path(request.getDescription(false).replace("uri=", ""))
-            .build();
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(buildError(
+            HttpStatus.NOT_FOUND,
+            "RESOURCE_NOT_FOUND",
+            ex.getMessage(),
+            request, null, null
+        ));
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+        org.springframework.security.access.AccessDeniedException ex,
+        WebRequest request
+    ) {
+        meterRegistry.counter(
+            "pricing.errors.total",
+            "error_type", "ACCESS_DENIED",
+            "http_status", "403"
+        ).increment();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(buildError(
+            HttpStatus.FORBIDDEN,
+            "FORBIDDEN",
+            ex.getMessage(),
+            request, null, Span.current().getSpanContext().getTraceId()
+        ));
     }
 
     @ExceptionHandler(Exception.class)
@@ -271,17 +266,30 @@ public class GlobalExceptionHandler {
         currentSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Internal server error");
         currentSpan.recordException(ex);
 
-        ErrorResponse errorResponse = ErrorResponse.builder()
-            .timestamp(LocalDateTime.now())
-            .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-            .error("Internal Server Error")
-            .errorCode("INTERNAL_SERVER_ERROR")
-            .message("An unexpected error occurred. Please contact support with reference: " + errorRefId)
-            .path(request.getDescription(false).replace("uri=", ""))
-            .traceId(currentSpan.getSpanContext().getTraceId())
-            .build();
+        return ResponseEntity.internalServerError().body(buildError(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "INTERNAL_SERVER_ERROR",
+            "An unexpected error occurred. Please contact support with reference: " + errorRefId,
+            request, null, currentSpan.getSpanContext().getTraceId()
+        ));
+    }
 
-        return ResponseEntity.internalServerError().body(errorResponse);
+    private ErrorResponse buildError(HttpStatus status, String errorCode, String message,
+                                   WebRequest request, Map<String, String> fieldErrors, String traceId) {
+        return ErrorResponse.builder()
+            .timestamp(LocalDateTime.now())
+            .status(status.value())
+            .error(status.getReasonPhrase())
+            .errorCode(errorCode)
+            .message(message)
+            .path(extractPath(request))
+            .fieldErrors(fieldErrors)
+            .traceId(traceId)
+            .build();
+    }
+
+    private static String extractPath(WebRequest request) {
+        return request != null ? request.getDescription(false).replace("uri=", "") : "";
     }
 
     public static class ErrorResponse {

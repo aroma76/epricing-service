@@ -220,8 +220,14 @@ public class PricingCalculator {
      */
     public void validateEligibility(String customerId, Integer creditScore, BigDecimal loanAmount,
             BigDecimal annualIncome) {
+        if (creditScore == null) {
+            throw new PricingException(
+                    "Credit score is required for loan eligibility assessment",
+                    "PRICING_CREDIT_SCORE_REQUIRED",
+                    org.springframework.http.HttpStatus.BAD_REQUEST);
+        }
         // Minimum credit score check
-        if (creditScore != null && creditScore < MINIMUM_CREDIT_SCORE) {
+        if (creditScore < MINIMUM_CREDIT_SCORE) {
             throw new PricingException.InsufficientCreditScoreException(
                     customerId, creditScore, MINIMUM_CREDIT_SCORE);
         }

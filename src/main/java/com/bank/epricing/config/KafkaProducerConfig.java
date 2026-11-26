@@ -36,11 +36,18 @@ public class KafkaProducerConfig {
 
     @Bean
     public NewTopic loanPricingEventsTopic(
-            @Value("${spring.kafka.template.default-topic:${kafka.topic:loan-pricing-events}}") String topicName) {
-        log.info("Registering Kafka NewTopic bean | topicName={}", topicName);
+            @Value("${spring.kafka.template.default-topic:${kafka.topic:loan-pricing-events}}") String topicName,
+            @Value("${epricing.kafka.topic-partitions:${KAFKA_TOPIC_PARTITIONS:3}}") int topicPartitions,
+            @Value("${epricing.kafka.topic-replicas:${KAFKA_TOPIC_REPLICAS:1}}") int topicReplicas,
+            @Value("${epricing.kafka.min-insync-replicas:${KAFKA_MIN_INSYNC_REPLICAS:1}}") String minInsyncReplicas) {
+        int partitions = Math.max(1, topicPartitions);
+        int replicas = Math.max(1, topicReplicas);
+        log.info("Registering Kafka NewTopic bean | topicName={} | partitions={} | replicas={} | minInsyncReplicas={}",
+                topicName, partitions, replicas, minInsyncReplicas);
         return TopicBuilder.name(topicName)
-                .partitions(3)
-                .replicas(1)
+                .partitions(partitions)
+                .replicas(replicas)
+                .config("min.insync.replicas", minInsyncReplicas)
                 .build();
     }
 

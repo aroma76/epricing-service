@@ -29,5 +29,15 @@ class TemporalPricingServiceTest {
         assertEquals("TEMPORAL_DISABLED", ex.getErrorCode());
         assertFalse(service.isTemporalEnabled());
     }
+
+    @Test
+    @DisplayName("Blank reject reason normalizes cleanly inside rejectQuote when Temporal service checks run")
+    void testRejectQuoteValidatesTemporalAvailability() {
+        TemporalPricingService service = new TemporalPricingService(Optional.empty());
+        PricingException ex = assertThrows(PricingException.class, () ->
+            service.rejectQuote("wf-1", "   ")
+        );
+        assertEquals("TEMPORAL_DISABLED", ex.getErrorCode());
+    }
 }
 

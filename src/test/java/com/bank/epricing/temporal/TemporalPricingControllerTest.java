@@ -39,6 +39,7 @@ class TemporalPricingControllerTest {
         boolean approveInvoked = false;
         boolean rejectInvoked = false;
         String lastRejectedReason;
+        String lastIdempotencyKey;
 
         public StubTemporalPricingService() {
             super(Optional.empty());
@@ -46,6 +47,12 @@ class TemporalPricingControllerTest {
 
         @Override
         public PricingWorkflowResult startPricingWorkflow(PricingRequestDto requestDto, String requestIp) {
+            return mockResult;
+        }
+
+        @Override
+        public PricingWorkflowResult startPricingWorkflow(PricingRequestDto requestDto, String requestIp, String idempotencyKey) {
+            this.lastIdempotencyKey = idempotencyKey;
             return mockResult;
         }
 
@@ -228,5 +235,63 @@ class TemporalPricingControllerTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error_code").value("PRICING_VALIDATION_FAILED"));
         }
+    }
+
+    @Test
+    @DisplayName("POST /workflow/pricing/{workflowId}/reject handles empty {} or null reason without HTTP 500 NPE")
+    void testRejectWorkflowEmptyOrNullReasonDoesNotThrowNpe() throws Exception {
+        mockMvc.perform(post("/workflow/pricing/wf-123/reject")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"))
+                .andExpect(jsonPath("$.reason").value("Customer rejected offer"));
+
+        mockMvc.perform(post("/workflow/pricing/wf-123/reject")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\": \"   \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"))
+                .andExpect(jsonPath("$.reason").value("Customer rejected offer"));
+    }
+
+    @Test
+    @DisplayName("GET /workflow/pricing/{workflowId} maps missing Temporal workflow to HTTP 404 instead of HTTP 500")
+    void testGetMissingWorkflowReturns404() throws Exception {
+        TemporalPricingService failingService = new TemporalPricingService(Optional.empty()) {
+            @Override
+            public PricingWorkflowResult getWorkflowResult(String workflowId) {
+                throw new com.bank.epricing.exception.PricingException.WorkflowNotFoundException(workflowId);
+            }
+        };
+        TemporalPricingController controller = new TemporalPricingController(failingService);
+        MockMvc customMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler(new SimpleMeterRegistry(), new StructuredLogger()))
+                .build();
+
+        customMvc.perform(get("/workflow/pricing/nonexistent-wf-999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error_code").value("WORKFLOW_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("POST /workflow/pricing/start forwards Idempotency-Key header cleanly")
+    void testStartWorkflowForwardsIdempotencyKeyHeader() throws Exception {
+        PricingRequestDto request = PricingRequestDto.builder()
+                .customerId("CUST001234")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("5000000.00"))
+                .loanTenureMonths(240)
+                .creditScore(780)
+                .annualIncome(new BigDecimal("1800000.00"))
+                .build();
+        stubService.mockResult = new PricingWorkflowResult("pricing-CUST001234-idem", "CUST001234", "HOME_LOAN", "QUOTED", null);
+
+        mockMvc.perform(post("/workflow/pricing/start")
+                        .header("Idempotency-Key", "wf-idem-abc-123")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted());
+        assertEquals("wf-idem-abc-123", stubService.lastIdempotencyKey);
     }
 }

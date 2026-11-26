@@ -3,15 +3,21 @@ package com.bank.epricing.controller;
 import com.bank.epricing.dto.PagedResponse;
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.dto.PricingResponseDto;
+import com.bank.epricing.security.ClientIpResolver;
 import com.bank.epricing.service.PricingService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.bank.epricing.logging.StructuredLogger;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,18 +54,27 @@ public class PricingController {
     private static final Logger log = LoggerFactory.getLogger(PricingController.class);
 
     private final PricingService pricingService;
+    private final ClientIpResolver clientIpResolver;
+    private final boolean securityEnabled;
 
     public PricingController(PricingService pricingService) {
+        this(pricingService, new ClientIpResolver(false), false);
+    }
+
+    @Autowired
+    public PricingController(PricingService pricingService,
+                             ClientIpResolver clientIpResolver,
+                             @Value("${epricing.security.enabled:true}") boolean securityEnabled) {
         this.pricingService = pricingService;
+        this.clientIpResolver = clientIpResolver != null ? clientIpResolver : new ClientIpResolver(false);
+        this.securityEnabled = securityEnabled;
     }
 
     /**
      * GET /api/v1/pricing
      *
      * Returns paginated pricing requests for a customer, or recent pricing history in a uniform envelope.
-     *
-     * ISSUE-10 FIX: Standardized on PagedResponse<PricingResponseDto> to guarantee a deterministic,
-     * strongly-typed contract across all clients, eliminating polymorphic contract flipping.
+     * Bulk unfiltered listing (blank customerId) is restricted to OPERATOR/ADMIN roles when security is enabled.
      */
     @GetMapping
     public ResponseEntity<PagedResponse<PricingResponseDto>> getPricingHistory(
@@ -67,6 +82,14 @@ public class PricingController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "20") int size
     ) {
+        if (securityEnabled && (customerId == null || customerId.isBlank())) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            boolean privileged = auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_OPERATOR".equals(a.getAuthority()) || "ROLE_ADMIN".equals(a.getAuthority()));
+            if (!privileged) {
+                throw new AccessDeniedException("customerId filter is required unless caller holds OPERATOR or ADMIN role");
+            }
+        }
         log.info("GET /pricing | customerId={} | page={} | size={}", StructuredLogger.maskCustomerId(customerId), page, size);
         int pageSize = (size > 0 && size <= 100) ? size : 20;
         int pageNumber = Math.max(0, page);
@@ -102,15 +125,19 @@ public class PricingController {
     @PostMapping
     public ResponseEntity<PricingResponseDto> calculatePricing(
         @Valid @RequestBody PricingRequestDto requestDto,
+        @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
         HttpServletRequest httpRequest
     ) {
+        String normalizedKey = PricingService.normalizeAndValidateIdempotencyKey(idempotencyKey);
         log.info("POST /pricing | customerId={} | productType={}",
             StructuredLogger.maskCustomerId(requestDto.getCustomerId()),
             requestDto.getProductType()
         );
 
-        String clientIp = extractClientIp(httpRequest);
-        PricingResponseDto response = pricingService.calculatePricing(requestDto, clientIp);
+        String clientIp = clientIpResolver.resolve(httpRequest);
+        PricingResponseDto response = normalizedKey != null
+            ? pricingService.calculatePricing(requestDto, clientIp, normalizedKey, null)
+            : pricingService.calculatePricing(requestDto, clientIp);
 
         log.info("Pricing calculation complete | customerId={} | rate={}% | traceId={}",
             StructuredLogger.maskCustomerId(requestDto.getCustomerId()),
@@ -137,30 +164,5 @@ public class PricingController {
         log.info("GET /pricing/{}", id);
         PricingResponseDto response = pricingService.getPricingById(id);
         return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Extracts the real client IP address, accounting for reverse proxies and load balancers.
-     *
-     * In production, requests arrive through:
-     *   Client → CDN → Load Balancer → API Gateway → This App
-     *
-     * getRemoteAddr() returns the PROXY IP, not the client IP.
-     * The actual client IP is carried in X-Forwarded-For (first value in the chain).
-     *
-     * SECURITY NOTE: X-Forwarded-For can be spoofed by clients.
-     * Only trust it when your infrastructure sets it from a known trusted proxy.
-     */
-    private String extractClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isBlank() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
-            // X-Forwarded-For: "client, proxy1, proxy2" — leftmost is the original client IP
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isBlank()) {
-            return xRealIp;
-        }
-        return request.getRemoteAddr();
     }
 }

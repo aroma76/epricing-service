@@ -38,6 +38,7 @@ public class PricingRequestDto {
     @JsonProperty("loan_tenure_months")
     private Integer loanTenureMonths;
 
+    @NotNull(message = "Credit score is required")
     @Min(value = 300, message = "Credit score minimum is 300")
     @Max(value = 900, message = "Credit score maximum is 900")
     @JsonProperty("credit_score")
@@ -45,12 +46,17 @@ public class PricingRequestDto {
 
     @NotNull(message = "Annual income is required for eligibility assessment")
     @DecimalMin(value = "100000.00", message = "Minimum annual income is ₹1,00,000")
+    @DecimalMax(value = "9999999999999.99", message = "Annual income exceeds maximum supported value")
     @JsonProperty("annual_income")
     private BigDecimal annualIncome;
 
     @Size(max = 200, message = "Purpose cannot exceed 200 characters")
     @JsonProperty("loan_purpose")
     private String loanPurpose;
+
+    @Size(max = 128, message = "Idempotency key cannot exceed 128 characters")
+    @JsonProperty("idempotency_key")
+    private String idempotencyKey;
 
     public PricingRequestDto() {
     }
@@ -88,6 +94,9 @@ public class PricingRequestDto {
     public String getLoanPurpose() { return loanPurpose; }
     public void setLoanPurpose(String loanPurpose) { this.loanPurpose = loanPurpose; }
 
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+
     public static PricingRequestDtoBuilder builder() {
         return new PricingRequestDtoBuilder();
     }
@@ -100,6 +109,7 @@ public class PricingRequestDto {
         private Integer creditScore;
         private BigDecimal annualIncome;
         private String loanPurpose;
+        private String idempotencyKey;
 
         PricingRequestDtoBuilder() {}
 
@@ -110,9 +120,12 @@ public class PricingRequestDto {
         public PricingRequestDtoBuilder creditScore(Integer creditScore) { this.creditScore = creditScore; return this; }
         public PricingRequestDtoBuilder annualIncome(BigDecimal annualIncome) { this.annualIncome = annualIncome; return this; }
         public PricingRequestDtoBuilder loanPurpose(String loanPurpose) { this.loanPurpose = loanPurpose; return this; }
+        public PricingRequestDtoBuilder idempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; return this; }
 
         public PricingRequestDto build() {
-            return new PricingRequestDto(customerId, productType, loanAmount, loanTenureMonths, creditScore, annualIncome, loanPurpose);
+            PricingRequestDto dto = new PricingRequestDto(customerId, productType, loanAmount, loanTenureMonths, creditScore, annualIncome, loanPurpose);
+            dto.setIdempotencyKey(idempotencyKey);
+            return dto;
         }
     }
 }

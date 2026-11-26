@@ -4,8 +4,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
@@ -18,6 +21,7 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.regex.Pattern;
 
 /**
  * DatabaseMigrationInitializer — Enterprise Distributed Schema Migration Runner.
@@ -37,11 +41,29 @@ public class DatabaseMigrationInitializer implements InitializingBean {
 
     private static final Logger log = LoggerFactory.getLogger(DatabaseMigrationInitializer.class);
     private static final long MIGRATION_LOCK_ID = 718293849102L;
+    private static final Pattern SAFE_DB_IDENTIFIER = Pattern.compile("^[a-zA-Z0-9_-]+$");
 
     private final DataSource dataSource;
+    private final boolean seedDemoData;
+    private final String grafanaReaderPassword;
+    private final boolean prodOrK8sProfile;
+
+    @Autowired
+    public DatabaseMigrationInitializer(
+            DataSource dataSource,
+            @Value("${epricing.migrations.seed-demo-data:false}") boolean seedDemoData,
+            @Value("${epricing.migrations.grafana-reader-password:}") String grafanaReaderPassword,
+            Environment environment) {
+        this.dataSource = dataSource;
+        this.seedDemoData = seedDemoData;
+        this.grafanaReaderPassword = grafanaReaderPassword != null ? grafanaReaderPassword : "";
+        String[] profiles = environment != null ? environment.getActiveProfiles() : new String[0];
+        this.prodOrK8sProfile = Arrays.stream(profiles)
+                .anyMatch(p -> "prod".equalsIgnoreCase(p) || "k8s".equalsIgnoreCase(p));
+    }
 
     public DatabaseMigrationInitializer(DataSource dataSource) {
-        this.dataSource = dataSource;
+        this(dataSource, true, "", null);
     }
 
     @Override
@@ -120,39 +142,47 @@ public class DatabaseMigrationInitializer implements InitializingBean {
                 }
 
                 if (!alreadyApplied) {
+                    if (filename.startsWith("V4") && (prodOrK8sProfile || !seedDemoData)) {
+                        log.info("Skipping demo seed migration {} (prodOrK8s={}, seedDemoData={})",
+                                filename, prodOrK8sProfile, seedDemoData);
+                        recordSchemaHistory(conn, version, description + " (skipped)", filename);
+                        continue;
+                    }
                     if (filename.startsWith("V6")) {
                         if (!isPostgresOrYugabyte) {
                             log.info("Skipping V6 role migration on non-Postgres/Yugabyte database: {}", dbProduct);
-                            try (PreparedStatement insertStmt = conn.prepareStatement(
-                                    "INSERT INTO schema_history (version, description, script) VALUES (?, ?, ?)")) {
-                                insertStmt.setString(1, version);
-                                insertStmt.setString(2, description);
-                                insertStmt.setString(3, filename);
-                                insertStmt.executeUpdate();
-                            }
+                            recordSchemaHistory(conn, version, description, filename);
                             continue;
                         }
-                        // For PostgreSQL / YugabyteDB, ensure role exists without nested PL/pgSQL block
-                        try (PreparedStatement checkRole = conn.prepareStatement("SELECT 1 FROM pg_roles WHERE rolname = 'grafana_reader'")) {
-                            try (ResultSet rs = checkRole.executeQuery()) {
-                                if (!rs.next()) {
-                                    try (Statement createStmt = conn.createStatement()) {
-                                        createStmt.execute("CREATE ROLE grafana_reader WITH LOGIN PASSWORD 'grafana_reader_pass'");
-                                        log.info("Created database role 'grafana_reader'");
-                                    } catch (Exception createRoleEx) {
-                                        log.warn("Could not create database role 'grafana_reader' (insufficient permissions or existing): {}", createRoleEx.getMessage());
-                                    }
+                        boolean roleExists = roleExists(conn, "grafana_reader");
+                        if (!roleExists) {
+                            if (!grafanaReaderPassword.isBlank()) {
+                                String escapedPassword = grafanaReaderPassword.replace("'", "''");
+                                try (Statement createStmt = conn.createStatement()) {
+                                    createStmt.execute("CREATE ROLE grafana_reader WITH LOGIN PASSWORD '" + escapedPassword + "'");
+                                    log.info("Created database role 'grafana_reader' from configured secret");
+                                    roleExists = true;
+                                } catch (Exception createRoleEx) {
+                                    log.warn("Could not create database role 'grafana_reader': {}", createRoleEx.getMessage());
                                 }
+                            } else {
+                                log.warn("Skipping creation of 'grafana_reader' role: epricing.migrations.grafana-reader-password is not set. Provision the role manually if Grafana DB access is required.");
                             }
                         }
-                        // ISSUE-11 FIX: Dynamically grant CONNECT on current active database
+                        if (!roleExists) {
+                            recordSchemaHistory(conn, version, description + " (skipped - no role)", filename);
+                            continue;
+                        }
+                        // ISSUE-11 FIX: Dynamically grant CONNECT on current active database after identifier check
                         String currentDb = conn.getCatalog();
-                        if (currentDb != null && !currentDb.isBlank()) {
+                        if (currentDb != null && !currentDb.isBlank() && SAFE_DB_IDENTIFIER.matcher(currentDb).matches()) {
                             try (Statement grantStmt = conn.createStatement()) {
                                 grantStmt.execute("GRANT CONNECT ON DATABASE \"" + currentDb + "\" TO grafana_reader");
                             } catch (Exception ex) {
                                 log.warn("Could not grant CONNECT on database '{}' to grafana_reader: {}", currentDb, ex.getMessage());
                             }
+                        } else if (currentDb != null && !currentDb.isBlank()) {
+                            log.warn("Skipping dynamic GRANT CONNECT for non-standard database catalog name");
                         }
                     }
 
@@ -207,6 +237,28 @@ public class DatabaseMigrationInitializer implements InitializingBean {
                 }
             }
             closeQuietly(conn);
+        }
+    }
+
+    private boolean roleExists(Connection conn, String roleName) {
+        try (PreparedStatement checkRole = conn.prepareStatement("SELECT 1 FROM pg_roles WHERE rolname = ?")) {
+            checkRole.setString(1, roleName);
+            try (ResultSet rs = checkRole.executeQuery()) {
+                return rs.next();
+            }
+        } catch (Exception ex) {
+            log.warn("Failed checking database role '{}': {}", roleName, ex.getMessage());
+            return false;
+        }
+    }
+
+    private void recordSchemaHistory(Connection conn, String version, String description, String filename) throws Exception {
+        try (PreparedStatement insertStmt = conn.prepareStatement(
+                "INSERT INTO schema_history (version, description, script) VALUES (?, ?, ?)")) {
+            insertStmt.setString(1, version);
+            insertStmt.setString(2, description);
+            insertStmt.setString(3, filename);
+            insertStmt.executeUpdate();
         }
     }
 

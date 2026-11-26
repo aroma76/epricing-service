@@ -400,6 +400,9 @@ class ApplicationContextBootstrapTest {
     @Test
     @DisplayName("R3: Live Spring web container validates enterprise hyphenated customer IDs and rejects invalid formats")
     void testLiveCustomerIdValidationThroughRestEndpoint() {
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.set("X-API-Key", "test-client-key-0123456789abcdef");
+
         PricingRequestDto validDto = PricingRequestDto.builder()
                 .customerId("CUST-LIVE-001")
                 .productType("HOME_LOAN")
@@ -409,7 +412,8 @@ class ApplicationContextBootstrapTest {
                 .annualIncome(new BigDecimal("2200000.00"))
                 .build();
 
-        ResponseEntity<Map> created = restTemplate.postForEntity("/pricing", validDto, Map.class);
+        ResponseEntity<Map> created = restTemplate.postForEntity(
+                "/pricing", new org.springframework.http.HttpEntity<>(validDto, headers), Map.class);
         assertEquals(HttpStatus.CREATED, created.getStatusCode());
         assertNotNull(created.getBody());
         assertEquals("CUST-LIVE-001", created.getBody().get("customer_id"));
@@ -424,10 +428,123 @@ class ApplicationContextBootstrapTest {
                     .annualIncome(new BigDecimal("2200000.00"))
                     .build();
 
-            ResponseEntity<Map> badRequest = restTemplate.postForEntity("/pricing", invalidDto, Map.class);
+            ResponseEntity<Map> badRequest = restTemplate.postForEntity(
+                    "/pricing", new org.springframework.http.HttpEntity<>(invalidDto, headers), Map.class);
             assertEquals(HttpStatus.BAD_REQUEST, badRequest.getStatusCode());
             assertNotNull(badRequest.getBody());
             assertEquals("PRICING_VALIDATION_FAILED", badRequest.getBody().get("error_code"));
         }
+    }
+
+    @Test
+    @DisplayName("Security & RBAC: Rejects unauthenticated requests, blocks CLIENT bulk reads, and hides DB internals on public health")
+    void testSecurityAuthRbacAndHealthSanitization() {
+        PricingRequestDto dto = PricingRequestDto.builder()
+                .customerId("CUST-SEC-001")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("3000000.00"))
+                .loanTenureMonths(180)
+                .creditScore(760)
+                .annualIncome(new BigDecimal("1800000.00"))
+                .build();
+
+        ResponseEntity<Map> unauthenticated = restTemplate.postForEntity("/pricing", dto, Map.class);
+        assertEquals(HttpStatus.UNAUTHORIZED, unauthenticated.getStatusCode());
+
+        org.springframework.http.HttpHeaders clientHeaders = new org.springframework.http.HttpHeaders();
+        clientHeaders.set("X-API-Key", "test-client-key-0123456789abcdef");
+        ResponseEntity<Map> clientBulkList = restTemplate.exchange(
+                "/pricing", org.springframework.http.HttpMethod.GET,
+                new org.springframework.http.HttpEntity<>(clientHeaders), Map.class);
+        assertEquals(HttpStatus.FORBIDDEN, clientBulkList.getStatusCode());
+
+        org.springframework.http.HttpHeaders operatorHeaders = new org.springframework.http.HttpHeaders();
+        operatorHeaders.set("X-API-Key", "test-operator-key-0123456789abcdef");
+        ResponseEntity<Map> operatorBulkList = restTemplate.exchange(
+                "/pricing", org.springframework.http.HttpMethod.GET,
+                new org.springframework.http.HttpEntity<>(operatorHeaders), Map.class);
+        assertEquals(HttpStatus.OK, operatorBulkList.getStatusCode());
+
+        ResponseEntity<Map> readiness = restTemplate.getForEntity("/health/readiness", Map.class);
+        assertEquals(HttpStatus.OK, readiness.getStatusCode());
+        @SuppressWarnings("unchecked")
+        Map<String, String> db = (Map<String, String>) readiness.getBody().get("database");
+        assertEquals("UP", db.get("status"));
+        assertNull(db.get("product"), "Public readiness probe must not leak DB product name");
+        assertNull(db.get("version"), "Public readiness probe must not leak DB version");
+    }
+
+    @Test
+    @DisplayName("Validation & Idempotency: Rejects null credit_score / overflowing income, deduplicates retries, and conflicts on mismatch")
+    void testValidationBoundsAndIdempotencyProtection() {
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.set("X-API-Key", "test-client-key-0123456789abcdef");
+
+        PricingRequestDto missingCreditScore = PricingRequestDto.builder()
+                .customerId("CUST-IDEMP-001")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("2500000.00"))
+                .loanTenureMonths(180)
+                .creditScore(null)
+                .annualIncome(new BigDecimal("1800000.00"))
+                .build();
+
+        ResponseEntity<Map> missingScoreResp = restTemplate.postForEntity(
+                "/pricing", new org.springframework.http.HttpEntity<>(missingCreditScore, headers), Map.class);
+        assertEquals(HttpStatus.BAD_REQUEST, missingScoreResp.getStatusCode());
+        assertEquals("PRICING_VALIDATION_FAILED", missingScoreResp.getBody().get("error_code"));
+
+        PricingRequestDto overflowIncome = PricingRequestDto.builder()
+                .customerId("CUST-IDEMP-001")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("2500000.00"))
+                .loanTenureMonths(180)
+                .creditScore(760)
+                .annualIncome(new BigDecimal("99999999999999.00"))
+                .build();
+
+        ResponseEntity<Map> overflowResp = restTemplate.postForEntity(
+                "/pricing", new org.springframework.http.HttpEntity<>(overflowIncome, headers), Map.class);
+        assertEquals(HttpStatus.BAD_REQUEST, overflowResp.getStatusCode());
+
+        String idempKey = "idem-live-" + java.util.UUID.randomUUID();
+        headers.set("Idempotency-Key", idempKey);
+
+        PricingRequestDto validDto = PricingRequestDto.builder()
+                .customerId("CUST-IDEMP-001")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("4200000.00"))
+                .loanTenureMonths(180)
+                .creditScore(780)
+                .annualIncome(new BigDecimal("2400000.00"))
+                .build();
+
+        ResponseEntity<Map> first = restTemplate.postForEntity(
+                "/pricing", new org.springframework.http.HttpEntity<>(validDto, headers), Map.class);
+        ResponseEntity<Map> second = restTemplate.postForEntity(
+                "/pricing", new org.springframework.http.HttpEntity<>(validDto, headers), Map.class);
+
+        assertEquals(HttpStatus.CREATED, first.getStatusCode());
+        assertEquals(HttpStatus.CREATED, second.getStatusCode());
+        assertEquals(first.getBody().get("request_id"), second.getBody().get("request_id"));
+
+        PricingRequest persisted = pricingRepository.findByIdempotencyKey(idempKey).orElseThrow();
+        assertNotNull(persisted.getRateValidUntil(), "rate_valid_until must be persisted in DB");
+        assertNotNull(persisted.getProcessingTimeMs(), "processing_time_ms must be persisted in DB");
+        assertTrue(persisted.getProcessingTimeMs() >= 1L);
+
+        PricingRequestDto mismatchedDto = PricingRequestDto.builder()
+                .customerId("CUST-IDEMP-001")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("4900000.00"))
+                .loanTenureMonths(180)
+                .creditScore(780)
+                .annualIncome(new BigDecimal("2400000.00"))
+                .build();
+
+        ResponseEntity<Map> conflict = restTemplate.postForEntity(
+                "/pricing", new org.springframework.http.HttpEntity<>(mismatchedDto, headers), Map.class);
+        assertEquals(HttpStatus.CONFLICT, conflict.getStatusCode());
+        assertEquals("IDEMPOTENCY_KEY_CONFLICT", conflict.getBody().get("error_code"));
     }
 }

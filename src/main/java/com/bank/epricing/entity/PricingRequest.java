@@ -95,6 +95,15 @@ public class PricingRequest {
     @Column(name = "trace_id", length = 64)
     private String traceId;
 
+    @Column(name = "idempotency_key", length = 128, unique = true, updatable = false)
+    private String idempotencyKey;
+
+    @Column(name = "workflow_id", length = 128)
+    private String workflowId;
+
+    @Column(name = "rate_valid_until")
+    private java.time.Instant rateValidUntil;
+
     @Column(name = "error_message", length = 2000)
     private String errorMessage;
 
@@ -212,6 +221,15 @@ public class PricingRequest {
     public String getTraceId() { return traceId; }
     public void setTraceId(String traceId) { this.traceId = traceId; }
 
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+
+    public String getWorkflowId() { return workflowId; }
+    public void setWorkflowId(String workflowId) { this.workflowId = workflowId; }
+
+    public java.time.Instant getRateValidUntil() { return rateValidUntil; }
+    public void setRateValidUntil(java.time.Instant rateValidUntil) { this.rateValidUntil = rateValidUntil; }
+
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
 
@@ -245,6 +263,9 @@ public class PricingRequest {
         private Long processingTimeMs;
         private String requestIp;
         private String traceId;
+        private String idempotencyKey;
+        private String workflowId;
+        private java.time.Instant rateValidUntil;
         private String errorMessage;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
@@ -269,6 +290,9 @@ public class PricingRequest {
         public PricingRequestBuilder processingTimeMs(Long processingTimeMs) { this.processingTimeMs = processingTimeMs; return this; }
         public PricingRequestBuilder requestIp(String requestIp) { this.requestIp = requestIp; return this; }
         public PricingRequestBuilder traceId(String traceId) { this.traceId = traceId; return this; }
+        public PricingRequestBuilder idempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; return this; }
+        public PricingRequestBuilder workflowId(String workflowId) { this.workflowId = workflowId; return this; }
+        public PricingRequestBuilder rateValidUntil(java.time.Instant rateValidUntil) { this.rateValidUntil = rateValidUntil; return this; }
         public PricingRequestBuilder errorMessage(String errorMessage) { this.errorMessage = errorMessage; return this; }
         public PricingRequestBuilder createdAt(LocalDateTime createdAt) { this.createdAt = createdAt; return this; }
         public PricingRequestBuilder updatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; return this; }
@@ -278,6 +302,9 @@ public class PricingRequest {
                     annualIncome, loanPurpose, totalPayableAmount, totalInterestPayable, riskCategory,
                     calculatedRate, emiAmount, status, processingTimeMs, requestIp, traceId, errorMessage,
                     createdAt, updatedAt);
+            req.setIdempotencyKey(idempotencyKey);
+            req.setWorkflowId(workflowId);
+            req.setRateValidUntil(rateValidUntil);
             if (version != null) {
                 req.setVersion(version);
             }

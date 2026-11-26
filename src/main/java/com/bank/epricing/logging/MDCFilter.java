@@ -1,11 +1,13 @@
 package com.bank.epricing.logging;
 
+import com.bank.epricing.security.ClientIpResolver;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -66,6 +68,17 @@ public class MDCFilter implements Filter {
     public static final String HTTP_METHOD = "httpMethod";
     public static final String REQUEST_URI = "requestUri";
 
+    private final ClientIpResolver clientIpResolver;
+
+    public MDCFilter() {
+        this(new ClientIpResolver(false));
+    }
+
+    @Autowired
+    public MDCFilter(ClientIpResolver clientIpResolver) {
+        this.clientIpResolver = clientIpResolver != null ? clientIpResolver : new ClientIpResolver(false);
+    }
+
     @Override
     public void doFilter(
         ServletRequest servletRequest,
@@ -77,43 +90,28 @@ public class MDCFilter implements Filter {
         HttpServletResponse response = (HttpServletResponse) servletResponse;
 
         try {
-            // ─── STEP 1: Generate or extract request ID ───────────────────
-            // Check if client sent a request ID (for request tracing in distributed systems).
-            // If not, generate one. This allows end-to-end correlation:
-            // Client → API Gateway → epricing-service → downstream-service
-            // All using the same requestId.
-            String requestId = request.getHeader("X-Request-ID");
-            if (requestId == null || requestId.isBlank()) {
-                // Generate a short, unique ID. UUID is too long for headers;
-                // we use the first 16 chars for readability.
+            String requestId = ClientIpResolver.sanitize(request.getHeader("X-Request-ID"), 64);
+            if (requestId.isBlank()) {
                 requestId = "REQ-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
             }
 
-            // ─── STEP 2: Populate MDC ─────────────────────────────────────
-            // These values are now automatically included in EVERY log statement
-            // made on this thread from this point forward.
+            String resolvedIp = getClientIpAddress(request);
             MDC.put(REQUEST_ID, requestId);
-            MDC.put(CLIENT_IP, getClientIpAddress(request));
+            MDC.put(CLIENT_IP, resolvedIp);
             MDC.put(HTTP_METHOD, request.getMethod());
-            MDC.put(REQUEST_URI, request.getRequestURI());
+            MDC.put(REQUEST_URI, ClientIpResolver.sanitize(request.getRequestURI(), 200));
 
-            // Extract customer ID from header if provided (masked for PII compliance)
-            String customerId = request.getHeader("X-Customer-ID");
-            if (customerId != null && !customerId.isBlank()) {
+            String customerId = ClientIpResolver.sanitize(request.getHeader("X-Customer-ID"), 64);
+            if (!customerId.isBlank()) {
                 MDC.put(CUSTOMER_ID, StructuredLogger.maskCustomerId(customerId));
             }
 
-            // ─── STEP 3: Add request ID to response header ────────────────
-            // The client receives their requestId in the response.
-            // They can use it in support tickets: "My request ID is REQ-ABC123"
             response.setHeader("X-Request-ID", requestId);
 
-            // ─── STEP 4: Log the incoming request (structured) ────────────
-            // This log automatically includes all MDC fields (traceId, requestId, etc.)
             log.info("Incoming request | method={} | uri={} | clientIp={}",
                 request.getMethod(),
-                request.getRequestURI(),
-                getClientIpAddress(request)
+                ClientIpResolver.sanitize(request.getRequestURI(), 200),
+                resolvedIp
             );
 
             // ─── STEP 5: Pass to next filter / controller ─────────────────
@@ -161,17 +159,7 @@ public class MDCFilter implements Filter {
      * Only trust it if it comes from a known trusted proxy.
      */
     private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
-            // X-Forwarded-For can be a comma-separated list: "client, proxy1, proxy2"
-            // The leftmost value is the original client IP
-            return xForwardedFor.split(",")[0].trim();
-        }
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (xRealIp != null && !xRealIp.isEmpty()) {
-            return xRealIp;
-        }
-        return request.getRemoteAddr();
+        return clientIpResolver.resolve(request);
     }
 
 

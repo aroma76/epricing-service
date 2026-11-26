@@ -2,12 +2,15 @@ package com.bank.epricing.temporal.controller;
 
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.logging.StructuredLogger;
+import com.bank.epricing.security.ClientIpResolver;
+import com.bank.epricing.service.PricingService;
 import com.bank.epricing.temporal.dto.PricingWorkflowResult;
 import com.bank.epricing.temporal.service.TemporalPricingService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 /**
- * REST Controller exposing endpoints for Temporal durable Loan Pricing workflows.
+ * REST Controller exposing endpoints for Temporal durable Loan Pricing
+ * workflows.
  */
 @RestController
 @RequestMapping("/workflow/pricing")
@@ -24,9 +28,17 @@ public class TemporalPricingController {
     private static final Logger log = LoggerFactory.getLogger(TemporalPricingController.class);
 
     private final TemporalPricingService temporalPricingService;
+    private final ClientIpResolver clientIpResolver;
 
     public TemporalPricingController(TemporalPricingService temporalPricingService) {
+        this(temporalPricingService, new ClientIpResolver(false));
+    }
+
+    @Autowired
+    public TemporalPricingController(TemporalPricingService temporalPricingService,
+            ClientIpResolver clientIpResolver) {
         this.temporalPricingService = temporalPricingService;
+        this.clientIpResolver = clientIpResolver != null ? clientIpResolver : new ClientIpResolver(false);
     }
 
     /**
@@ -35,15 +47,16 @@ public class TemporalPricingController {
     @PostMapping("/start")
     public ResponseEntity<PricingWorkflowResult> startWorkflow(
             @Valid @RequestBody PricingRequestDto requestDto,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             HttpServletRequest request) {
 
-        String clientIp = request.getHeader("X-Forwarded-For");
-        if (clientIp == null || clientIp.isBlank()) {
-            clientIp = request.getRemoteAddr();
-        }
+        String normalizedKey = PricingService.normalizeAndValidateIdempotencyKey(idempotencyKey);
+        String clientIp = clientIpResolver.resolve(request);
 
         log.info("Received request to start Temporal workflow | customerId={}", StructuredLogger.maskCustomerId(requestDto.getCustomerId()));
-        PricingWorkflowResult result = temporalPricingService.startPricingWorkflow(requestDto, clientIp);
+        PricingWorkflowResult result = normalizedKey != null
+                ? temporalPricingService.startPricingWorkflow(requestDto, clientIp, normalizedKey)
+                : temporalPricingService.startPricingWorkflow(requestDto, clientIp);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(result);
     }
@@ -59,10 +72,9 @@ public class TemporalPricingController {
         temporalPricingService.approveQuote(workflowId);
 
         return ResponseEntity.ok(Map.of(
-            "workflow_id", workflowId,
-            "status", "APPROVED",
-            "message", "Approval signal dispatched to workflow"
-        ));
+                "workflow_id", workflowId,
+                "status", "APPROVED",
+                "message", "Approval signal dispatched to workflow"));
     }
 
     /**
@@ -73,16 +85,18 @@ public class TemporalPricingController {
             @PathVariable("workflowId") String workflowId,
             @RequestBody(required = false) Map<String, String> body) {
 
-        String reason = body != null ? body.get("reason") : "Customer rejected offer";
+        String rawReason = body != null ? body.get("reason") : null;
+        String reason = (rawReason != null && !rawReason.isBlank())
+                ? rawReason.trim()
+                : "Customer rejected offer";
         log.info("Signaling rejection for workflowId={} | reason={}", workflowId, reason);
         temporalPricingService.rejectQuote(workflowId, reason);
 
         return ResponseEntity.ok(Map.of(
-            "workflow_id", workflowId,
-            "status", "REJECTED",
-            "reason", reason,
-            "message", "Rejection signal dispatched to workflow"
-        ));
+                "workflow_id", workflowId,
+                "status", "REJECTED",
+                "reason", reason,
+                "message", "Rejection signal dispatched to workflow"));
     }
 
     /**
@@ -105,8 +119,7 @@ public class TemporalPricingController {
 
         String status = temporalPricingService.getWorkflowStatus(workflowId);
         return ResponseEntity.ok(Map.of(
-            "workflow_id", workflowId,
-            "status", status
-        ));
+                "workflow_id", workflowId,
+                "status", status));
     }
 }

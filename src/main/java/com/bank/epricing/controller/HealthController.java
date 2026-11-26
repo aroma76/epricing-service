@@ -37,12 +37,21 @@ public class HealthController {
 
     private final DataSource dataSource;
     private final BuildProperties buildProperties;
+    private final boolean exposeDetails;
 
+    public HealthController(DataSource dataSource, BuildProperties buildProperties) {
+        this(dataSource, buildProperties, false);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public HealthController(DataSource dataSource,
                             @org.springframework.beans.factory.annotation.Autowired(required = false)
-                            BuildProperties buildProperties) {
+                            BuildProperties buildProperties,
+                            @org.springframework.beans.factory.annotation.Value("${epricing.health.expose-details:false}")
+                            boolean exposeDetails) {
         this.dataSource = dataSource;
         this.buildProperties = buildProperties;
+        this.exposeDetails = exposeDetails;
     }
 
     /**
@@ -116,12 +125,16 @@ public class HealthController {
         Map<String, String> db = new LinkedHashMap<>();
         try (Connection conn = dataSource.getConnection()) {
             db.put("status", "UP");
-            db.put("product", conn.getMetaData().getDatabaseProductName());
-            db.put("version", conn.getMetaData().getDatabaseProductVersion());
+            if (exposeDetails) {
+                db.put("product", conn.getMetaData().getDatabaseProductName());
+                db.put("version", conn.getMetaData().getDatabaseProductVersion());
+            }
         } catch (Exception e) {
             log.error("Database health check failed | error={}", e.getMessage());
             db.put("status", "DOWN");
-            db.put("error", e.getMessage());
+            if (exposeDetails) {
+                db.put("error", e.getMessage());
+            }
         }
         return db;
     }

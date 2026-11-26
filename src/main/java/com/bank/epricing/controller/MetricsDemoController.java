@@ -23,12 +23,12 @@ import java.util.*;
  * ║    2. See immediate impact on Prometheus/Grafana                        ║
  * ║    3. Understand how metrics are recorded                               ║
  * ║                                                                          ║
- * ║  @Profile("!prod"): This controller is DISABLED in production.         ║
- * ║  The /simulate-error endpoint deliberately increments error metrics     ║
- * ║  which would poison production Prometheus alerting.                     ║
+ * ║  @Profile("!prod & !k8s"): This controller is DISABLED in production   ║
+ * ║  and Kubernetes deployments. The /simulate-error endpoint deliberately  ║
+ * ║  increments error metrics which would poison prod Prometheus alerting.   ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
-@Profile("!prod")
+@Profile("!prod & !k8s")
 @RestController
 @RequestMapping("/metrics-demo")
 public class MetricsDemoController {
@@ -72,7 +72,7 @@ public class MetricsDemoController {
 
         Map<String, Object> grafanaInfo = new LinkedHashMap<>();
         grafanaInfo.put("url", "http://localhost:3000");
-        grafanaInfo.put("default_credentials", "admin / Bank@grafana123");
+        grafanaInfo.put("credentials", "Configured via GRAFANA_ADMIN_USER / GRAFANA_ADMIN_PASSWORD");
         grafanaInfo.put("dashboards", List.of("JVM Overview", "Application Metrics", "Business Metrics"));
         summary.put("grafana", grafanaInfo);
 

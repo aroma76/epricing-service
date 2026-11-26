@@ -57,6 +57,8 @@ public class WebConfig implements WebMvcConfigurer {
             .allowedHeaders(
                 "Content-Type",
                 "Authorization",
+                "X-API-Key",
+                "Idempotency-Key",
                 "X-Request-ID",
                 "X-Customer-ID",
                 "X-Correlation-ID"

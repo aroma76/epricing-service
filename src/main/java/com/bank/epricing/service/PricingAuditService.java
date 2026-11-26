@@ -3,13 +3,15 @@ package com.bank.epricing.service;
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.entity.PricingAuditLog;
 import com.bank.epricing.entity.PricingRequest;
+import com.bank.epricing.event.LoanPricingEvent;
 import com.bank.epricing.repository.PricingAuditRepository;
 import com.bank.epricing.repository.PricingRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.bank.epricing.logging.StructuredLogger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -33,11 +35,23 @@ public class PricingAuditService {
 
     private final PricingAuditRepository auditRepository;
     private final PricingRepository pricingRepository;
+    private final OutboxService outboxService;
+    private final MeterRegistry meterRegistry;
 
     public PricingAuditService(PricingAuditRepository auditRepository,
                                PricingRepository pricingRepository) {
+        this(auditRepository, pricingRepository, null, null);
+    }
+
+    @Autowired
+    public PricingAuditService(PricingAuditRepository auditRepository,
+                               PricingRepository pricingRepository,
+                               @Autowired(required = false) OutboxService outboxService,
+                               @Autowired(required = false) MeterRegistry meterRegistry) {
         this.auditRepository = auditRepository;
         this.pricingRepository = pricingRepository;
+        this.outboxService = outboxService;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -48,6 +62,18 @@ public class PricingAuditService {
      */
     @Transactional(rollbackFor = Exception.class)
     public PricingRequest savePricingWithAudit(PricingRequest entity, String requestIp, String traceId) {
+        return savePricingWithAuditAndOutbox(entity, requestIp, traceId, null);
+    }
+
+    /**
+     * Persists PricingRequest, PricingAuditLog, and (when outbox is enabled) the outbox event
+     * inside one ACID database transaction so Kafka events cannot be silently lost.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public PricingRequest savePricingWithAuditAndOutbox(PricingRequest entity,
+                                                        String requestIp,
+                                                        String traceId,
+                                                        LoanPricingEvent event) {
         PricingRequest savedRequest = pricingRepository.save(entity);
 
         PricingAuditLog auditLog = PricingAuditLog.builder()
@@ -69,6 +95,12 @@ public class PricingAuditService {
             .build();
 
         auditRepository.save(auditLog);
+
+        if (event != null && outboxService != null && outboxService.isEnabled()) {
+            event.setRequestId(savedRequest.getId());
+            outboxService.enqueue("PRICING_REQUEST", savedRequest.getId(), event);
+        }
+
         log.debug("Persisted PricingRequest and AuditLog atomically | requestId={} | traceId={}",
             savedRequest.getId(), traceId);
         return savedRequest;
@@ -134,16 +166,12 @@ public class PricingAuditService {
 
             auditRepository.save(auditLog);
         } catch (Exception e) {
-            log.error("Failed to save rejection records | customerId={} | error={}",
+            if (meterRegistry != null) {
+                meterRegistry.counter("epricing.audit.write.failed", "type", "rejection").increment();
+            }
+            log.error("CRITICAL: Failed to save rejection records | customerId={} | error={}",
                 StructuredLogger.maskCustomerId(requestDto.getCustomerId()), e.getMessage(), e);
         }
-    }
-
-    /**
-     * Backward-compatible overload for recording rejections with errorCode only.
-     */
-    public void recordRejection(PricingRequestDto requestDto, String errorCode, String requestIp, String traceId) {
-        recordRejection(requestDto, null, errorCode, requestIp, traceId);
     }
 
     /**
@@ -216,6 +244,9 @@ public class PricingAuditService {
             log.info("Technical failure record saved | customerId={} | traceId={}",
                 StructuredLogger.maskCustomerId(customerId), traceId);
         } catch (Exception e) {
+            if (meterRegistry != null) {
+                meterRegistry.counter("epricing.audit.write.failed", "type", "technical_failure").increment();
+            }
             // Log but never propagate — we're already in an error path
             log.error("Failed to persist technical failure record | customerId={} | error={}",
                 StructuredLogger.maskCustomerId(requestDto != null ? requestDto.getCustomerId() : "UNKNOWN"), e.getMessage(), e);

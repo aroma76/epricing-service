@@ -51,18 +51,17 @@ spring:
   # ENTERPRISE DISTRIBUTED DATABASE — YugabyteDB (YSQL)
   # ═══════════════════════════════════════════════════════════════
   datasource:
-    url: jdbc:yugabytedb://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:epricingdb}?load-balance=true&sslmode=disable
+    url: jdbc:yugabytedb://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:epricingdb}?load-balance=true&sslmode=${DB_SSL_MODE:disable}
     driver-class-name: com.yugabyte.Driver
-    # No default credentials — application will fail to start if these are not set.
-    # This prevents silent use of insecure defaults in any environment.
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    # HikariCP Connection Pool — Enterprise Production Tuning
+    # Supports DB_USERNAME/DB_PASSWORD or standard SPRING_DATASOURCE_*; no hardcoded default credentials.
+    username: ${DB_USERNAME:${SPRING_DATASOURCE_USERNAME}}
+    password: ${DB_PASSWORD:${SPRING_DATASOURCE_PASSWORD}}
+    # HikariCP Connection Pool — Sized above peak Tomcat + Temporal DB concurrency with 10s fail-fast timeout
     hikari:
       pool-name: epricing-pool
-      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
-      minimum-idle: ${DB_POOL_MIN_IDLE:5}
-      connection-timeout: 30000
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:40}
+      minimum-idle: ${DB_POOL_MIN_IDLE:10}
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:10000}
       idle-timeout: 600000
       max-lifetime: 1800000
       leak-detection-threshold: 60000
@@ -85,8 +84,9 @@ spring:
     properties:
       hibernate:
         format_sql: false
-        generate_statistics: true
+        generate_statistics: ${HIBERNATE_GENERATE_STATISTICS:false}
         jdbc:
+          time_zone: UTC
           batch_size: 50
           order_inserts: true
           order_updates: true
@@ -177,9 +177,7 @@ management:
 
   endpoint:
     health:
-      # "always" shows full health details including DB, disk, etc.
-      # In production use "when-authorized" to hide details from public.
-      show-details: always
+      show-details: ${ACTUATOR_HEALTH_SHOW_DETAILS:when-authorized}
       probes:
         enabled: true
       # Health groups let you create custom health checks for different purposes.
@@ -282,8 +280,34 @@ epricing:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   # Rate validity period — number of days the quoted rate is valid
-  # Product/risk-team configurable; defaults to 7 days (tighter than the previous hardcoded 30)
-  rate-valid-days: ${RATE_VALID_DAYS:7}
+  # Supports EPRICING_RATE_VALID_DAYS (k8s ConfigMap) and RATE_VALID_DAYS
+  rate-valid-days: ${EPRICING_RATE_VALID_DAYS:${RATE_VALID_DAYS:7}}
+
+  migrations:
+    seed-demo-data: ${EPRICING_SEED_DEMO_DATA:false}
+    grafana-reader-password: ${GRAFANA_READER_PASSWORD:}
+
+  database:
+    lock-timeout-ms: ${DB_LOCK_TIMEOUT_MS:5000}
+    statement-timeout-ms: ${DB_STATEMENT_TIMEOUT_MS:15000}
+
+  outbox:
+    enabled: ${OUTBOX_ENABLED:true}
+    poll-interval-ms: ${OUTBOX_POLL_INTERVAL_MS:1000}
+    batch-size: ${OUTBOX_BATCH_SIZE:25}
+    lease-seconds: ${OUTBOX_LEASE_SECONDS:30}
+    send-timeout-seconds: ${OUTBOX_SEND_TIMEOUT_SECONDS:5}
+    max-retries: ${OUTBOX_MAX_RETRIES:10}
+
+  security:
+    enabled: ${SECURITY_ENABLED:true}
+    trust-forwarded-headers: ${TRUST_FORWARDED_HEADERS:false}
+    client-api-key: ${EPRICING_CLIENT_API_KEY:}
+    operator-api-key: ${EPRICING_OPERATOR_API_KEY:}
+    admin-api-key: ${EPRICING_ADMIN_API_KEY:}
+
+  health:
+    expose-details: ${HEALTH_EXPOSE_DETAILS:false}
 
   # Rolling log policy bounds (read by logback-spring.xml via <springProperty>)
   logging:
@@ -314,6 +338,9 @@ epricing:
   kafka:
     enabled: ${KAFKA_ENABLED:true}
     topic: ${KAFKA_TOPIC_PRICING_EVENTS:${KAFKA_TOPIC:loan-pricing-events}}
+    topic-partitions: ${KAFKA_TOPIC_PARTITIONS:3}
+    topic-replicas: ${KAFKA_TOPIC_REPLICAS:1}
+    min-insync-replicas: ${KAFKA_MIN_INSYNC_REPLICAS:1}
 
 # ═══════════════════════════════════════════════════════════════════
 # KAFKA TOP-LEVEL FEATURE FLAG & TOPIC CONFIGURATION

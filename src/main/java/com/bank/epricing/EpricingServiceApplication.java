@@ -1,5 +1,8 @@
 package com.bank.epricing;
 
+import java.time.ZoneOffset;
+import java.util.TimeZone;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
@@ -67,6 +70,7 @@ public class EpricingServiceApplication {
      *             This is how you can have different ports on different environments.
      */
     public static void main(String[] args) {
+        TimeZone.setDefault(TimeZone.getTimeZone(ZoneOffset.UTC));
         /*
          * WHY NOT: SpringApplication.run(EpricingServiceApplication.class, args);
          *
@@ -76,6 +80,11 @@ public class EpricingServiceApplication {
          */
         SpringApplication app = new SpringApplication(EpricingServiceApplication.class);
         app.run(args);
+    }
+
+    @jakarta.annotation.PostConstruct
+    public void enforceUtcTimeZone() {
+        TimeZone.setDefault(TimeZone.getTimeZone(ZoneOffset.UTC));
     }
 
     /**

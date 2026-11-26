@@ -17,8 +17,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +28,12 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -72,15 +78,16 @@ public class PricingService {
     private final StructuredLogger structuredLogger;
     private final Tracer tracer;
     private final PricingEventProducer pricingEventProducer;
+    private final OutboxService outboxService;
 
     /**
      * Number of days a quoted interest rate is valid.
      * Configurable via epricing.rate-valid-days in application.yml
-     * or the RATE_VALID_DAYS environment variable.
+     * or the EPRICING_RATE_VALID_DAYS / RATE_VALID_DAYS environment variables.
      * Defaults to 7 days if not set.
      */
     @Value("${epricing.rate-valid-days:7}")
-    private int rateValidDays;
+    private int rateValidDays = 7;
 
     @Autowired
     public PricingService(PricingRepository pricingRepository,
@@ -89,7 +96,8 @@ public class PricingService {
                           PricingAuditService auditService,
                           StructuredLogger structuredLogger,
                           Tracer tracer,
-                          @Autowired(required = false) PricingEventProducer pricingEventProducer) {
+                          @Autowired(required = false) PricingEventProducer pricingEventProducer,
+                          @Autowired(required = false) OutboxService outboxService) {
         this.pricingRepository = pricingRepository;
         this.pricingCalculator = pricingCalculator;
         this.pricingMetrics = pricingMetrics;
@@ -97,6 +105,17 @@ public class PricingService {
         this.structuredLogger = structuredLogger;
         this.tracer = tracer;
         this.pricingEventProducer = pricingEventProducer;
+        this.outboxService = outboxService;
+    }
+
+    public PricingService(PricingRepository pricingRepository,
+                          PricingCalculator pricingCalculator,
+                          PricingMetrics pricingMetrics,
+                          PricingAuditService auditService,
+                          StructuredLogger structuredLogger,
+                          Tracer tracer,
+                          PricingEventProducer pricingEventProducer) {
+        this(pricingRepository, pricingCalculator, pricingMetrics, auditService, structuredLogger, tracer, pricingEventProducer, null);
     }
 
     public PricingService(PricingRepository pricingRepository,
@@ -105,25 +124,31 @@ public class PricingService {
                           PricingAuditService auditService,
                           StructuredLogger structuredLogger,
                           Tracer tracer) {
-        this(pricingRepository, pricingCalculator, pricingMetrics, auditService, structuredLogger, tracer, null);
+        this(pricingRepository, pricingCalculator, pricingMetrics, auditService, structuredLogger, tracer, null, null);
+    }
+
+    public PricingResponseDto calculatePricing(PricingRequestDto requestDto, String requestIp) {
+        return calculatePricing(requestDto, requestIp, null, null);
     }
 
     /**
-     * ═══════════════════════════════════════════════════════════════════
-     * CALCULATE PRICING — The main business operation
-     * ═══════════════════════════════════════════════════════════════════
-     *
-     * ISSUE-01 FIX: @Transactional removed from this method to eliminate
-     * the HikariCP connection-pool starvation deadlock caused by calling
-     * auditService methods annotated with REQUIRES_NEW while holding an
-     * outer connection. Atomic DB writes are now confined to PricingAuditService
-     * methods that each own their own short-lived transaction.
-     *
-     * ISSUE-02 FIX: Kafka publish is now deferred to afterCommit() so the
-     * event is only sent after the DB transaction successfully commits,
-     * preventing phantom Kafka events if the DB write rolls back.
+     * Calculates pricing with idempotency key deduplication, Temporal workflow correlation,
+     * persisted UTC quote expiry, and transactional outbox persistence.
      */
-    public PricingResponseDto calculatePricing(PricingRequestDto requestDto, String requestIp) {
+    public PricingResponseDto calculatePricing(PricingRequestDto requestDto,
+                                               String requestIp,
+                                               String idempotencyKey,
+                                               String workflowId) {
+        String effectiveKey = resolveIdempotencyKey(idempotencyKey, requestDto.getIdempotencyKey(), workflowId);
+        if (effectiveKey != null) {
+            Optional<PricingRequest> existing = pricingRepository.findByIdempotencyKey(effectiveKey);
+            if (existing.isPresent()) {
+                validateIdempotentReplay(existing.get(), requestDto);
+                log.info("Idempotent replay satisfied from persisted quote | requestId={} | workflowId={}",
+                    existing.get().getId(), existing.get().getWorkflowId());
+                return mapToResponseDto(existing.get());
+            }
+        }
 
         long overallStartTime = System.currentTimeMillis();
 
@@ -252,6 +277,24 @@ public class PricingService {
             // ─── STEP 5: Persist to database ──────────────────────────────
             String traceId = pricingSpan.getSpanContext().getTraceId();
             long dbStartTime = System.currentTimeMillis();
+            Instant nowUtc = Instant.now();
+            int validDays = rateValidDays > 0 ? rateValidDays : 7;
+            Instant rateValidUntil = nowUtc.plus(validDays, ChronoUnit.DAYS);
+
+            final LoanPricingEvent event = LoanPricingEvent.builder()
+                .customerId(requestDto.getCustomerId())
+                .productType(requestDto.getProductType())
+                .loanAmount(requestDto.getLoanAmount())
+                .interestRate(interestRate)
+                .emiAmount(emi)
+                .loanTenureMonths(requestDto.getLoanTenureMonths())
+                .totalPayableAmount(totalPayable)
+                .totalInterestPayable(totalInterest)
+                .riskCategory(riskCategory)
+                .status(PricingRequest.PricingStatus.CALCULATED.name())
+                .timestamp(nowUtc)
+                .traceId(traceId)
+                .build();
 
             // Repository Layer Span
             Span dbSpan = tracer.spanBuilder("PricingRepository.save")
@@ -260,8 +303,9 @@ public class PricingService {
                 .startSpan();
 
             PricingRequest savedRequest;
+            boolean outboxPersisted = (outboxService != null && outboxService.isEnabled());
             try (Scope dbScope = dbSpan.makeCurrent()) {
-                long totalDuration = System.currentTimeMillis() - overallStartTime;
+                long persistedDuration = Math.max(1L, System.currentTimeMillis() - overallStartTime);
                 PricingRequest entity = PricingRequest.builder()
                     .customerId(requestDto.getCustomerId())
                     .productType(requestDto.getProductType())
@@ -276,18 +320,34 @@ public class PricingService {
                     .calculatedRate(interestRate)
                     .emiAmount(emi)
                     .status(PricingRequest.PricingStatus.CALCULATED)
-                    .processingTimeMs(totalDuration)
+                    .processingTimeMs(persistedDuration)
                     .requestIp(requestIp)
                     .traceId(traceId)
+                    .idempotencyKey(effectiveKey)
+                    .workflowId(workflowId)
+                    .rateValidUntil(rateValidUntil)
                     .build();
 
-                savedRequest = auditService.savePricingWithAudit(entity, requestIp, traceId);
+                savedRequest = auditService.savePricingWithAuditAndOutbox(entity, requestIp, traceId, event);
 
                 long dbDuration = System.currentTimeMillis() - dbStartTime;
                 dbSpan.setAttribute("db.row.id", savedRequest.getId().toString());
-                dbSpan.addEvent("Pricing request and audit record persisted atomically");
+                dbSpan.addEvent("Pricing request, audit record, and outbox event persisted atomically");
 
                 structuredLogger.logDatabaseOperation("INSERT", "PricingRequest", dbDuration, true);
+            } catch (DataIntegrityViolationException dive) {
+                if (effectiveKey != null) {
+                    Optional<PricingRequest> raceExisting = pricingRepository.findByIdempotencyKey(effectiveKey);
+                    if (raceExisting.isPresent()) {
+                        validateIdempotentReplay(raceExisting.get(), requestDto);
+                        dbSpan.addEvent("Concurrent idempotent insert resolved cleanly to existing quote");
+                        log.info("Concurrent idempotent insert resolved | requestId={}", raceExisting.get().getId());
+                        return mapToResponseDto(raceExisting.get());
+                    }
+                }
+                dbSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Database constraint failed: " + dive.getMessage());
+                structuredLogger.logDatabaseOperation("INSERT", "PricingRequest", System.currentTimeMillis() - dbStartTime, false);
+                throw dive;
             } catch (Exception e) {
                 dbSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, "Database save failed: " + e.getMessage());
                 structuredLogger.logDatabaseOperation("INSERT", "PricingRequest", System.currentTimeMillis() - dbStartTime, false);
@@ -298,7 +358,6 @@ public class PricingService {
 
             // ─── STEP 6: Record success metrics ───────────────────────────
             long totalDuration = System.currentTimeMillis() - overallStartTime;
-            savedRequest.setProcessingTimeMs(totalDuration);
             pricingMetrics.recordPricingSuccess();
 
             // Add result attributes to the span
@@ -312,27 +371,9 @@ public class PricingService {
                 interestRate, emi, totalDuration
             );
 
-            // ─── STEP 7: Publish Domain Event to Kafka ────────────────────
-            // ISSUE-02 FIX: Defer Kafka publish until AFTER DB transaction commits.
-            // ISSUE-03 FIX: Log failures from the CompletableFuture callback so
-            //               dropped events are visible in operational logs.
-            if (pricingEventProducer != null) {
-                final LoanPricingEvent event = LoanPricingEvent.builder()
-                    .requestId(savedRequest.getId())
-                    .customerId(savedRequest.getCustomerId())
-                    .productType(savedRequest.getProductType())
-                    .loanAmount(savedRequest.getLoanAmount())
-                    .interestRate(interestRate)
-                    .emiAmount(emi)
-                    .loanTenureMonths(savedRequest.getLoanTenureMonths())
-                    .totalPayableAmount(totalPayable)
-                    .totalInterestPayable(totalInterest)
-                    .riskCategory(riskCategory)
-                    .status(savedRequest.getStatus() != null ? savedRequest.getStatus().name() : "CALCULATED")
-                    .timestamp(savedRequest.getCreatedAt() != null ? savedRequest.getCreatedAt().atZone(java.time.ZoneId.of("UTC")).toInstant() : java.time.Instant.now())
-                    .traceId(traceId)
-                    .build();
-
+            // ─── STEP 7: Publish Domain Event (direct fallback only when outbox is inactive) ───
+            if (!outboxPersisted && pricingEventProducer != null) {
+                event.setRequestId(savedRequest.getId());
                 if (TransactionSynchronizationManager.isActualTransactionActive()) {
                     TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                         @Override
@@ -341,12 +382,18 @@ public class PricingService {
                         }
                     });
                 } else {
-                    // No active transaction (e.g. called directly in tests) — publish immediately
                     dispatchPricingEvent(event, "immediate");
                 }
             }
 
             // ─── STEP 8: Build and return response ────────────────────────
+            LocalDateTime calculatedAtUtc = savedRequest.getCreatedAt() != null
+                ? savedRequest.getCreatedAt()
+                : LocalDateTime.ofInstant(nowUtc, ZoneOffset.UTC);
+            LocalDateTime validUntilUtc = savedRequest.getRateValidUntil() != null
+                ? LocalDateTime.ofInstant(savedRequest.getRateValidUntil(), ZoneOffset.UTC)
+                : LocalDateTime.ofInstant(rateValidUntil, ZoneOffset.UTC);
+
             return PricingResponseDto.builder()
                 .requestId(savedRequest.getId())
                 .customerId(savedRequest.getCustomerId())
@@ -364,9 +411,9 @@ public class PricingService {
                 ))
                 .traceId(traceId)
                 .processingTimeMs(totalDuration)
-                .calculatedAt(LocalDateTime.now())
+                .calculatedAt(calculatedAtUtc)
                 .riskCategory(riskCategory)
-                .rateValidUntil(LocalDateTime.now().plusDays(rateValidDays))
+                .rateValidUntil(validUntilUtc)
                 .build();
 
         } catch (PricingException.InsufficientCreditScoreException |
@@ -375,6 +422,11 @@ public class PricingService {
             pricingSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
             throw e;
         } catch (PricingException e) {
+            if ("PRICING_CREDIT_SCORE_REQUIRED".equals(e.getErrorCode())
+                    || "IDEMPOTENCY_KEY_CONFLICT".equals(e.getErrorCode())) {
+                pricingSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
+                throw e;
+            }
             pricingSpan.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR, e.getMessage());
             pricingMetrics.recordPricingFailure();
             auditService.recordTechnicalFailure(requestDto, e.getMessage(), requestIp,
@@ -506,6 +558,13 @@ public class PricingService {
             riskCategory = pricingCalculator.determineRiskCategory(entity.getCreditScore());
         }
 
+        int validDays = rateValidDays > 0 ? rateValidDays : 7;
+        LocalDateTime persistedExpiry = entity.getRateValidUntil() != null
+            ? LocalDateTime.ofInstant(entity.getRateValidUntil(), ZoneOffset.UTC)
+            : (entity.getCreatedAt() != null
+                ? entity.getCreatedAt().plusDays(validDays)
+                : LocalDateTime.now(ZoneOffset.UTC).plusDays(validDays));
+
         return PricingResponseDto.builder()
             .requestId(entity.getId())
             .customerId(entity.getCustomerId())
@@ -522,10 +581,68 @@ public class PricingService {
             .calculatedAt(entity.getCreatedAt())
             .traceId(entity.getTraceId())
             .riskCategory(riskCategory)
-            .rateValidUntil(entity.getCreatedAt() != null
-                ? entity.getCreatedAt().plusDays(rateValidDays)
-                : LocalDateTime.now().plusDays(rateValidDays))
+            .rateValidUntil(persistedExpiry)
             .build();
+    }
+
+    /**
+     * Validates an optional Idempotency-Key header/field length and normalizes blank values to null.
+     */
+    public static String normalizeAndValidateIdempotencyKey(String rawKey) {
+        if (rawKey == null || rawKey.isBlank()) {
+            return null;
+        }
+        String trimmed = rawKey.trim();
+        if (trimmed.length() > 128) {
+            throw new PricingException(
+                "Idempotency-Key header cannot exceed 128 characters",
+                "INVALID_IDEMPOTENCY_KEY",
+                HttpStatus.BAD_REQUEST
+            );
+        }
+        return trimmed;
+    }
+
+    private String resolveIdempotencyKey(String headerKey, String bodyKey, String workflowId) {
+        String normalizedHeader = normalizeAndValidateIdempotencyKey(headerKey);
+        if (normalizedHeader != null) {
+            return normalizedHeader;
+        }
+        String normalizedBody = normalizeAndValidateIdempotencyKey(bodyKey);
+        if (normalizedBody != null) {
+            return normalizedBody;
+        }
+        if (workflowId != null && !workflowId.isBlank()) {
+            return "temporal:" + workflowId.trim();
+        }
+        return null;
+    }
+
+    private void validateIdempotentReplay(PricingRequest existing, PricingRequestDto incoming) {
+        boolean sameCustomer = java.util.Objects.equals(existing.getCustomerId(), incoming.getCustomerId());
+        boolean sameProduct = java.util.Objects.equals(existing.getProductType(), incoming.getProductType());
+        boolean sameAmount = existing.getLoanAmount() != null && incoming.getLoanAmount() != null
+            && existing.getLoanAmount().compareTo(incoming.getLoanAmount()) == 0;
+        boolean sameTenure = java.util.Objects.equals(existing.getLoanTenureMonths(), incoming.getLoanTenureMonths());
+        boolean sameCredit = java.util.Objects.equals(existing.getCreditScore(), incoming.getCreditScore());
+        boolean sameIncome = (existing.getAnnualIncome() == null && incoming.getAnnualIncome() == null)
+            || (existing.getAnnualIncome() != null && incoming.getAnnualIncome() != null
+                && existing.getAnnualIncome().compareTo(incoming.getAnnualIncome()) == 0);
+        boolean samePurpose = java.util.Objects.equals(
+            trimToNull(existing.getLoanPurpose()), trimToNull(incoming.getLoanPurpose()));
+        if (!sameCustomer || !sameProduct || !sameAmount || !sameTenure || !sameCredit || !sameIncome || !samePurpose) {
+            throw new PricingException(
+                "Idempotency-Key has already been used for a different loan pricing payload",
+                "IDEMPOTENCY_KEY_CONFLICT",
+                HttpStatus.CONFLICT
+            );
+        }
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /**

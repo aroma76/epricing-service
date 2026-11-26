@@ -213,6 +213,15 @@ class PricingCalculatorTest {
     }
 
     @Test
+    @DisplayName("Should reject null credit score in eligibility validation instead of bypassing minimum threshold")
+    void testValidateEligibility_NullCreditScoreRejected() {
+        PricingException ex = assertThrows(PricingException.class, () ->
+            pricingCalculator.validateEligibility("CUST001234", null, new BigDecimal("500000"), new BigDecimal("1200000"))
+        );
+        assertEquals("PRICING_CREDIT_SCORE_REQUIRED", ex.getErrorCode());
+    }
+
+    @Test
     @DisplayName("Should throw UnsupportedProductTypeException when productType is null or blank")
     void testCalculateInterestRate_NullOrBlankProduct() {
         assertThrows(PricingException.UnsupportedProductTypeException.class, () ->

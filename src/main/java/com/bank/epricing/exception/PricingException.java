@@ -80,7 +80,7 @@ public class PricingException extends RuntimeException {
             super(
                 String.format(
                     "Customer %s has credit score %d which is below the minimum required score of %d",
-                    customerId, creditScore, minimumRequired
+                    com.bank.epricing.logging.StructuredLogger.maskCustomerId(customerId), creditScore, minimumRequired
                 ),
                 "PRICING_INSUFFICIENT_CREDIT_SCORE",
                 HttpStatus.UNPROCESSABLE_ENTITY
@@ -95,10 +95,8 @@ public class PricingException extends RuntimeException {
         public LoanAmountExceedsEligibilityException(String customerId, java.math.BigDecimal requestedAmount, java.math.BigDecimal eligibleAmount) {
             super(
                 String.format(
-                    "Customer %s is eligible for a maximum loan of ₹%s but requested ₹%s",
-                    customerId,
-                    eligibleAmount != null ? eligibleAmount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00",
-                    requestedAmount != null ? requestedAmount.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00"
+                    "Customer %s requested loan amount exceeding maximum income eligibility limit",
+                    com.bank.epricing.logging.StructuredLogger.maskCustomerId(customerId)
                 ),
                 "PRICING_AMOUNT_EXCEEDS_ELIGIBILITY",
                 HttpStatus.UNPROCESSABLE_ENTITY
@@ -108,8 +106,8 @@ public class PricingException extends RuntimeException {
         public LoanAmountExceedsEligibilityException(String customerId, double requestedAmount, double eligibleAmount) {
             super(
                 String.format(
-                    "Customer %s is eligible for a maximum loan of ₹%.2f but requested ₹%.2f",
-                    customerId, eligibleAmount, requestedAmount
+                    "Customer %s requested loan amount exceeding maximum income eligibility limit",
+                    com.bank.epricing.logging.StructuredLogger.maskCustomerId(customerId)
                 ),
                 "PRICING_AMOUNT_EXCEEDS_ELIGIBILITY",
                 HttpStatus.UNPROCESSABLE_ENTITY
@@ -128,10 +126,8 @@ public class PricingException extends RuntimeException {
         public FoirExceededException(String customerId, java.math.BigDecimal monthlyEmi, java.math.BigDecimal maxPermissibleEmi) {
             super(
                 String.format(
-                    "Customer %s has computed monthly EMI of ₹%s which exceeds maximum permissible FOIR limit of ₹%s (50%% of monthly income)",
-                    customerId,
-                    monthlyEmi != null ? monthlyEmi.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00",
-                    maxPermissibleEmi != null ? maxPermissibleEmi.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString() : "0.00"
+                    "Customer %s computed EMI exceeds maximum permissible 50%% income FOIR threshold",
+                    com.bank.epricing.logging.StructuredLogger.maskCustomerId(customerId)
                 ),
                 "PRICING_FOIR_EXCEEDED",
                 HttpStatus.UNPROCESSABLE_ENTITY
@@ -207,6 +203,19 @@ public class PricingException extends RuntimeException {
                 "Pricing service temporarily unavailable: " + reason,
                 "PRICING_SERVICE_UNAVAILABLE",
                 HttpStatus.SERVICE_UNAVAILABLE
+            );
+        }
+    }
+
+    /**
+     * Thrown when a referenced Temporal workflow execution does not exist.
+     */
+    public static class WorkflowNotFoundException extends PricingException {
+        public WorkflowNotFoundException(String workflowId) {
+            super(
+                String.format("Pricing workflow '%s' was not found", workflowId),
+                "WORKFLOW_NOT_FOUND",
+                HttpStatus.NOT_FOUND
             );
         }
     }
