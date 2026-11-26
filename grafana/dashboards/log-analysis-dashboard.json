@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Log Analysis Dashboard",
   "uid": "epricing-logs",
-  "version": 9,
+  "version": 10,
   "panels": [
     {
       "id": 1,
@@ -376,6 +376,22 @@
       ]
     },
     {
+      "id": 9001,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 10,
       "type": "row",
       "title": "Error Analysis & Log Volume Trends",
@@ -383,7 +399,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 7
+        "y": 6
       },
       "collapsed": false
     },
@@ -396,7 +412,7 @@
         "h": 8,
         "w": 7,
         "x": 0,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -442,7 +458,7 @@
         "h": 8,
         "w": 9,
         "x": 7,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -486,7 +502,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "loki",
@@ -529,6 +545,22 @@
       ]
     },
     {
+      "id": 9002,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 20,
       "type": "row",
       "title": "Live Error Logs",
@@ -536,7 +568,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 16
       },
       "collapsed": false
     },
@@ -549,7 +581,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 17
       },
       "datasource": {
         "type": "loki",
@@ -572,6 +604,22 @@
       ]
     },
     {
+      "id": 9003,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 30,
       "type": "row",
       "title": "Pricing Request Logs",
@@ -579,7 +627,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 28
       },
       "collapsed": false
     },
@@ -592,7 +640,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 29
       },
       "datasource": {
         "type": "loki",

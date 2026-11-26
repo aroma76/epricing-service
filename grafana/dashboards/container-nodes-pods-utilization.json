@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Container & Node Utilization",
   "uid": "epricing-containers",
-  "version": 3,
+  "version": 4,
   "panels": [
     {
       "id": 1,
@@ -407,6 +407,22 @@
       ]
     },
     {
+      "id": 9001,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 10,
       "type": "row",
       "title": "CPU Usage by Container",
@@ -414,7 +430,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 7
+        "y": 6
       },
       "collapsed": false
     },
@@ -426,7 +442,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -480,6 +496,22 @@
       ]
     },
     {
+      "id": 9002,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 20,
       "type": "row",
       "title": "Memory Usage by Container",
@@ -487,7 +519,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 17
       },
       "collapsed": false
     },
@@ -499,7 +531,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 18
       },
       "datasource": {
         "type": "prometheus",
@@ -552,6 +584,22 @@
       ]
     },
     {
+      "id": 9003,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 30,
       "type": "row",
       "title": "Network I/O",
@@ -559,7 +607,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 28
       },
       "collapsed": false
     },
@@ -571,7 +619,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -616,7 +664,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 29
       },
       "datasource": {
         "type": "prometheus",
@@ -654,6 +702,22 @@
       ]
     },
     {
+      "id": 9004,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 40,
       "type": "row",
       "title": "Node-Level Metrics",
@@ -661,7 +725,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 38
       },
       "collapsed": false
     },
@@ -673,7 +737,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 43
+        "y": 39
       },
       "datasource": {
         "type": "prometheus",
@@ -725,7 +789,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 43
+        "y": 39
       },
       "datasource": {
         "type": "prometheus",

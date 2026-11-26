@@ -40,7 +40,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing L1 Operations Dashboard",
   "uid": "epricing-l1-ops",
-  "version": 4,
+  "version": 5,
   "panels": [
     {
       "collapsed": false,
@@ -285,12 +285,28 @@
       ]
     },
     {
+      "id": 9001,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 7
+        "y": 6
       },
       "id": 91,
       "title": "Throughput Volume (Left) & Target Response Times (Right)",
@@ -305,7 +321,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -356,7 +372,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -407,7 +423,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -458,7 +474,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -518,7 +534,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -578,7 +594,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 8
+        "y": 7
       },
       "datasource": {
         "type": "prometheus",
@@ -630,12 +646,28 @@
       ]
     },
     {
+      "id": 9002,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 12
       },
       "id": 92,
       "title": "HTTP 4XX Client Errors (Left) & HTTP 5XX Server Errors (Right)",
@@ -650,7 +682,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 15
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -705,7 +737,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 15
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -760,7 +792,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 15
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -815,7 +847,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 15
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -870,7 +902,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 15
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -925,7 +957,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 15
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -972,12 +1004,28 @@
       ]
     },
     {
+      "id": 9003,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 18
       },
       "id": 93,
       "title": "Database Health · Connection Pool · Blockings & Long Running Queries",
@@ -992,7 +1040,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 22
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -1047,7 +1095,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 22
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -1102,7 +1150,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 22
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -1157,7 +1205,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 22
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -1200,6 +1248,22 @@
       ]
     },
     {
+      "id": 9004,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 44,
       "title": "DB Logins (Transaction)",
       "description": "Total DB sessions (active + idle) on transaction pool — matches CRMNXT 'Transaction=171' meaning total pool connections",
@@ -1208,7 +1272,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 26
+        "y": 24
       },
       "datasource": {
         "type": "prometheus",
@@ -1267,7 +1331,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 26
+        "y": 24
       },
       "datasource": {
         "type": "prometheus",
@@ -1318,7 +1382,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 26
+        "y": 24
       },
       "datasource": {
         "type": "prometheus",
@@ -1373,7 +1437,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 26
+        "y": 24
       },
       "datasource": {
         "type": "prometheus",
@@ -1420,12 +1484,28 @@
       ]
     },
     {
+      "id": 9005,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 29
       },
       "id": 50,
       "title": "Integration Jobs — All Running / Complete / Error (Live from YugabyteDB)",
@@ -1440,7 +1520,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 33
+        "y": 30
       },
       "datasource": {
         "type": "postgres",
@@ -1696,12 +1776,28 @@
       ]
     },
     {
+      "id": 9006,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 45
       },
       "id": 53,
       "title": "❌ Error & Rejected Jobs — Root Cause Drill-Down (Live from DB)",
@@ -1716,7 +1812,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 46
       },
       "datasource": {
         "type": "postgres",

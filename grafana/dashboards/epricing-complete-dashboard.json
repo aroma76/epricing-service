@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Complete Observability Dashboard",
   "uid": "epricing-complete",
-  "version": 11,
+  "version": 12,
   "panels": [
     {
       "id": 1,
@@ -266,6 +266,22 @@
       ]
     },
     {
+      "id": 9001,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 6,
       "title": "Active In-Flight Requests",
       "type": "stat",
@@ -273,7 +289,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 5
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -328,7 +344,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 5
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -384,7 +400,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 5
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -440,7 +456,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 5
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -486,6 +502,22 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "id": 9002,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
     },
     {
       "id": 10,
@@ -601,6 +633,22 @@
       ]
     },
     {
+      "id": 9003,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 20,
       "type": "row",
       "title": "Pricing Business Metrics",
@@ -608,7 +656,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 21
       },
       "collapsed": false
     },
@@ -621,7 +669,7 @@
         "h": 9,
         "w": 9,
         "x": 0,
-        "y": 23
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -666,7 +714,7 @@
         "h": 3,
         "w": 15,
         "x": 9,
-        "y": 23
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -735,7 +783,7 @@
         "h": 6,
         "w": 15,
         "x": 9,
-        "y": 26
+        "y": 25
       },
       "datasource": {
         "type": "prometheus",
@@ -783,6 +831,22 @@
       ]
     },
     {
+      "id": 9004,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 30,
       "type": "row",
       "title": "Error Analysis",
@@ -790,7 +854,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 32
       },
       "collapsed": false
     },
@@ -802,7 +866,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 35
+        "y": 33
       },
       "datasource": {
         "type": "prometheus",
@@ -853,7 +917,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 35
+        "y": 33
       },
       "datasource": {
         "type": "prometheus",
@@ -904,7 +968,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 33
       },
       "datasource": {
         "type": "prometheus",
@@ -945,6 +1009,22 @@
       ]
     },
     {
+      "id": 9005,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 40,
       "type": "row",
       "title": "Database Health",
@@ -952,7 +1032,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 42
       },
       "collapsed": false
     },
@@ -964,7 +1044,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 46
+        "y": 43
       },
       "datasource": {
         "type": "prometheus",
@@ -1021,7 +1101,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 46
+        "y": 43
       },
       "datasource": {
         "type": "prometheus",
@@ -1061,6 +1141,22 @@
       ]
     },
     {
+      "id": 9006,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 50,
       "type": "row",
       "title": "JVM Runtime Metrics",
@@ -1068,7 +1164,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 56
+        "y": 52
       },
       "collapsed": false
     },
@@ -1080,7 +1176,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 53
       },
       "datasource": {
         "type": "prometheus",
@@ -1128,7 +1224,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 53
       },
       "datasource": {
         "type": "prometheus",
