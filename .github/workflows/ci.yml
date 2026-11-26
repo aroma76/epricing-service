@@ -23,6 +23,22 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Set up Node.js for Showcase Validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate Showcase Inline Script Syntax
+        run: |
+          node -e '
+            const fs = require("fs");
+            const html = fs.readFileSync("showcase/index.html", "utf8");
+            const match = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/);
+            if (!match) throw new Error("Missing main showcase script block");
+            new Function(match[1]);
+            console.log("Showcase JS syntax valid (" + match[1].length + " chars)");
+          '
+
       - name: Build and Test with Maven
         run: mvn -B clean verify
 

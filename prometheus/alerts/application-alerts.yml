@@ -186,3 +186,47 @@ groups:
         annotations:
           summary: "ePricing Service has high number of in-flight requests"
           description: "{{ $value }} pricing requests are currently being processed. This may indicate a slowdown (database, calculation time). Consider horizontal scaling."
+
+      # ─── ALERT: Kafka Publish Failures ──────────────────────────────────
+      - alert: EPricingKafkaPublishFailure
+        expr: increase(epricing_kafka_publish_failed_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: epricing
+        annotations:
+          summary: "ePricing Kafka domain event publish failures detected"
+          description: "{{ $value }} Kafka publish failures occurred in the last 5m. Outbox relay will retry with backoff; inspect Kafka broker and /admin/outbox/summary."
+
+      # ─── ALERT: Transactional Outbox Backlog ────────────────────────────
+      - alert: EPricingOutboxBacklogHigh
+        expr: epricing_outbox_pending{job="epricing-service"} > 50
+        for: 2m
+        labels:
+          severity: warning
+          team: epricing
+        annotations:
+          summary: "Transactional outbox pending backlog exceeds 50 events"
+          description: "{{ $value }} outbox events are awaiting Kafka delivery. Downstream LOS/analytics feeds are lagging."
+
+      # ─── ALERT: Outbox Dead-Lettered Events ─────────────────────────────
+      - alert: EPricingOutboxDeadLetter
+        expr: epricing_outbox_dead_letter{job="epricing-service"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: epricing
+        annotations:
+          summary: "Outbox events quarantined in DEAD_LETTER after exhausting retries"
+          description: "{{ $value }} loan pricing events could not be delivered to Kafka and require operator replay via POST /api/v1/admin/outbox/dead-letter/replay."
+
+      # ─── ALERT: Audit Write Failure ─────────────────────────────────────
+      - alert: EPricingAuditWriteFailure
+        expr: increase(epricing_audit_write_failed_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: epricing
+        annotations:
+          summary: "Compliance audit record write failures detected"
+          description: "{{ $value }} audit persistence failures occurred in the last 5m. Verify YugabyteDB health and transaction logs immediately."

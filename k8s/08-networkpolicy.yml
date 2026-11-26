@@ -18,26 +18,62 @@ spec:
     - Ingress
     - Egress
   ingress:
-    # Business REST API (port 8080) & Management / Actuator probes + Prometheus scrape (port 8081)
-    - ports:
+    # Business REST API (port 8080) allowed only from API gateway / ingress namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress
+      ports:
         - protocol: TCP
           port: 8080
+    # Management / Actuator probes & Prometheus scrape (port 8081) restricted to monitoring namespace
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
         - protocol: TCP
           port: 8081
   egress:
     # Cluster DNS resolution (CoreDNS / kube-dns)
-    - ports:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
         - protocol: UDP
           port: 53
         - protocol: TCP
           port: 53
-    # YugabyteDB YSQL (5433), Kafka broker (9092), Temporal gRPC (7233), OTel OTLP HTTP (4318)
-    - ports:
+    # YugabyteDB YSQL (database namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: database
+      ports:
         - protocol: TCP
           port: 5433
+    # Kafka KRaft brokers (streaming namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: streaming
+      ports:
         - protocol: TCP
           port: 9092
+    # Temporal frontend gRPC (temporal namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: temporal
+      ports:
         - protocol: TCP
           port: 7233
+    # OpenTelemetry Collector OTLP HTTP (monitoring namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
         - protocol: TCP
           port: 4318

@@ -20,11 +20,12 @@ data:
   SERVER_SHUTDOWN: "graceful"
   SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE: "25s"
 
-  # Database configuration (YugabyteDB / PostgreSQL)
-  SPRING_DATASOURCE_URL: "jdbc:postgresql://yugabyte-ysql.database.svc.cluster.local:5433/epricingdb"
+  # Database configuration (YugabyteDB / PostgreSQL with TLS verification)
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://yugabyte-ysql.database.svc.cluster.local:5433/epricingdb?sslmode=verify-full"
   SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.postgresql.Driver"
   SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
   SPRING_FLYWAY_ENABLED: "false"
+  EPRICING_SEED_DEMO_DATA: "false"
 
   # Temporal durable workflow orchestration
   TEMPORAL_ENABLED: "true"
@@ -44,6 +45,9 @@ data:
   KAFKA_ENABLED: "true"
   KAFKA_BOOTSTRAP_SERVERS: "kafka.streaming.svc.cluster.local:9092"
   KAFKA_TOPIC: "loan-pricing-events"
+  KAFKA_TOPIC_PARTITIONS: "3"
+  KAFKA_TOPIC_REPLICAS: "3"
+  KAFKA_MIN_INSYNC_REPLICAS: "2"
 
   # Core pricing domain business parameters (Spring relaxed binding -> epricing.pricing.base-rate)
   EPRICING_PRICING_BASE_RATE: "8.50"
