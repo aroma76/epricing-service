@@ -276,31 +276,184 @@
     }
 
     /* ═════════════════════════════════════════════════════════════════════ */
-    /* ACCESSIBLE TABS (Modern Web Guidance Compliant)                      */
+    /* ACCESSIBLE TABS & SCROLLABLE TABLIST (Modern Web Guidance Compliant)  */
     /* ═════════════════════════════════════════════════════════════════════ */
-    .tab-btn {
+    @property --fade-start {
+      syntax: "<length>";
+      inherits: false;
+      initial-value: 0px;
+    }
+    @property --fade-end {
+      syntax: "<length>";
+      inherits: false;
+      initial-value: 0px;
+    }
+
+    .tabs-scroller {
+      display: flex;
+      align-items: center;
+      overflow-x: auto;
+      scroll-snap-type: inline proximity;
+      scroll-padding-inline: 2.5rem;
+      --fade-size: 2.75rem;
+      mask:
+        linear-gradient(black, black) no-clip subtract,
+        linear-gradient(to right, black, transparent) 0 0 / var(--fade-start) 100% no-repeat no-clip,
+        linear-gradient(to right, transparent, black) 100% 0 / var(--fade-end) 100% no-repeat no-clip;
+      animation: reveal-fade-start linear both, hide-fade-end linear both;
+      animation-timeline: scroll(self inline);
+      animation-range: 0 var(--fade-size), calc(100% - var(--fade-size)) 100%;
+    }
+    @keyframes reveal-fade-start {
+      to { --fade-start: var(--fade-size); }
+    }
+    @keyframes hide-fade-end {
+      from { --fade-end: var(--fade-size); }
+    }
+    @supports not (animation-timeline: scroll()) {
+      .tabs-scroller {
+        transition: --fade-start 0.2s, --fade-end 0.2s;
+      }
+      .tabs-scroller.more-start {
+        --fade-start: var(--fade-size);
+      }
+      .tabs-scroller.more-end {
+        --fade-end: var(--fade-size);
+      }
+    }
+
+    .tab-btn, .subtab-btn {
       position: relative;
+      flex: none;
+      scroll-snap-align: start;
       cursor: pointer;
       user-select: none;
-      outline: none;
+      min-block-size: 2.25rem;
       transition: color 0.18s ease, background-color 0.18s ease;
     }
-    .tab-btn:focus-visible {
+    .tab-btn:focus-visible,
+    .subtab-btn:focus-visible,
+    .copy-button:focus-visible,
+    .endpoint-btn:focus-visible,
+    .flow-step-btn:focus-visible {
       outline: 2px solid #6366f1;
       outline-offset: 2px;
     }
-    .tab-btn[aria-selected="true"] {
+    .tab-btn[aria-selected="true"],
+    .subtab-btn[aria-selected="true"] {
       color: #ffffff;
       background: rgba(99, 102, 241, 0.85);
       box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
     }
-    .tab-btn[aria-selected="true"]::after {
+    .tab-btn[aria-selected="true"]::after,
+    .subtab-btn[aria-selected="true"]::after {
       content: "";
       position: absolute;
       inset: auto 12px 2px 12px;
-      height: 2px;
+      height: 0;
+      border-block-end: 3px solid #38bdf8;
       border-radius: 9999px;
-      background: #38bdf8;
+    }
+
+    /* Accessible Copy Button & Live Feedback Pill (Modern Web Guidance Compliant) */
+    .copy-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .copy-button {
+      min-inline-size: 2rem;
+      min-block-size: 2rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.375rem;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    .copy-button .copy-icon-done {
+      display: none;
+    }
+    .copy-button[data-copied] .copy-icon-default {
+      display: none;
+    }
+    .copy-button[data-copied] .copy-icon-done {
+      display: inline-flex;
+      color: #34d399;
+    }
+    .copy-button[data-copied] {
+      border-color: rgba(52, 211, 153, 0.55) !important;
+      background: rgba(16, 185, 129, 0.16) !important;
+      color: #6ee7b7 !important;
+    }
+    .copy-button[data-failed] {
+      border-color: rgba(244, 63, 94, 0.55) !important;
+      background: rgba(244, 63, 94, 0.16) !important;
+      color: #fda4af !important;
+    }
+    .copy-tip {
+      position: absolute;
+      inset-block-end: calc(100% + 0.4rem);
+      inset-inline-end: 0;
+      padding: 0.25rem 0.6rem;
+      border-radius: 0.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      background: rgba(10, 15, 29, 0.96);
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      color: #6ee7b7;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 30;
+    }
+    .copy-button[data-copied] + .copy-tip {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .copy-button[data-failed] + .copy-tip {
+      opacity: 1;
+      transform: translateY(0);
+      border-color: rgba(244, 63, 94, 0.45);
+      color: #fda4af;
+    }
+
+    .endpoint-btn {
+      min-block-size: 2.75rem;
+      text-align: left;
+      transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+    }
+    .endpoint-btn[aria-pressed="true"] {
+      background: rgba(99, 102, 241, 0.18);
+      border-color: rgba(99, 102, 241, 0.65);
+      box-shadow: 0 4px 18px rgba(99, 102, 241, 0.18);
+    }
+    .flow-step-btn {
+      min-block-size: 4rem;
+      text-align: left;
+      transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+    }
+    .flow-step-btn[aria-current="step"] {
+      background: rgba(99, 102, 241, 0.22);
+      border-color: rgba(56, 189, 248, 0.7);
+      box-shadow: 0 6px 24px rgba(56, 189, 248, 0.18);
+    }
+
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
     }
 
     /* Quick Preset Chips */
@@ -363,16 +516,20 @@
       background: rgba(255, 255, 255, 0.30);
     }
 
-    /* High Performance Tab Content */
-    .tab-panel {
+    /* High Performance Tab Content (compatible with hidden="until-found") */
+    .tab-panel:not([hidden]) {
       content-visibility: auto;
       contain-intrinsic-size: auto 600px;
+    }
+    [role="tabpanel"][hidden] {
+      contain-intrinsic-size: 0 0;
     }
 
     /* Reduced Motion Accessibility */
     @media (prefers-reduced-motion: reduce) {
-      .glass-card, .tile-btn, input[type="range"]::-webkit-slider-thumb, .donut-segment {
-        transition: none !important;
+      .glass-card, .tile-btn, .tab-btn, .subtab-btn, .copy-button, .copy-tip,
+      .endpoint-btn, .flow-step-btn, input[type="range"]::-webkit-slider-thumb, .donut-segment {
+        transition: opacity 0.12s linear !important;
         animation: none !important;
       }
     }
@@ -524,30 +681,40 @@
     </div>
 
     <!-- PRESENTATION MODULE NAVIGATION TABS (Modern Web Guidance Tabs Pattern) -->
-    <div class="pt-6 pb-2 overflow-x-auto no-scrollbar">
-      <div role="tablist" aria-label="Showcase Sections" class="inline-flex p-1.5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl gap-1.5 text-xs sm:text-sm font-semibold">
-        <button type="button" role="tab" aria-selected="true" id="tab-calculator" onclick="switchTab('calculator')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+    <div id="main-tablist-scroller" class="tabs-scroller pt-6 pb-2 no-scrollbar">
+      <div role="tablist" aria-label="Showcase Sections" class="inline-flex min-w-max p-1.5 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl gap-1.5 text-xs sm:text-sm font-semibold">
+        <button type="button" role="tab" aria-selected="true" tabindex="0" id="tab-calculator" onclick="switchTab('calculator')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-white">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
           <span>Live Pricing Calculator</span>
         </button>
 
-        <button type="button" role="tab" aria-selected="false" id="tab-architecture" onclick="switchTab('architecture')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        <button type="button" role="tab" aria-selected="false" tabindex="-1" id="tab-api" onclick="switchTab('api')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>API &amp; JSON Contracts</span>
+        </button>
+
+        <button type="button" role="tab" aria-selected="false" tabindex="-1" id="tab-flow" onclick="switchTab('flow')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+          <span>End-to-End Request Flow</span>
+        </button>
+
+        <button type="button" role="tab" aria-selected="false" tabindex="-1" id="tab-architecture" onclick="switchTab('architecture')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
           <span>5-Tier Architecture</span>
         </button>
 
-        <button type="button" role="tab" aria-selected="false" id="tab-temporal" onclick="switchTab('temporal')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <button type="button" role="tab" aria-selected="false" tabindex="-1" id="tab-temporal" onclick="switchTab('temporal')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <span>7-Day Rate Lock Machine</span>
         </button>
 
-        <button type="button" role="tab" aria-selected="false" id="tab-containers" onclick="switchTab('containers')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+        <button type="button" role="tab" aria-selected="false" tabindex="-1" id="tab-containers" onclick="switchTab('containers')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
           <span>17-Container Stack</span>
         </button>
 
-        <button type="button" role="tab" aria-selected="false" id="tab-schema" onclick="switchTab('schema')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+        <button type="button" role="tab" aria-selected="false" tabindex="-1" id="tab-schema" onclick="switchTab('schema')" class="tab-btn px-4 py-2.5 rounded-xl transition flex items-center gap-2 text-slate-400 hover:text-white">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
           <span>Domain Schema</span>
         </button>
       </div>
@@ -562,7 +729,7 @@
     <!-- ═════════════════════════════════════════════════════════════════════ -->
     <!-- TAB 1: FINANCIAL LOAN PRICING CALCULATOR & UNDERWRITING SIMULATOR     -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-calculator" role="tabpanel" aria-labelledby="tab-calculator" class="tab-panel block space-y-6">
+    <div id="content-calculator" role="tabpanel" aria-labelledby="tab-calculator" class="tab-panel">
       
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
@@ -697,7 +864,7 @@
                 <label for="slider-credit" class="font-semibold text-slate-300 uppercase tracking-wider">4. CIBIL / Experian Credit Score</label>
                 <div class="flex items-center gap-2">
                   <span id="readout-credit-tier" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    Prime (-1.00%)
+                    Low Risk (-0.50%)
                   </span>
                   <span id="readout-credit" class="text-sm font-bold font-mono text-white">780</span>
                 </div>
@@ -784,7 +951,7 @@
                 <div class="flex items-center justify-center gap-2 pt-1 text-xs font-mono">
                   <span class="text-emerald-400 font-bold" id="out-rate">8.00% p.a.</span>
                   <span class="text-slate-500">•</span>
-                  <span class="text-indigo-300" id="out-risk-category">LOW Risk</span>
+                  <span class="text-indigo-300" id="out-risk-category">LOW_MEDIUM Risk</span>
                 </div>
               </div>
 
@@ -846,14 +1013,25 @@
 
                 <!-- Circular Transport Control Buttons (Direct homage to media player in uploaded reference) -->
                 <div class="pt-2 flex items-center justify-center gap-4">
-                  <button type="button" onclick="copyQuotePayload()" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition" title="Copy JSON Quote Payload" aria-label="Copy JSON Quote Payload">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                  </button>
+                  <span class="copy-wrap">
+                    <button type="button" id="btn-copy-calc-quote" onclick="copyQuotePayload()" class="copy-button w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition" title="Copy JSON Quote Payload" aria-label="Copy JSON Quote Payload">
+                      <span class="copy-icon-default" aria-hidden="true">
+                        <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                      </span>
+                      <span class="copy-icon-done" aria-hidden="true">
+                        <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                      </span>
+                    </button>
+                    <span class="copy-tip" role="status"></span>
+                  </span>
                   <button type="button" onclick="switchTab('temporal')" class="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center transition" title="Lock Rate in Temporal Saga" aria-label="Lock Rate in Temporal Saga">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    <svg class="w-5 h-5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  </button>
+                  <button type="button" onclick="switchTab('flow')" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition" title="Trace End-to-End Flow" aria-label="Trace End-to-End Request Flow">
+                    <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
                   </button>
                   <button type="button" onclick="resetCalculatorDefaults()" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-300 hover:text-white transition" title="Reset Calculator" aria-label="Reset Calculator">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                   </button>
                 </div>
               </div>
@@ -910,9 +1088,250 @@
     </div>
 
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 2: INTERACTIVE 5-TIER ARCHITECTURE TOPOLOGY SWITCHER              -->
+    <!-- TAB 2: API ENDPOINTS & EXACT JSON CONTRACTS                           -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-architecture" role="tabpanel" aria-labelledby="tab-architecture" class="tab-panel hidden space-y-6">
+    <div id="content-api" role="tabpanel" aria-labelledby="tab-api" class="tab-panel" hidden="until-found">
+      <div class="space-y-6">
+        <div class="glass-container p-6 sm:p-8 space-y-6">
+
+          <!-- Header & Live Calculator Sync Controls -->
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-white/10">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight">REST API Endpoints &amp; Exact JSON Formats</h2>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Every snake_case <code class="text-indigo-300 font-mono">@JsonProperty</code> wire format served under <code class="text-sky-300 font-mono">/api/v1</code>, plus Temporal Saga, Kafka Event &amp; Error envelopes
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 text-xs font-mono">
+              <span class="px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
+                Base: <span class="text-indigo-300">http://localhost:8080/api/v1</span>
+              </span>
+              <button type="button" id="btn-sync-api-calc" onclick="syncApiFromCalculator()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-md shadow-indigo-600/25">
+                <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                <span>Sync From Calculator Sliders</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 2-Column Master-Detail API Explorer -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- LEFT: Endpoint Selector Directory (5 cols) -->
+            <div class="lg:col-span-5 space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Select Endpoint Contract</h3>
+                <span class="text-[11px] font-mono text-slate-400" id="api-count-badge">12 Contracts</span>
+              </div>
+              <div id="api-endpoint-list" class="space-y-4">
+                <!-- Populated dynamically from SHOWCASE_ENDPOINTS -->
+              </div>
+            </div>
+
+            <!-- RIGHT: Active Endpoint Payload & Validation Inspector (7 cols) -->
+            <div class="lg:col-span-7 glass-card p-5 sm:p-6 space-y-5">
+
+              <!-- Endpoint Metadata Banner -->
+              <div class="space-y-2 pb-4 border-b border-white/10">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span id="api-detail-method" class="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">POST</span>
+                    <code id="api-detail-path" class="text-sm sm:text-base font-mono font-bold text-white break-all">/api/v1/pricing</code>
+                  </div>
+                  <span id="api-detail-status" class="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30">201 Created</span>
+                </div>
+                <p id="api-detail-desc" class="text-xs text-slate-300 leading-relaxed">
+                  Synchronously validates eligibility, computes BigDecimal rate and EMI, persists quote + audit log atomically to YugabyteDB, and schedules post-commit Kafka dispatch.
+                </p>
+                <div class="flex flex-wrap items-center gap-2 pt-1 text-[11px] font-mono text-slate-400">
+                  <span>Handler: <code id="api-detail-handler" class="text-indigo-300">PricingController.calculatePricing()</code></span>
+                  <span aria-hidden="true">•</span>
+                  <span>Headers: <code id="api-detail-headers" class="text-emerald-300">X-Request-ID, X-Forwarded-For</code></span>
+                </div>
+              </div>
+
+              <!-- Sub-Tabs: Request JSON / Response JSON / Error JSON / cURL -->
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div role="tablist" aria-label="Payload View" id="api-payload-tablist" class="tabs-scroller inline-flex min-w-max p-1 rounded-xl bg-white/[0.04] border border-white/10 gap-1 text-xs font-mono">
+                  <button type="button" role="tab" aria-selected="true" tabindex="0" id="payload-tab-request" onclick="switchPayloadTab('request')" class="subtab-btn px-3 py-1.5 rounded-lg text-white">Request JSON</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" id="payload-tab-response" onclick="switchPayloadTab('response')" class="subtab-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Response JSON</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" id="payload-tab-error" onclick="switchPayloadTab('error')" class="subtab-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Error JSON</button>
+                  <button type="button" role="tab" aria-selected="false" tabindex="-1" id="payload-tab-curl" onclick="switchPayloadTab('curl')" class="subtab-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">cURL</button>
+                </div>
+
+                <!-- Invoker Command Copy Button (Modern Web Guidance copy-button pattern) -->
+                <span class="copy-wrap">
+                  <button type="button" id="api-copy-btn" command="--copy" commandfor="api-code-block" aria-label="Copy Request JSON" class="copy-button px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-mono font-semibold text-slate-200">
+                    <span class="copy-icon-default inline-flex items-center gap-1.5" aria-hidden="true">
+                      <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                      <span>Copy</span>
+                    </span>
+                    <span class="copy-icon-done inline-flex items-center gap-1.5" aria-hidden="true">
+                      <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                      <span>Copied</span>
+                    </span>
+                  </button>
+                  <span class="copy-tip" role="status"></span>
+                </span>
+              </div>
+
+              <!-- Live Format Caption -->
+              <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span id="api-code-caption">POST /api/v1/pricing — PricingRequestDto JSON body</span>
+                <span id="api-calc-sync-badge" class="hidden px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Synced with Calculator</span>
+              </div>
+
+              <!-- Formatted JSON / cURL Code Block -->
+              <pre class="bg-black/55 border border-white/10 rounded-2xl p-4 text-xs font-mono text-slate-100 overflow-x-auto max-h-[26rem] leading-relaxed" tabindex="0"><code id="api-code-block"></code></pre>
+
+              <!-- Semantic Field Constraints Table -->
+              <div class="space-y-2 pt-2">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300">Wire Fields &amp; Validation Rules</h3>
+                <div class="overflow-x-auto rounded-2xl border border-white/10 bg-black/30">
+                  <table class="w-full text-left text-xs">
+                    <caption class="visually-hidden" id="api-table-caption">Field constraints for active endpoint</caption>
+                    <thead class="bg-white/[0.04] text-[11px] font-mono text-slate-300 border-b border-white/10">
+                      <tr>
+                        <th scope="col" class="py-2.5 px-3">JSON Key</th>
+                        <th scope="col" class="py-2.5 px-3">Type / Rule</th>
+                        <th scope="col" class="py-2.5 px-3">Backend Validation / Semantics</th>
+                      </tr>
+                    </thead>
+                    <tbody id="api-fields-tbody" class="divide-y divide-white/5 font-mono text-[11px] text-slate-300">
+                      <!-- Populated dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 3: END-TO-END REQUEST FLOW (FIRST BYTE ARRIVING -> LAST OUTPUT)   -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div id="content-flow" role="tabpanel" aria-labelledby="tab-flow" class="tab-panel" hidden="until-found">
+      <div class="space-y-6">
+        <div class="glass-container p-6 sm:p-8 space-y-6">
+
+          <!-- Header & Flow Mode Switcher -->
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-white/10">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight">End-to-End Request Lifecycle: First Data Arriving &rarr; Last Output</h2>
+              <p class="text-xs text-slate-400 mt-0.5">
+                Trace every class, span, SQL statement, Kafka commit hook, HTTP response header, and telemetry export across the service
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <div role="tablist" aria-label="Execution Flow Mode" id="flow-mode-tablist" class="inline-flex p-1 rounded-xl bg-white/[0.04] border border-white/10 gap-1 text-xs font-mono">
+                <button type="button" role="tab" aria-selected="true" tabindex="0" id="flowtab-sync" onclick="setFlowMode('sync')" class="subtab-btn px-3 py-1.5 rounded-lg text-white">Sync REST (POST /pricing)</button>
+                <button type="button" role="tab" aria-selected="false" tabindex="-1" id="flowtab-temporal" onclick="setFlowMode('temporal')" class="subtab-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Temporal 7-Day Saga</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scenario / Branch Selector Bar + Stepper Navigation -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/10">
+            <div class="flex flex-wrap items-center gap-2 text-xs font-mono" id="flow-outcome-group">
+              <span class="text-slate-400 font-semibold mr-1">Execution Scenario:</span>
+              <button type="button" id="outcome-btn-happy" onclick="setFlowOutcome('happy')" aria-pressed="true" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold transition">201 CALCULATED (Happy Path)</button>
+              <button type="button" id="outcome-btn-rejected" onclick="setFlowOutcome('rejected')" aria-pressed="false" class="px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 border border-white/10 hover:text-white transition">422 Business Rejection (Audit Persisted)</button>
+              <button type="button" id="outcome-btn-invalid" onclick="setFlowOutcome('invalid')" aria-pressed="false" class="px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 border border-white/10 hover:text-white transition">400 Validation Short-Circuit</button>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <button type="button" onclick="stepFlowStage(-1)" id="btn-flow-prev" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition">&larr; Prev</button>
+              <span id="flow-progress-label" class="px-2.5 py-1 rounded-lg bg-black/40 border border-white/10 text-sky-300 font-bold">Stage 1 of 9</span>
+              <button type="button" onclick="stepFlowStage(1)" id="btn-flow-next" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition shadow-md shadow-indigo-600/25">Next &rarr;</button>
+              <button type="button" onclick="toggleFlowAutoPlay()" id="btn-flow-play" aria-pressed="false" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-emerald-300 transition">▶ Auto-Walk</button>
+            </div>
+          </div>
+
+          <!-- Ordered Pipeline Stage Cards -->
+          <ol id="flow-stages-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 list-none p-0 m-0">
+            <!-- Populated dynamically -->
+          </ol>
+
+          <!-- Detailed Boundary Inspector (2 Columns) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- LEFT: Stage Internals & Telemetry Signals (6 cols) -->
+            <div class="lg:col-span-6 glass-card p-5 sm:p-6 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+                <div>
+                  <span id="flow-detail-badge" class="text-[11px] font-mono font-bold text-indigo-300 uppercase tracking-wider">STAGE 1 OF 9 • INGRESS FILTER</span>
+                  <h3 id="flow-detail-title" class="text-base sm:text-lg font-bold text-white mt-0.5">HTTP Request Enters MDCFilter (@Order 1)</h3>
+                </div>
+                <span id="flow-detail-status" class="px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Active</span>
+              </div>
+
+              <div class="text-xs font-mono text-sky-300 bg-black/40 px-3.5 py-2.5 rounded-xl border border-white/10" id="flow-detail-component">
+                Class: com.bank.epricing.logging.MDCFilter.doFilter()
+              </div>
+
+              <p id="flow-detail-summary" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Runs before all other Spring MVC filters on every incoming request to establish thread-local diagnostic context and response headers.
+              </p>
+
+              <div class="space-y-2">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Exact Actions Executed</h4>
+                <ul id="flow-detail-actions" class="space-y-1.5 text-xs text-slate-200 list-disc pl-5">
+                  <!-- Populated dynamically -->
+                </ul>
+              </div>
+
+              <!-- OTel Span / Micrometer / Log Telemetry Pill Bar -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 text-[11px] font-mono">
+                <div class="p-3 rounded-xl bg-black/35 border border-white/10 space-y-1">
+                  <div class="text-slate-400 uppercase text-[10px]">OTel Span / Metric</div>
+                  <div id="flow-detail-otel" class="text-indigo-300 break-words">HTTP POST /api/v1/pricing (Root Span)</div>
+                </div>
+                <div class="p-3 rounded-xl bg-black/35 border border-white/10 space-y-1">
+                  <div class="text-slate-400 uppercase text-[10px]">Structured Log / Side Effect</div>
+                  <div id="flow-detail-log" class="text-emerald-300 break-words">Incoming request | requestId=REQ-...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT: Exact Wire / Memory / SQL / Output Data Snapshot (6 cols) -->
+            <div class="lg:col-span-6 glass-card p-5 sm:p-6 space-y-3">
+              <div class="flex items-center justify-between gap-2 pb-3 border-b border-white/10">
+                <div>
+                  <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">Data Transformation At This Boundary</span>
+                  <h4 id="flow-payload-label" class="text-sm font-bold text-white">Incoming HTTP Payload &amp; MDC Map</h4>
+                </div>
+                <span class="copy-wrap">
+                  <button type="button" id="flow-copy-btn" command="--copy" commandfor="flow-payload-code" aria-label="Copy stage snapshot" class="copy-button px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-xs font-mono font-semibold text-slate-200">
+                    <span class="copy-icon-default inline-flex items-center gap-1.5" aria-hidden="true">
+                      <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                      <span>Copy</span>
+                    </span>
+                    <span class="copy-icon-done inline-flex items-center gap-1.5" aria-hidden="true">
+                      <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                      <span>Copied</span>
+                    </span>
+                  </button>
+                  <span class="copy-tip" role="status"></span>
+                </span>
+              </div>
+
+              <pre class="bg-black/55 border border-white/10 rounded-2xl p-4 text-xs font-mono text-slate-100 overflow-x-auto max-h-[26rem] leading-relaxed" tabindex="0"><code id="flow-payload-code"></code></pre>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <!-- TAB 4: INTERACTIVE 5-TIER ARCHITECTURE TOPOLOGY SWITCHER              -->
+    <!-- ═════════════════════════════════════════════════════════════════════ -->
+    <div id="content-architecture" role="tabpanel" aria-labelledby="tab-architecture" class="tab-panel" hidden="until-found">
       
       <div class="glass-container p-6 sm:p-8 space-y-6">
         
@@ -1050,9 +1469,9 @@
     </div>
 
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 3: TEMPORAL 7-DAY DURABLE RATE LOCK STATE MACHINE                 -->
+    <!-- TAB 5: TEMPORAL 7-DAY DURABLE RATE LOCK STATE MACHINE                 -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-temporal" role="tabpanel" aria-labelledby="tab-temporal" class="tab-panel hidden space-y-6">
+    <div id="content-temporal" role="tabpanel" aria-labelledby="tab-temporal" class="tab-panel" hidden="until-found">
       
       <div class="glass-container p-6 sm:p-8 space-y-6">
         
@@ -1134,9 +1553,9 @@
     </div>
 
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 4: 17-CONTAINER SERVICE TOPOLOGY & LIVE PING PROBE                -->
+    <!-- TAB 6: 17-CONTAINER SERVICE TOPOLOGY & LIVE PING PROBE                -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-containers" role="tabpanel" aria-labelledby="tab-containers" class="tab-panel hidden space-y-6">
+    <div id="content-containers" role="tabpanel" aria-labelledby="tab-containers" class="tab-panel" hidden="until-found">
       
       <div class="glass-container p-6 sm:p-8 space-y-6">
         
@@ -1170,7 +1589,7 @@
           <button type="button" data-category="App" onclick="filterContainers('App')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Core App (1)</button>
           <button type="button" data-category="Database" onclick="filterContainers('Database')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Database (2)</button>
           <button type="button" data-category="Messaging" onclick="filterContainers('Messaging')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Messaging (3)</button>
-          <button type="button" data-category="Observability" onclick="filterContainers('Observability')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Observability (8)</button>
+          <button type="button" data-category="Observability" onclick="filterContainers('Observability')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Observability (10)</button>
           <button type="button" data-category="Testing" onclick="filterContainers('Testing')" class="c-filter-btn px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 hover:text-white transition">Testing (1)</button>
         </div>
 
@@ -1184,9 +1603,9 @@
     </div>
 
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <!-- TAB 5: DOMAIN SCHEMA & AUDIT CONTRACTS                                -->
+    <!-- TAB 7: DOMAIN SCHEMA & AUDIT CONTRACTS                                -->
     <!-- ═════════════════════════════════════════════════════════════════════ -->
-    <div id="content-schema" role="tabpanel" aria-labelledby="tab-schema" class="tab-panel hidden space-y-6">
+    <div id="content-schema" role="tabpanel" aria-labelledby="tab-schema" class="tab-panel" hidden="until-found">
       
       <div class="glass-container p-6 sm:p-8 space-y-6">
         
@@ -1839,36 +2258,101 @@ public interface PricingRateLockWorkflow {
       document.getElementById('out-formula').innerText = formulaText;
     }
 
-    function copyQuotePayload() {
-      if (!latestQuoteData) return;
-      const payload = JSON.stringify(latestQuoteData, null, 2);
-      navigator.clipboard.writeText(payload).then(() => {
-        alert("Quote JSON payload copied to clipboard!");
-      }).catch(() => {
-        prompt("Copy Quote JSON:", payload);
+    // ═════════════════════════════════════════════════════════════════════
+    // 3. MWG COPY SYSTEM (Invoker Commands + fallback)
+    // ═════════════════════════════════════════════════════════════════════
+    let _copyLastMessage = '';
+    const _copyTimers = new WeakMap();
+
+    function _copyReport(button, ok) {
+      const tip = button.nextElementSibling;
+      if (!tip) return;
+      clearTimeout(_copyTimers.get(button));
+      button.removeAttribute('data-copied');
+      button.removeAttribute('data-failed');
+      let message = ok ? 'Copied!' : 'Copy failed';
+      if (message === _copyLastMessage) message += '\u00A0';
+      _copyLastMessage = message;
+      tip.textContent = '';
+      void button.offsetWidth;
+      button.setAttribute(ok ? 'data-copied' : 'data-failed', '');
+      requestAnimationFrame(() => { tip.textContent = message; });
+      _copyTimers.set(button, setTimeout(() => {
+        button.removeAttribute('data-copied');
+        button.removeAttribute('data-failed');
+        tip.textContent = '';
+      }, 2200));
+    }
+
+    async function _copyText(button, text) {
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        _copyReport(button, true);
+      } catch {
+        _copyReport(button, false);
+      }
+    }
+
+    // Native Invoker Commands support
+    document.addEventListener('command', (e) => {
+      if (!e.command || !e.command.startsWith('--copy')) return;
+      const target = document.getElementById(e.source.getAttribute('commandfor'));
+      if (!target) return;
+      const text = target.matches('input, textarea') ? target.value : target.innerText.trim();
+      _copyText(e.source, text);
+    }, true);
+
+    // Fallback click handler for browsers without Invoker Commands
+    if (!('CommandEvent' in window)) {
+      document.addEventListener('click', (e) => {
+        if (e.defaultPrevented) return;
+        const btn = e.target.closest('button[command^="--copy"]');
+        if (!btn) return;
+        const target = document.getElementById(btn.getAttribute('commandfor'));
+        if (!target) return;
+        const text = target.matches('input, textarea') ? target.value : target.innerText.trim();
+        _copyText(btn, text);
       });
     }
 
+    // Calculator quote copy (button uses command="--copy" commandfor="calc-quote-json")
+    // The invisible <pre id="calc-quote-json"> is kept in sync by renderApproval()
+    function copyQuotePayload() {
+      const btn = document.getElementById('btn-copy-calc-quote');
+      if (!btn || !latestQuoteData) return;
+      const payload = JSON.stringify({
+        customer_id: 'CUST-DEMO-001',
+        product_type: latestQuoteData.productType,
+        loan_amount: latestQuoteData.amount,
+        loan_tenure_months: latestQuoteData.tenure,
+        credit_score: latestQuoteData.creditScore,
+        annual_income: latestQuoteData.annualIncome,
+        loan_purpose: 'Demo request from ePricing Showcase'
+      }, null, 2);
+      _copyText(btn, payload);
+    }
+
     // ═════════════════════════════════════════════════════════════════════
-    // 3. TAB NAVIGATION CONTROLLER (Modern Web Guidance Compliant)
+    // 4. TAB NAVIGATION CONTROLLER (Modern Web Guidance Compliant)
     // ═════════════════════════════════════════════════════════════════════
-    const TAB_KEYS = ['calculator', 'architecture', 'temporal', 'containers', 'schema'];
+    const TAB_KEYS = ['calculator', 'api', 'flow', 'architecture', 'temporal', 'containers', 'schema'];
+    let _apiTabInit = false;
+    let _flowTabInit = false;
 
     function switchTab(tabKey) {
       TAB_KEYS.forEach(k => {
         const panel = document.getElementById(`content-${k}`);
         const btn = document.getElementById(`tab-${k}`);
+        const isSelected = (k === tabKey);
         if (panel) {
-          if (k === tabKey) {
-            panel.classList.remove('hidden');
-            panel.classList.add('block');
+          if (isSelected) {
+            panel.removeAttribute('hidden');
           } else {
-            panel.classList.add('hidden');
-            panel.classList.remove('block');
+            try { panel.hidden = 'until-found'; } catch { panel.hidden = true; }
           }
         }
         if (btn) {
-          const isSelected = (k === tabKey);
           btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
           btn.tabIndex = isSelected ? 0 : -1;
           if (isSelected) {
@@ -1880,42 +2364,1460 @@ public interface PricingRateLockWorkflow {
           }
         }
       });
-
-      if (tabKey === 'containers') {
-        renderContainerGrid();
-      }
+      const selBtn = document.getElementById(`tab-${tabKey}`);
+      if (selBtn) selBtn.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      if (tabKey === 'containers') renderContainerGrid();
+      if (tabKey === 'api') renderApiTab();
+      if (tabKey === 'flow') renderFlowTab();
     }
 
-    // Keyboard navigation for accessible tabs (ArrowLeft, ArrowRight, Home, End)
+    // beforematch: browser revealed a hidden="until-found" panel via Ctrl+F
+    document.addEventListener('beforematch', (e) => {
+      const panel = e.target.closest('[role="tabpanel"]');
+      if (!panel) return;
+      const key = panel.id.replace('content-', '');
+      if (TAB_KEYS.includes(key)) switchTab(key);
+    });
+
+    // Keyboard navigation for main tablist
     document.addEventListener('keydown', (e) => {
       const activeEl = document.activeElement;
       if (!activeEl || activeEl.getAttribute('role') !== 'tab') return;
-
+      // Only handle main tabs (not sub-tabs handled below)
       const currentIdx = TAB_KEYS.findIndex(k => `tab-${k}` === activeEl.id);
       if (currentIdx === -1) return;
-
       let nextIdx = -1;
-      if (e.key === 'ArrowRight') {
-        nextIdx = (currentIdx + 1) % TAB_KEYS.length;
-      } else if (e.key === 'ArrowLeft') {
-        nextIdx = (currentIdx - 1 + TAB_KEYS.length) % TAB_KEYS.length;
-      } else if (e.key === 'Home') {
-        nextIdx = 0;
-      } else if (e.key === 'End') {
-        nextIdx = TAB_KEYS.length - 1;
-      }
-
+      if (e.key === 'ArrowRight') nextIdx = (currentIdx + 1) % TAB_KEYS.length;
+      else if (e.key === 'ArrowLeft') nextIdx = (currentIdx - 1 + TAB_KEYS.length) % TAB_KEYS.length;
+      else if (e.key === 'Home') nextIdx = 0;
+      else if (e.key === 'End') nextIdx = TAB_KEYS.length - 1;
       if (nextIdx !== -1) {
         e.preventDefault();
         const nextKey = TAB_KEYS[nextIdx];
         switchTab(nextKey);
-        const nextBtn = document.getElementById(`tab-${nextKey}`);
-        if (nextBtn) nextBtn.focus();
+        document.getElementById(`tab-${nextKey}`)?.focus();
       }
     });
 
     // ═════════════════════════════════════════════════════════════════════
-    // 4. ARCHITECTURE TOPOLOGY FLOW SWITCHER
+    // 5. API & JSON CONTRACTS — DATA MODEL + RENDER ENGINE
+    // ═════════════════════════════════════════════════════════════════════
+    const SHOWCASE_ENDPOINTS = [
+      {
+        id: 'pricing-create',
+        method: 'POST', methodColor: 'bg-indigo-600',
+        path: '/api/v1/pricing',
+        statusCode: '201 Created',
+        statusColor: 'text-emerald-400',
+        description: 'Submit a loan pricing request. Runs all three underwriting gates (credit score ≥ 650, LTI ≤ 10x, FOIR ≤ 50%), computes reducing-balance EMI in BigDecimal/DECIMAL128, persists quote + audit log atomically via PricingAuditService.savePricingWithAudit(), and dispatches a Kafka event.',
+        handler: 'PricingController.calculatePricing() → PricingService.calculatePricing()',
+        headers: 'Content-Type: application/json | In(opt): X-Request-ID, X-Customer-ID, X-Forwarded-For | Out: X-Request-ID',
+        fields: [
+          { key: 'customer_id',        type: 'String',     rule: '@NotBlank · @Pattern ^CUST(?=[A-Z0-9-]*[A-Z0-9])[A-Z0-9-]{6,46}$ (10-50 chars)' },
+          { key: 'product_type',        type: 'Enum',       rule: '@NotBlank · HOME_LOAN | AUTO_LOAN | BUSINESS_LOAN | PERSONAL_LOAN | EDUCATION_LOAN' },
+          { key: 'loan_amount',         type: 'BigDecimal', rule: '@NotNull · min 10000.00 · max 100000000.00 (₹10 Cr)' },
+          { key: 'loan_tenure_months',  type: 'Integer',    rule: '@NotNull · min 12 · max 360 months' },
+          { key: 'credit_score',        type: 'Integer',    rule: 'Optional · min 300 · max 900 (defaults to 700 if omitted; ≥ 650 required)' },
+          { key: 'annual_income',       type: 'BigDecimal', rule: '@NotNull · @DecimalMin("100000.00") (used for LTI & 50% FOIR gates)' },
+          { key: 'loan_purpose',        type: 'String',     rule: 'Optional · @Size(max = 200)' }
+        ],
+        payloads: {
+          request: `{
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000,
+  "loan_tenure_months": 240,
+  "credit_score": 780,
+  "annual_income": 2400000,
+  "loan_purpose": "Primary residence purchase - Mumbai suburbs"
+}`,
+          response: `HTTP/1.1 201 Created
+Content-Type: application/json
+X-Request-ID: REQ-7F3A1C2D4B5E
+
+{
+  "request_id": 10042,
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000.00,
+  "loan_tenure_months": 240,
+  "interest_rate_pa": 8.00,
+  "emi_amount": 41822.00,
+  "total_payable_amount": 10037280.00,
+  "total_interest_payable": 5037280.00,
+  "status": "CALCULATED",
+  "message": "Pricing calculated successfully. Interest rate: 8.00% p.a. EMI: ₹41822.00/month",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "processing_time_ms": 3,
+  "calculated_at": "2025-11-26T07:30:00.123",
+  "risk_category": "LOW_MEDIUM",
+  "rate_valid_until": "2025-12-03T07:30:00.123"
+}`,
+          error: `HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/json
+X-Request-ID: REQ-7F3A1C2D4B5E
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 422,
+  "error": "Unprocessable Entity",
+  "error_code": "PRICING_INSUFFICIENT_CREDIT_SCORE",
+  "message": "Customer CUST-DEMO-001 has credit score 620 which is below the minimum required score of 650",
+  "path": "/api/v1/pricing",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          curl: `curl -X POST http://localhost:8080/api/v1/pricing \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "customer_id": "CUST-DEMO-001",
+    "product_type": "HOME_LOAN",
+    "loan_amount": 5000000,
+    "loan_tenure_months": 240,
+    "credit_score": 780,
+    "annual_income": 2400000,
+    "loan_purpose": "Primary residence purchase"
+  }'`
+        }
+      },
+      {
+        id: 'pricing-get',
+        method: 'GET', methodColor: 'bg-sky-600',
+        path: '/api/v1/pricing/{id}',
+        statusCode: '200 OK / 404',
+        statusColor: 'text-sky-400',
+        description: 'Retrieve a single pricing record by its auto-generated request_id. Returns 404 with PRICING_REQUEST_NOT_FOUND error code if the record does not exist.',
+        handler: 'PricingController.getPricingById() → PricingService.getPricingById()',
+        headers: 'Accept: application/json | Out: X-Request-ID',
+        fields: [
+          { key: 'id (path)',  type: 'Long',   rule: 'Required path variable — the request_id from the create response' }
+        ],
+        payloads: {
+          request: `GET /api/v1/pricing/10042 HTTP/1.1
+Host: localhost:8080
+Accept: application/json`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+X-Request-ID: REQ-9A1B2C3D4E5F
+
+{
+  "request_id": 10042,
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000.00,
+  "loan_tenure_months": 240,
+  "interest_rate_pa": 8.00,
+  "emi_amount": 41822.00,
+  "total_payable_amount": 10037280.00,
+  "total_interest_payable": 5037280.00,
+  "status": "CALCULATED",
+  "message": "Pricing record ID 10042 for customer CUST-DEMO-001",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "processing_time_ms": 3,
+  "calculated_at": "2025-11-26T07:30:00.123",
+  "risk_category": "LOW_MEDIUM",
+  "rate_valid_until": "2025-12-03T07:30:00.123"
+}`,
+          error: `HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 404,
+  "error": "Not Found",
+  "error_code": "PRICING_REQUEST_NOT_FOUND",
+  "message": "Pricing request with ID 99999 not found",
+  "path": "/api/v1/pricing/99999",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          curl: `curl http://localhost:8080/api/v1/pricing/10042`
+        }
+      },
+      {
+        id: 'pricing-history',
+        method: 'GET', methodColor: 'bg-sky-600',
+        path: '/api/v1/pricing',
+        statusCode: '200 OK',
+        statusColor: 'text-sky-400',
+        description: 'Paginated pricing history returning a uniform PagedResponse<PricingResponseDto> envelope with optional customerId filter. Default: page=0, size=20 (values ≤ 0 or > 100 fall back to 20).',
+        handler: 'PricingController.getPricingHistory() → PricingService.getPricingHistory()',
+        headers: 'Accept: application/json | Out: X-Request-ID',
+        fields: [
+          { key: 'customerId (query)', type: 'String', rule: 'Optional — omit for all records; supply to filter by customer' },
+          { key: 'page (query)',        type: 'int',    rule: 'Optional · default 0 (zero-indexed, clamped ≥ 0)' },
+          { key: 'size (query)',        type: 'int',    rule: 'Optional · default 20 · valid range 1–100 (clamped to 20 outside range)' }
+        ],
+        payloads: {
+          request: `GET /api/v1/pricing?customerId=CUST-DEMO-001&page=0&size=5 HTTP/1.1
+Host: localhost:8080
+Accept: application/json`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "content": [
+    {
+      "request_id": 10042,
+      "customer_id": "CUST-DEMO-001",
+      "product_type": "HOME_LOAN",
+      "loan_amount": 5000000.00,
+      "loan_tenure_months": 240,
+      "interest_rate_pa": 8.00,
+      "emi_amount": 41822.00,
+      "total_payable_amount": 10037280.00,
+      "total_interest_payable": 5037280.00,
+      "status": "CALCULATED",
+      "risk_category": "LOW_MEDIUM",
+      "calculated_at": "2025-11-26T07:30:00.123",
+      "rate_valid_until": "2025-12-03T07:30:00.123"
+    }
+  ],
+  "page": 0,
+  "size": 5,
+  "total_elements": 24,
+  "total_pages": 5,
+  "last": false
+}`,
+          error: `HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 400,
+  "error": "Bad Request",
+  "error_code": "ARGUMENT_TYPE_MISMATCH",
+  "message": "Parameter 'page' has invalid value 'abc'",
+  "path": "/api/v1/pricing",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          curl: `# All pricing records (paginated)
+curl "http://localhost:8080/api/v1/pricing?page=0&size=20"
+
+# Filter by customer
+curl "http://localhost:8080/api/v1/pricing?customerId=CUST-DEMO-001&page=0&size=5"`
+        }
+      },
+      {
+        id: 'temporal-start',
+        method: 'POST', methodColor: 'bg-purple-600',
+        path: '/api/v1/workflow/pricing/start',
+        statusCode: '202 Accepted',
+        statusColor: 'text-purple-400',
+        description: 'Start a 7-day durable rate-lock Temporal workflow. Validates PricingRequestDto via @Valid, hashes customer_id (SHA-256 prefix) into workflow_id to prevent PII leakage, enqueues LoanPricingWorkflow on epricing-pricing-queue, and returns 202 Accepted with PricingWorkflowResult.',
+        handler: 'TemporalPricingController.startWorkflow() → TemporalPricingService.startPricingWorkflow()',
+        headers: 'Content-Type: application/json | Out: X-Request-ID',
+        fields: [
+          { key: 'customer_id',       type: 'String',     rule: '@NotBlank · @Pattern ^CUST(?=[A-Z0-9-]*[A-Z0-9])[A-Z0-9-]{6,46}$' },
+          { key: 'product_type',      type: 'Enum',       rule: '@NotBlank · HOME_LOAN | AUTO_LOAN | BUSINESS_LOAN | PERSONAL_LOAN | EDUCATION_LOAN' },
+          { key: 'loan_amount',       type: 'BigDecimal', rule: '@NotNull · min 10000.00 · max 100000000.00' },
+          { key: 'loan_tenure_months',type: 'Integer',    rule: '@NotNull · min 12 · max 360' },
+          { key: 'credit_score',      type: 'Integer',    rule: 'Optional · min 300 · max 900' },
+          { key: 'annual_income',     type: 'BigDecimal', rule: '@NotNull · @DecimalMin("100000.00")' },
+          { key: 'loan_purpose',      type: 'String',     rule: 'Optional · @Size(max = 200)' }
+        ],
+        payloads: {
+          request: `{
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000,
+  "loan_tenure_months": 240,
+  "credit_score": 780,
+  "annual_income": 2400000,
+  "loan_purpose": "7-day rate lock request"
+}`,
+          response: `HTTP/1.1 202 Accepted
+Content-Type: application/json
+X-Request-ID: REQ-1B2C3D4E5F6A
+
+{
+  "workflow_id": "pricing-7d3f1a9c2b04-9812a1b2",
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "status": "PROCESSING",
+  "rejection_reason": null,
+  "quote": null,
+  "created_at": null,
+  "updated_at": null
+}`,
+          error: `HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 400,
+  "error": "Bad Request",
+  "error_code": "TEMPORAL_DISABLED",
+  "message": "Temporal workflow orchestration is disabled. Set epricing.temporal.enabled=true to enable.",
+  "path": "/api/v1/workflow/pricing/start",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          curl: `curl -X POST http://localhost:8080/api/v1/workflow/pricing/start \\
+  -H "Content-Type: application/json" \\
+  -d '{"customer_id":"CUST-DEMO-001","product_type":"HOME_LOAN","loan_amount":5000000,"loan_tenure_months":240,"credit_score":780,"annual_income":2400000}'`
+        }
+      },
+      {
+        id: 'temporal-approve',
+        method: 'POST', methodColor: 'bg-emerald-600',
+        path: '/api/v1/workflow/pricing/{workflowId}/approve',
+        statusCode: '200 OK',
+        statusColor: 'text-emerald-400',
+        description: 'Send an approveQuote() signal to a waiting Temporal workflow. The workflow resumes from Workflow.await(), records RATE_APPROVED audit + updates status=APPROVED atomically, and publishes a Kafka event after commit.',
+        handler: 'TemporalPricingController.approveWorkflow() → TemporalPricingService.approveQuote() → workflow.approveQuote()',
+        headers: 'Content-Type: application/json (optional empty body) | Out: X-Request-ID',
+        fields: [
+          { key: 'workflowId (path)', type: 'String', rule: 'Required · workflow_id returned by POST /api/v1/workflow/pricing/start' }
+        ],
+        payloads: {
+          request: `POST /api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/approve HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "workflow_id": "pricing-7d3f1a9c2b04-9812a1b2",
+  "status": "APPROVED",
+  "message": "Approval signal dispatched to workflow"
+}`,
+          error: `HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 400,
+  "error": "Bad Request",
+  "error_code": "TEMPORAL_DISABLED",
+  "message": "Temporal workflow orchestration is disabled. Set epricing.temporal.enabled=true to enable.",
+  "path": "/api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/approve",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          curl: `curl -X POST http://localhost:8080/api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/approve`
+        }
+      },
+      {
+        id: 'temporal-status',
+        method: 'GET', methodColor: 'bg-sky-600',
+        path: '/api/v1/workflow/pricing/{workflowId}/status',
+        statusCode: '200 OK',
+        statusColor: 'text-sky-400',
+        description: 'Poll the current quick status string of a Temporal rate-lock workflow (INITIALIZING, PROCESSING, QUOTED, APPROVED, REJECTED, EXPIRED, COMPLETED, or FAILED). Falls back to Temporal workflow execution description if workflow query fails.',
+        handler: 'TemporalPricingController.getQuickWorkflowStatus() → TemporalPricingService.getWorkflowStatus()',
+        headers: 'Accept: application/json | Out: X-Request-ID',
+        fields: [
+          { key: 'workflowId (path)', type: 'String', rule: 'Required · exact workflow_id' }
+        ],
+        payloads: {
+          request: `GET /api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/status HTTP/1.1
+Host: localhost:8080
+Accept: application/json`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "workflow_id": "pricing-7d3f1a9c2b04-9812a1b2",
+  "status": "QUOTED"
+}`,
+          error: `HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 400,
+  "error": "Bad Request",
+  "error_code": "TEMPORAL_DISABLED",
+  "message": "Temporal workflow orchestration is disabled. Set epricing.temporal.enabled=true to enable.",
+  "path": "/api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/status",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          curl: `curl http://localhost:8080/api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/status`
+        }
+      },
+      {
+        id: 'temporal-result',
+        method: 'GET', methodColor: 'bg-sky-600',
+        path: '/api/v1/workflow/pricing/{workflowId}',
+        statusCode: '200 OK',
+        statusColor: 'text-sky-400',
+        description: 'Retrieve the full PricingWorkflowResult snapshot for a workflow — includes workflow_id, customer_id, status, rejection_reason, UTC ISO timestamps (created_at/updated_at), and the nested PricingResponseDto under "quote".',
+        handler: 'TemporalPricingController.getWorkflowStatus() → TemporalPricingService.getWorkflowResult()',
+        headers: 'Accept: application/json | Out: X-Request-ID',
+        fields: [
+          { key: 'workflowId (path)', type: 'String', rule: 'Required — workflow_id returned by POST /api/v1/workflow/pricing/start' }
+        ],
+        payloads: {
+          request: `GET /api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2 HTTP/1.1
+Host: localhost:8080
+Accept: application/json`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "workflow_id": "pricing-7d3f1a9c2b04-9812a1b2",
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "status": "APPROVED",
+  "rejection_reason": null,
+  "quote": {
+    "request_id": 10042,
+    "customer_id": "CUST-DEMO-001",
+    "product_type": "HOME_LOAN",
+    "loan_amount": 5000000.00,
+    "loan_tenure_months": 240,
+    "interest_rate_pa": 8.00,
+    "emi_amount": 41822.00,
+    "total_payable_amount": 10037280.00,
+    "total_interest_payable": 5037280.00,
+    "status": "CALCULATED",
+    "risk_category": "LOW_MEDIUM",
+    "rate_valid_until": "2025-12-03T07:30:00.123"
+  },
+  "created_at": "2025-11-26T07:30:00.123Z",
+  "updated_at": "2025-11-26T07:35:12.400Z"
+}`,
+          error: `HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 400,
+  "error": "Bad Request",
+  "error_code": "TEMPORAL_DISABLED",
+  "message": "Temporal workflow orchestration is disabled. Set epricing.temporal.enabled=true to enable.",
+  "path": "/api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          curl: `curl http://localhost:8080/api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2`
+        }
+      },
+      {
+        id: 'temporal-reject',
+        method: 'POST', methodColor: 'bg-rose-600',
+        path: '/api/v1/workflow/pricing/{workflowId}/reject',
+        statusCode: '200 OK',
+        statusColor: 'text-rose-400',
+        description: 'Send a rejectQuote(reason) signal to a waiting Temporal workflow. The workflow resumes, runs PricingActivitiesImpl.recordQuoteRejection() (sets DB status=REJECTED + error_message, saves RATE_REJECTED audit), and publishes a Kafka event after commit.',
+        handler: 'TemporalPricingController.rejectWorkflow() → TemporalPricingService.rejectQuote()',
+        headers: 'Content-Type: application/json | Out: X-Request-ID',
+        fields: [
+          { key: 'workflowId (path)', type: 'String', rule: 'Required' },
+          { key: 'reason (body)',     type: 'String', rule: 'Optional — controller defaults missing body to "Customer rejected offer"' }
+        ],
+        payloads: {
+          request: `POST /api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/reject HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+
+{
+  "reason": "Customer found a better rate elsewhere"
+}`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "workflow_id": "pricing-7d3f1a9c2b04-9812a1b2",
+  "status": "REJECTED",
+  "reason": "Customer found a better rate elsewhere",
+  "message": "Rejection signal dispatched to workflow"
+}`,
+          error: `HTTP/1.1 400 Bad Request
+Content-Type: application/json
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 400,
+  "error": "Bad Request",
+  "error_code": "TEMPORAL_DISABLED",
+  "message": "Temporal workflow orchestration is disabled. Set epricing.temporal.enabled=true to enable.",
+  "path": "/api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/reject",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          curl: `curl -X POST http://localhost:8080/api/v1/workflow/pricing/pricing-7d3f1a9c2b04-9812a1b2/reject \\
+  -H "Content-Type: application/json" \\
+  -d '{"reason": "Customer found a better rate elsewhere"}'`
+        }
+      },
+      {
+        id: 'kafka-event',
+        method: 'EVT', methodColor: 'bg-amber-600',
+        path: 'topic: loan-pricing-events',
+        statusCode: 'Async Publish',
+        statusColor: 'text-amber-400',
+        description: 'Domain event published after DB commit (immediately after PricingAuditService.savePricingWithAudit() commits on the sync path, and via TransactionSynchronizationManager.afterCommit() in Temporal status activities). Topic has 3 partitions; Kafka record key = customer_id; serialized as JSON with UTC ISO-8601 timestamp.',
+        handler: 'KafkaPricingEventProducer.publishPricingEvent() ← PricingService / PricingActivitiesImpl',
+        headers: 'Kafka Key: customer_id | Header: traceparent (UTF-8, injected when OTel span is valid)',
+        fields: [
+          { key: 'request_id',             type: 'Long',       rule: 'Auto-generated DB primary key' },
+          { key: 'customer_id',            type: 'String',     rule: 'Kafka partition key' },
+          { key: 'product_type',           type: 'String',     rule: 'Loan product enum name' },
+          { key: 'loan_amount',            type: 'BigDecimal', rule: 'Full precision principal' },
+          { key: 'interest_rate',          type: 'BigDecimal', rule: 'Final computed rate % p.a.' },
+          { key: 'emi_amount',             type: 'BigDecimal', rule: 'Monthly EMI' },
+          { key: 'loan_tenure_months',     type: 'Integer',    rule: 'Tenure in months' },
+          { key: 'total_payable_amount',   type: 'BigDecimal', rule: 'emi × tenure' },
+          { key: 'total_interest_payable', type: 'BigDecimal', rule: 'total_payable − loan_amount' },
+          { key: 'risk_category',          type: 'String',     rule: 'LOW | LOW_MEDIUM | MEDIUM | MEDIUM_HIGH | HIGH' },
+          { key: 'status',                 type: 'String',     rule: 'CALCULATED | APPROVED | REJECTED | EXPIRED' },
+          { key: 'timestamp',              type: 'Instant',    rule: 'UTC ISO-8601 (@JsonFormat yyyy-MM-ddTHH:mm:ss.SSSXXX)' },
+          { key: 'trace_id',               type: 'String',     rule: 'W3C OTel trace ID for log/trace correlation' }
+        ],
+        payloads: {
+          request: `// Kafka Producer — topic: loan-pricing-events (3 partitions, acks=all, idempotent)
+// ProducerRecord<>(topic, event.getCustomerId(), event) + header: traceparent
+
+{
+  "request_id": 10042,
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000.00,
+  "interest_rate": 8.00,
+  "emi_amount": 41822.00,
+  "loan_tenure_months": 240,
+  "total_payable_amount": 10037280.00,
+  "total_interest_payable": 5037280.00,
+  "risk_category": "LOW_MEDIUM",
+  "status": "CALCULATED",
+  "timestamp": "2025-11-26T07:30:00.123Z",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`,
+          response: `// Producer future completes (SendResult.getRecordMetadata())
+// Logged by KafkaPricingEventProducer: partition, offset, requestId, traceId
+
+{
+  "topic": "loan-pricing-events",
+  "partition": 1,
+  "offset": 8420,
+  "key": "CUST-DEMO-001",
+  "timestamp": 1732606200123
+}`,
+          error: `// Kafka broker unreachable or max.block.ms (3000ms) exceeded
+// Pricing DB row is ALREADY committed (no rollback on DB!).
+// Producer sets OTel span StatusCode.ERROR, increments metric epricing.kafka.publish.failed,
+// and logs CRITICAL/ERROR with requestId for replay inspection.
+
+{
+  "error": "TimeoutException: Topic loan-pricing-events not present in metadata after 3000 ms",
+  "metric_incremented": "epricing.kafka.publish.failed{topic=\"loan-pricing-events\"}",
+  "request_id": 10042,
+  "db_state": "COMMITTED"
+}`,
+          curl: `# Consume from Kafka (requires running Docker Compose stack)
+docker exec -it epricing-kafka /opt/kafka/bin/kafka-console-consumer.sh \\
+  --bootstrap-server localhost:9092 \\
+  --topic loan-pricing-events \\
+  --from-beginning \\
+  --max-messages 5`
+        }
+      },
+      {
+        id: 'health',
+        method: 'GET', methodColor: 'bg-slate-600',
+        path: '/api/v1/health/liveness',
+        statusCode: '200 OK',
+        statusColor: 'text-slate-300',
+        description: 'Kubernetes liveness probe. Deliberately isolated from DB connectivity — checks in-memory JVM metrics only and never acquires a database connection, preventing cascading pod restarts during YugabyteDB maintenance.',
+        handler: 'HealthController.liveness()',
+        headers: 'None required',
+        fields: [],
+        payloads: {
+          request: `GET /api/v1/health/liveness HTTP/1.1
+Host: localhost:8080`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "status": "UP",
+  "timestamp": "2025-11-26T07:30:00.123Z",
+  "jvm": {
+    "heapUsedMb": 142,
+    "heapMaxMb": 1024,
+    "heapUtilizationPct": "13.9%",
+    "processors": 8
+  }
+}`,
+          error: `// /health/liveness never hits DB; readiness failure returns 503 via GET /api/v1/health/readiness`,
+          curl: `curl http://localhost:8080/api/v1/health/liveness
+# Ops actuator (management port 8081):
+curl http://localhost:8081/actuator/health/liveness`
+        }
+      },
+      {
+        id: 'health-readiness',
+        method: 'GET', methodColor: 'bg-slate-600',
+        path: '/api/v1/health/readiness',
+        statusCode: '200 OK / 503',
+        statusColor: 'text-slate-300',
+        description: 'Kubernetes readiness probe. Acquires a HikariCP connection via DataSource.getConnection() to verify YugabyteDB connectivity. Returns 503 Service Unavailable if DB is unreachable (combined overview also exposed at GET /api/v1/health).',
+        handler: 'HealthController.readiness() → checkDatabaseHealth() via DataSource.getConnection()',
+        headers: 'None required',
+        fields: [],
+        payloads: {
+          request: `GET /api/v1/health/readiness HTTP/1.1
+Host: localhost:8080`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "service": "epricing-service",
+  "timestamp": "2025-11-26T07:30:00.123Z",
+  "database": {
+    "status": "UP",
+    "product": "PostgreSQL",
+    "version": "11.2-YB-2.20.1.0-b0"
+  },
+  "status": "UP"
+}`,
+          error: `HTTP/1.1 503 Service Unavailable
+Content-Type: application/json
+
+{
+  "service": "epricing-service",
+  "timestamp": "2025-11-26T07:30:00.123Z",
+  "database": {
+    "status": "DOWN",
+    "error": "Connection refused: localhost:5433"
+  },
+  "status": "DOWN",
+  "reason": "Database connectivity unavailable"
+}`,
+          curl: `curl -v http://localhost:8080/api/v1/health/readiness
+# Combined overview (status + db + jvm + version):
+curl http://localhost:8080/api/v1/health`
+        }
+      },
+      {
+        id: 'metrics-demo',
+        method: 'GET', methodColor: 'bg-teal-600',
+        path: '/api/v1/metrics-demo',
+        statusCode: '200 OK',
+        statusColor: 'text-teal-300',
+        description: '@Profile("!prod") — disabled in production. Returns a summary of custom Micrometer metrics, Grafana endpoints, Loki query tips, and OTel trace context. Sub-routes (/simulate-slow, /simulate-error, /generate-load, /trace-demo) emit demo signals using isolated demo counters.',
+        handler: 'MetricsDemoController.getMetricsSummary() [inactive when profile=prod]',
+        headers: 'Accept: application/json | Out: X-Request-ID',
+        fields: [],
+        payloads: {
+          request: `# Active in non-prod profiles only (@Profile("!prod"))
+GET /api/v1/metrics-demo HTTP/1.1
+Host: localhost:8080`,
+          response: `HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "service": "epricing-service",
+  "timestamp": "2025-11-26T07:30:00.123",
+  "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "spanId": "00f067aa0ba902b7",
+  "metrics": {
+    "actuator_prometheus_url": "http://localhost:8081/actuator/prometheus",
+    "key_metrics": [
+      "pricing_requests_total — Counter: total pricing requests",
+      "pricing_calculation_duration_seconds — Timer: calculation time",
+      "pricing_requests_active — Gauge: in-flight requests",
+      "pricing_loan_amount_requested_rupees — DistributionSummary: loan distribution"
+    ]
+  },
+  "grafana": {
+    "url": "http://localhost:3000",
+    "default_credentials": "admin / Bank@grafana123",
+    "dashboards": ["JVM Overview", "Application Metrics", "Business Metrics"]
+  },
+  "loki": {
+    "url": "http://localhost:3100",
+    "example_query": "{application=\\"epricing-service\\"} | json | level=\\"ERROR\\""
+  }
+}`,
+          error: `// Inactive in production (@Profile("!prod")) → NoResourceFoundException
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 404,
+  "error": "Not Found",
+  "error_code": "RESOURCE_NOT_FOUND",
+  "message": "No static resource metrics-demo.",
+  "path": "/api/v1/metrics-demo"
+}`,
+          curl: `# Trigger observable signals (non-prod only):
+curl http://localhost:8080/api/v1/metrics-demo
+curl http://localhost:8080/api/v1/metrics-demo/simulate-slow
+curl http://localhost:8080/api/v1/metrics-demo/simulate-error
+curl http://localhost:8080/api/v1/metrics-demo/generate-load
+curl http://localhost:8080/api/v1/metrics-demo/trace-demo`
+        }
+      }
+    ];
+
+    let _apiSelectedIdx = 0;
+    let _apiPayloadTab = 'request';
+    let _apiCalcSynced = false;
+
+    function renderApiTab() {
+      if (!_apiTabInit) {
+        _apiTabInit = true;
+        renderApiEndpointList();
+        renderApiDetail(0);
+        document.getElementById('api-payload-tablist')?.addEventListener('keydown', (e) => {
+          if (e.target.getAttribute('role') !== 'tab') return;
+          const tabs = ['request', 'response', 'error', 'curl'];
+          const idx = tabs.findIndex(k => `payload-tab-${k}` === e.target.id);
+          if (idx === -1) return;
+          let next = -1;
+          if (e.key === 'ArrowRight') next = (idx + 1) % tabs.length;
+          else if (e.key === 'ArrowLeft') next = (idx - 1 + tabs.length) % tabs.length;
+          else if (e.key === 'Home') next = 0;
+          else if (e.key === 'End') next = tabs.length - 1;
+          if (next !== -1) {
+            e.preventDefault();
+            switchPayloadTab(tabs[next]);
+            document.getElementById(`payload-tab-${tabs[next]}`)?.focus();
+          }
+        });
+      }
+    }
+
+    function renderApiEndpointList() {
+      const container = document.getElementById('api-endpoint-list');
+      if (!container) return;
+      container.innerHTML = SHOWCASE_ENDPOINTS.map((ep, i) => `
+        <button type="button" class="endpoint-btn w-full text-left px-3 py-2.5 rounded-xl border transition-all duration-150 ${i === _apiSelectedIdx ? 'border-indigo-500/60 bg-indigo-600/15 text-white' : 'border-white/5 bg-white/[0.02] text-slate-400 hover:text-white hover:border-white/15'}"
+          aria-pressed="${i === _apiSelectedIdx}" onclick="renderApiDetail(${i})">
+          <div class="flex items-center gap-2 mb-0.5">
+            <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${ep.methodColor} text-white">${ep.method}</span>
+            <span class="text-[11px] font-mono truncate">${ep.path}</span>
+          </div>
+          <div class="text-[10px] text-slate-500 truncate pl-0.5">${ep.description.substring(0, 58)}…</div>
+        </button>
+      `).join('');
+    }
+
+    function renderApiDetail(idx) {
+      _apiSelectedIdx = idx;
+      _apiCalcSynced = false;
+      const ep = SHOWCASE_ENDPOINTS[idx];
+      if (!ep) return;
+      renderApiEndpointList();
+
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+      const mb = document.getElementById('api-detail-method');
+      if (mb) { mb.textContent = ep.method; mb.className = `text-xs font-mono font-bold px-3 py-1 rounded-lg ${ep.methodColor} text-white`; }
+
+      setEl('api-detail-path', ep.path);
+      const sc = document.getElementById('api-detail-status');
+      if (sc) { sc.textContent = ep.statusCode; sc.className = `text-xs font-mono font-semibold ${ep.statusColor}`; }
+      setEl('api-detail-desc', ep.description);
+      setEl('api-detail-handler', ep.handler);
+      setEl('api-detail-headers', ep.headers);
+
+      const tbody = document.getElementById('api-fields-tbody');
+      if (tbody) {
+        tbody.innerHTML = ep.fields.length ? ep.fields.map(f => `
+          <tr class="border-b border-white/5 hover:bg-white/[0.02]">
+            <td class="py-2 px-3 font-mono text-indigo-300 text-xs whitespace-nowrap">${f.key}</td>
+            <td class="py-2 px-3 font-mono text-amber-300 text-xs whitespace-nowrap">${f.type}</td>
+            <td class="py-2 px-3 text-slate-400 text-xs">${f.rule || '—'}</td>
+          </tr>`).join('')
+          : `<tr><td colspan="3" class="py-3 px-3 text-slate-500 text-xs italic">No request body fields (path/query params or empty body)</td></tr>`;
+      }
+
+      const badge = document.getElementById('api-calc-sync-badge');
+      if (badge) badge.classList.add('hidden');
+
+      switchPayloadTab('request');
+    }
+
+    function switchPayloadTab(tabKey) {
+      _apiPayloadTab = tabKey;
+      const tabs = ['request', 'response', 'error', 'curl'];
+      tabs.forEach(k => {
+        const btn = document.getElementById(`payload-tab-${k}`);
+        if (!btn) return;
+        const sel = k === tabKey;
+        btn.setAttribute('aria-selected', sel ? 'true' : 'false');
+        btn.tabIndex = sel ? 0 : -1;
+        if (sel) { btn.classList.add('text-white'); btn.classList.remove('text-slate-400'); }
+        else { btn.classList.remove('text-white'); btn.classList.add('text-slate-400'); }
+      });
+      renderApiPayload(tabKey);
+    }
+
+    function renderApiPayload(tabKey) {
+      const ep = SHOWCASE_ENDPOINTS[_apiSelectedIdx];
+      if (!ep) return;
+      const code = document.getElementById('api-code-block');
+      if (code) code.textContent = ep.payloads[tabKey] || '';
+      const labels = {
+        request: `${ep.method} ${ep.path} — Request Contract`,
+        response: `${ep.method} ${ep.path} — Success Response (${ep.statusCode})`,
+        error: `${ep.method} ${ep.path} — Error Response`,
+        curl: `${ep.method} ${ep.path} — cURL Command`
+      };
+      const cap = document.getElementById('api-code-caption');
+      if (cap) cap.textContent = labels[tabKey] || tabKey;
+      const copyBtn = document.getElementById('api-copy-btn');
+      if (copyBtn) copyBtn.setAttribute('aria-label', `Copy ${tabKey.toUpperCase()} snippet`);
+    }
+
+    function syncApiFromCalculator() {
+      if (!latestQuoteData) {
+        performCalculation();
+      }
+      if (!latestQuoteData) return;
+      const ep = SHOWCASE_ENDPOINTS[0];
+      const custId = 'CUST-DEMO-' + (Math.floor(Math.random() * 900) + 100);
+      const req = {
+        customer_id: custId,
+        product_type: latestQuoteData.productType,
+        loan_amount: latestQuoteData.amount,
+        loan_tenure_months: latestQuoteData.tenure,
+        credit_score: latestQuoteData.creditScore,
+        annual_income: latestQuoteData.annualIncome,
+        loan_purpose: 'Synced from ePricing Showcase calculator'
+      };
+      const emiRounded = Math.round(latestQuoteData.emi * 100) / 100;
+      const nowIso = new Date().toISOString().slice(0, 23);
+      const validIso = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 23);
+
+      ep.payloads.request = JSON.stringify(req, null, 2);
+      ep.payloads.response = `HTTP/1.1 201 Created\nContent-Type: application/json\nX-Request-ID: REQ-7F3A1C2D4B5E\n\n` + JSON.stringify({
+        request_id: Math.floor(Math.random() * 90000) + 10000,
+        customer_id: req.customer_id,
+        product_type: req.product_type,
+        loan_amount: req.loan_amount,
+        loan_tenure_months: req.loan_tenure_months,
+        interest_rate_pa: latestQuoteData.rate,
+        emi_amount: emiRounded,
+        total_payable_amount: latestQuoteData.totalPayable,
+        total_interest_payable: latestQuoteData.totalInterest,
+        status: 'CALCULATED',
+        message: `Pricing calculated successfully. Interest rate: ${latestQuoteData.rate.toFixed(2)}% p.a. EMI: ₹${emiRounded.toFixed(2)}/month`,
+        trace_id: '4bf92f3577b34da6a3ce929d0e0e4736',
+        processing_time_ms: Math.floor(Math.random() * 6) + 2,
+        calculated_at: nowIso,
+        risk_category: latestQuoteData.riskCategory,
+        rate_valid_until: validIso
+      }, null, 2);
+      ep.payloads.curl = `curl -X POST http://localhost:8080/api/v1/pricing \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(req)}'`;
+
+      _apiSelectedIdx = 0;
+      _apiCalcSynced = true;
+      renderApiEndpointList();
+      renderApiDetail(0);
+      switchPayloadTab('request');
+      const badge = document.getElementById('api-calc-sync-badge');
+      if (badge) badge.classList.remove('hidden');
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // 6. END-TO-END FLOW — DATA MODEL + RENDER ENGINE
+    // ═════════════════════════════════════════════════════════════════════
+    const FLOW_STAGES = {
+      sync: {
+        happy: [
+          {
+            badge: 'Stage 1', statusLabel: 'Filter (@Order 1)', title: 'HTTP Ingress — MDCFilter',
+            component: 'MDCFilter.java (OncePerRequestFilter @Order(1))',
+            summary: 'Runs before all other Spring MVC filters on every incoming request. Extracts or generates X-Request-ID ("REQ-" + 12 hex chars), puts requestId/clientIp/httpMethod/requestUri (and masked X-Customer-ID if header provided) into SLF4J MDC, sets X-Request-ID on HttpServletResponse, and clears MDC in finally to prevent thread-pool leaks.',
+            actions: ['Read/generate requestId = "REQ-" + UUID[0..12]', 'MDC.put(REQUEST_ID, CLIENT_IP, HTTP_METHOD, REQUEST_URI)', 'response.setHeader("X-Request-ID", requestId)', 'filterChain.doFilter(req, res)', 'finally: MDC.clear()'],
+            otel: 'Span: http.server.request (Spring MVC + OpenTelemetry)',
+            log: 'INFO  c.b.e.logging.MDCFilter - Incoming request | method=POST | uri=/api/v1/pricing | clientIp=10.0.0.1',
+            payloadLabel: 'Incoming HTTP Request & MDC Map',
+            payload: `POST /api/v1/pricing HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+X-Forwarded-For: 10.0.0.1
+traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
+
+{
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000,
+  "loan_tenure_months": 240,
+  "credit_score": 780,
+  "annual_income": 2400000,
+  "loan_purpose": "Primary residence purchase"
+}`
+          },
+          {
+            badge: 'Stage 2', statusLabel: 'Bean Validation', title: 'Spring MVC Deserialization & @Valid',
+            component: 'DispatcherServlet → PricingRequestDto (@Valid)',
+            summary: 'Jackson deserializes the JSON request body into PricingRequestDto, then Bean Validation runs all field annotations before the controller method body executes. Malformed JSON throws HttpMessageNotReadableException; constraint failure throws MethodArgumentNotValidException (handled as HTTP 400 by GlobalExceptionHandler).',
+            actions: ['Jackson deserializes JSON → PricingRequestDto', '@Pattern checks customer_id (^CUST...) & product_type enum', '@DecimalMin/@DecimalMax/@Min/@Max validate numeric bounds', 'Pass → enters PricingController.calculatePricing()'],
+            otel: 'Span: POST /api/v1/pricing (active server span)',
+            log: 'DEBUG c.b.e.c.PricingController - POST /pricing | customerId=CUST****-001 | productType=HOME_LOAN',
+            payloadLabel: 'Validated PricingRequestDto (Java Object)',
+            payload: `// PricingRequestDto.java — all Jakarta Validation rules pass
+{
+  "customer_id": "CUST-DEMO-001", // @NotBlank @Pattern ^CUST(?=[A-Z0-9-]*[A-Z0-9])[A-Z0-9-]{6,46}$
+  "product_type": "HOME_LOAN",    // @NotBlank @Pattern (5 supported loan enums)
+  "loan_amount": 5000000,         // @NotNull @DecimalMin("10000.00") @DecimalMax("100000000.00")
+  "loan_tenure_months": 240,      // @NotNull @Min(12) @Max(360)
+  "credit_score": 780,            // Optional @Min(300) @Max(900)
+  "annual_income": 2400000,       // @NotNull @DecimalMin("100000.00")
+  "loan_purpose": "..."           // @Size(max = 200)
+}`
+          },
+          {
+            badge: 'Stage 3', statusLabel: 'Thin Controller', title: 'Controller Dispatch',
+            component: 'PricingController.java → calculatePricing()',
+            summary: 'Intentionally thin boundary — zero SQL, zero rate math, zero metrics inside the controller. Extracts the real client IP via extractClientIp() (X-Forwarded-For leftmost → X-Real-IP → getRemoteAddr()) for regulatory audit logging and calls PricingService.calculatePricing().',
+            actions: ['extractClientIp(httpRequest) from X-Forwarded-For / X-Real-IP', 'Delegate to pricingService.calculatePricing(requestDto, clientIp)', 'Wrap PricingResponseDto in ResponseEntity.status(HttpStatus.CREATED)'],
+            otel: 'Spring WebMVC HTTP server span wraps execution',
+            log: 'INFO  c.b.e.c.PricingController - POST /pricing | customerId=CUST****-001 | productType=HOME_LOAN',
+            payloadLabel: 'Controller → Service Handoff',
+            payload: `// PricingController.java
+@PostMapping
+public ResponseEntity<PricingResponseDto> calculatePricing(
+    @Valid @RequestBody PricingRequestDto requestDto,
+    HttpServletRequest httpRequest) {
+
+  String clientIp = extractClientIp(httpRequest);
+  PricingResponseDto response = pricingService.calculatePricing(requestDto, clientIp);
+  return ResponseEntity.status(HttpStatus.CREATED).body(response);
+}`
+          },
+          {
+            badge: 'Stage 4', statusLabel: 'OTel + Metrics', title: 'Service Orchestrator & Span Start',
+            component: 'PricingService.java → calculatePricing()',
+            summary: 'Records incoming Prometheus counters/gauge/distribution summary, starts an end-to-end Timer.Sample, opens the manual child OTel span "calculatePricing" with PII-masked attributes (customer.id.masked + loan.amount.bracket), and emits PRICING_STARTED via StructuredLogger.',
+            actions: ['recordPricingRequestReceived() + incrementActiveRequests()', 'recordProductTypeRequest() + recordLoanAmount() + startCalculationTimer()', 'tracer.spanBuilder("calculatePricing").startSpan()', 'structuredLogger.logPricingStarted()'],
+            otel: 'Child span: calculatePricing (customer.id.masked=CUST****-001, loan.amount.bracket=50L_1CR)',
+            log: 'INFO  c.b.e.l.StructuredLogger - Pricing calculation started | event_type=PRICING_STARTED | customerId=CUST****-001 | productType=HOME_LOAN | amountBracket=10L-1Cr',
+            payloadLabel: 'OTel Span & Micrometer Context',
+            payload: `// PricingService.java (NOT @Transactional — eliminates pool starvation!)
+String maskedCustomerId = StructuredLogger.maskCustomerId(requestDto.getCustomerId());
+Span pricingSpan = tracer.spanBuilder("calculatePricing")
+    .setAttribute("customer.id.masked", maskedCustomerId)
+    .setAttribute("product.type", requestDto.getProductType())
+    .setAttribute("loan.amount.bracket", categorizeLoanBracket(requestDto.getLoanAmount()))
+    .startSpan();
+
+try (Scope scope = pricingSpan.makeCurrent()) {
+  structuredLogger.logPricingStarted(...);
+  // Proceeds to eligibility gates -> rate/EMI -> atomic DB write -> Kafka
+}`
+          },
+          {
+            badge: 'Stage 5', statusLabel: 'Gates 1 & 2', title: 'Eligibility Gates — Credit & LTI',
+            component: 'PricingCalculator.java → validateEligibility() [span: validateEligibility]',
+            summary: 'Opens child span "validateEligibility" and evaluates two mandatory RBI statutory underwriting gates before any interest rate calculation runs: minimum CIBIL score ≥ 650 and maximum loan-to-income ratio ≤ 10× annual income.',
+            actions: ['Open child span "validateEligibility"', 'Gate 1: creditScore (780) ≥ MINIMUM_CREDIT_SCORE (650)', 'Gate 2: loanAmount (₹50L) ≤ annualIncome (₹24L) × 10 = ₹2.40 Cr', 'validationSpan.addEvent("Eligibility validation passed")'],
+            otel: 'Span: validateEligibility (credit.score=780)',
+            log: 'TRACE eligibility PASS — score=780 (≥650), maxEligible=24000000.00 (2.08x LTI)',
+            payloadLabel: 'Statutory Eligibility Validation',
+            payload: `// PricingCalculator.java — validateEligibility()
+if (creditScore != null && creditScore < MINIMUM_CREDIT_SCORE) { // 650
+  throw new PricingException.InsufficientCreditScoreException(
+      customerId, creditScore, MINIMUM_CREDIT_SCORE);
+}
+
+BigDecimal maxEligibleLoan = annualIncome.multiply(BigDecimal.valueOf(10));
+if (loanAmount.compareTo(maxEligibleLoan) > 0) {
+  throw new PricingException.LoanAmountExceedsEligibilityException(
+      customerId, loanAmount, maxEligibleLoan);
+}
+// 780 >= 650 ✓  |  5,000,000 <= 24,000,000 ✓`
+          },
+          {
+            badge: 'Stage 6', statusLabel: 'BigDecimal Math', title: 'Rate & EMI Calculation (DECIMAL128)',
+            component: 'PricingCalculator.java → calculateInterestRate() + calculateEmi()',
+            summary: 'Computes interest rate in exact BigDecimal: BASE_RATE(8.50%) × multiplier(1.00) + creditAdj(-0.50% for score 780) = 8.00% (no large-loan discount since ₹50,00,000 is not strictly > ₹50,00,000; clamped to [7.00%, 24.00%]). Reducing-balance EMI uses MathContext.DECIMAL128 (34-digit precision).',
+            actions: ['Child span "computeInterestRate" + timer calcSample', 'productRate = 8.50 × 1.00 = 8.50% (HALF_UP)', 'creditAdj(780) = -0.50% (750–799 Good tier) → 8.00%', 'EMI = P×r×(1+r)^n / ((1+r)^n − 1) in MathContext.DECIMAL128 = ₹41,822.00'],
+            otel: 'Span: computeInterestRate (calculated.rate=8.00)',
+            log: 'DEBUG c.b.e.util.PricingCalculator - EMI calculated | principal=5000000 | rate=8.00 | tenure=240 | emi=41822.00',
+            payloadLabel: 'BigDecimal Rate & EMI Output',
+            payload: `// PricingCalculator.java
+BigDecimal productRate = baseRate.multiply(homeLoanMultiplier)
+    .setScale(2, RoundingMode.HALF_UP);               // 8.50%
+BigDecimal creditAdjustment = new BigDecimal("-0.50"); // score 780 ∈ [750, 799]
+// discount = 0.00 (only strictly > 5,000,000 gets -0.25%)
+BigDecimal interestRate = new BigDecimal("8.00");
+
+// Reducing-balance EMI via MathContext.DECIMAL128 (34 digits)
+BigDecimal monthlyRate = interestRate.divide(new BigDecimal("1200"), MathContext.DECIMAL128);
+BigDecimal compound = BigDecimal.ONE.add(monthlyRate).pow(240, MathContext.DECIMAL128);
+BigDecimal emi = principal.multiply(monthlyRate).multiply(compound)
+    .divide(compound.subtract(BigDecimal.ONE), 2, RoundingMode.HALF_UP);
+// emi = 41822.00 | totalPayable = 10037280.00 | riskCategory = LOW_MEDIUM`
+          },
+          {
+            badge: 'Stage 7', statusLabel: 'FOIR Gate 3', title: 'RBI FOIR Ceiling & Risk Category',
+            component: 'PricingCalculator.java → validateFoir() + determineRiskCategory()',
+            summary: 'Checks Gate 3 (Fixed Obligation to Income Ratio ≤ 50% of monthly income) using the newly computed EMI. Then computes totalPayable = emi × tenure, totalInterest = totalPayable − principal, and maps credit score 780 → LOW_MEDIUM risk category.',
+            actions: ['monthlyIncome = 2,400,000 / 12 = ₹2,00,000.00', 'maxPermissibleEmi = monthlyIncome × 0.50 = ₹1,00,000.00', 'Check ₹41,822.00 ≤ ₹1,00,000.00 (FOIR 20.9% ≤ 50%) → PASS', 'riskCategory = determineRiskCategory(780) → "LOW_MEDIUM"'],
+            otel: 'Parent span calculatePricing continues with validated totals',
+            log: 'Derived: totalPayable=10037280.00, totalInterest=5037280.00, riskCategory=LOW_MEDIUM',
+            payloadLabel: 'FOIR & Derived Totals Verification',
+            payload: `// PricingCalculator.java — validateFoir()
+BigDecimal monthlyIncome = annualIncome.divide(BigDecimal.valueOf(12), 2, RoundingMode.HALF_UP);
+// ₹200000.00
+BigDecimal maxPermissibleEmi = monthlyIncome.multiply(new BigDecimal("0.50"))
+    .setScale(2, RoundingMode.HALF_UP); // ₹100000.00
+
+if (emiAmount.compareTo(maxPermissibleEmi) > 0) {
+  throw new PricingException.FoirExceededException(customerId, emiAmount, maxPermissibleEmi);
+}
+// 41822.00 <= 100000.00 (20.91% FOIR) ✓`
+          },
+          {
+            badge: 'Stage 8', statusLabel: 'ACID Commit', title: 'Atomic YugabyteDB Persist',
+            component: 'PricingAuditService.java → savePricingWithAudit() [@Transactional]',
+            summary: 'Opens child span "PricingRepository.save" and delegates to PricingAuditService.savePricingWithAudit(). That short-lived @Transactional boundary atomically saves both PricingRequest and PricingAuditLog in YugabyteDB — rolling back both if either write fails — and commits BEFORE Kafka is called.',
+            actions: ['Span "PricingRepository.save" (db.operation=INSERT, db.table=pricing_requests)', 'pricingRepository.save(entity) → INSERT pricing_requests', 'auditRepository.save(auditLog) → INSERT pricing_audit_logs (action=PRICING_CALCULATED)', 'Transaction commits cleanly → recordPricingSuccess() + logPricingCompleted()'],
+            otel: 'Span: PricingRepository.save (db.row.id=10042)',
+            log: 'INFO  c.b.e.l.StructuredLogger - Pricing calculation completed | event_type=PRICING_COMPLETED | rate=8.00% | durationMs=3 | traceId=4bf92f...',
+            payloadLabel: 'SQL — Atomic Transaction (YugabyteDB)',
+            payload: `-- Executed inside PricingAuditService.savePricingWithAudit() @Transactional
+BEGIN;
+
+INSERT INTO pricing_requests (
+  version, customer_id, product_type, loan_amount, loan_tenure_months,
+  credit_score, annual_income, calculated_rate, emi_amount,
+  total_payable_amount, total_interest_payable, risk_category,
+  status, processing_time_ms, request_ip, trace_id, created_at
+) VALUES (
+  0, 'CUST-DEMO-001', 'HOME_LOAN', 5000000.00, 240,
+  780, 2400000.00, 8.00, 41822.00,
+  10037280.00, 5037280.00, 'LOW_MEDIUM',
+  'CALCULATED', 3, '10.0.0.1', '4bf92f3577b34da6a3ce929d0e0e4736', NOW()
+) RETURNING id; -- → 10042
+
+INSERT INTO pricing_audit_logs (
+  pricing_request_id, customer_id, action, description,
+  performed_by, outcome, request_ip, trace_id, duration_ms, created_at
+) VALUES (
+  10042, 'CUST-DEMO-001', 'PRICING_CALCULATED',
+  'Interest rate 8.00% p.a. calculated for HOME_LOAN loan. Risk category: LOW_MEDIUM',
+  'system:pricing-engine', 'SUCCESS', '10.0.0.1', '4bf92f...', 3, NOW()
+);
+
+COMMIT;`
+          },
+          {
+            badge: 'Stage 9', statusLabel: 'HTTP 201 + Kafka', title: 'Kafka Publish, HTTP 201 & MDC.clear()',
+            component: 'KafkaPricingEventProducer + PricingController + MDCFilter',
+            summary: 'After YugabyteDB commits, PricingService dispatches LoanPricingEvent to Kafka topic loan-pricing-events (3 partitions, key=customerId, W3C traceparent header) without blocking DB connections. The finally blocks record metrics/end spans, PricingController returns 201 Created JSON, and MDCFilter logs completion and clears MDC.',
+            actions: ['KafkaPricingEventProducer sends LoanPricingEvent asynchronously (key=CUST-DEMO-001)', 'PricingService finally: decrementActiveRequests() + recordEndToEndDuration() + span.end()', 'PricingController returns HTTP 201 Created + X-Request-ID header + PricingResponseDto', 'MDCFilter logs durationMs and executes MDC.clear()'],
+            otel: 'Span: kafka.publish.loan-pricing-events (SpanKind.PRODUCER)',
+            log: 'INFO  c.b.e.s.KafkaPricingEventProducer - Successfully published loan pricing event to Kafka | topic=loan-pricing-events | partition=1 | offset=8420 | requestId=10042',
+            payloadLabel: '201 Created Response & Kafka Event',
+            payload: `// 1. HTTP Response to Client
+HTTP/1.1 201 Created
+Content-Type: application/json
+X-Request-ID: REQ-7F3A1C2D4B5E
+
+{
+  "request_id": 10042,
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000.00,
+  "loan_tenure_months": 240,
+  "interest_rate_pa": 8.00,
+  "emi_amount": 41822.00,
+  "total_payable_amount": 10037280.00,
+  "total_interest_payable": 5037280.00,
+  "status": "CALCULATED",
+  "risk_category": "LOW_MEDIUM",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+  "processing_time_ms": 3
+}
+
+// 2. Kafka Topic: loan-pricing-events (Key: CUST-DEMO-001, Header: traceparent)
+{
+  "request_id": 10042, "customer_id": "CUST-DEMO-001", "interest_rate": 8.00,
+  "emi_amount": 41822.00, "risk_category": "LOW_MEDIUM", "status": "CALCULATED",
+  "timestamp": "2025-11-26T07:30:00.123Z", "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`
+          }
+        ],
+        rejected: [
+          {
+            badge: 'Stage 1', statusLabel: 'Filter (@Order 1)', title: 'HTTP Ingress — MDCFilter',
+            component: 'MDCFilter.java (@Order(1))',
+            summary: 'Identical ingress path: assigns X-Request-ID, populates thread-local MDC for request correlation across logs, and wraps chain.doFilter().',
+            actions: ['MDC.put(REQUEST_ID, CLIENT_IP, HTTP_METHOD, REQUEST_URI)', 'response.setHeader("X-Request-ID", requestId)', 'filterChain.doFilter(req, res)'],
+            otel: 'Span: POST /api/v1/pricing',
+            log: 'INFO  c.b.e.logging.MDCFilter - Incoming request | method=POST | uri=/api/v1/pricing',
+            payloadLabel: 'Incoming HTTP Request',
+            payload: `POST /api/v1/pricing HTTP/1.1\nContent-Type: application/json\n\n{\n  "customer_id": "CUST-DEMO-002",\n  "product_type": "HOME_LOAN",\n  "loan_amount": 3000000,\n  "loan_tenure_months": 240,\n  "credit_score": 580,\n  "annual_income": 1800000\n}`
+          },
+          {
+            badge: 'Stage 2', statusLabel: 'Valid Passes', title: '@Valid Bean Validation Passes',
+            component: 'PricingRequestDto (@Valid) → PricingController.calculatePricing()',
+            summary: 'Jakarta Bean Validation passes because credit_score=580 is inside @Min(300) @Max(900) and customer_id "CUST-DEMO-002" matches ^CUST... The RBI policy rejection happens in business underwriting, not HTTP syntax validation.',
+            actions: ['@Min(300)@Max(900): 580 PASSES schema validation', 'Enters PricingController.calculatePricing() → PricingService.calculatePricing()'],
+            otel: 'Span: calculatePricing started',
+            log: 'DEBUG c.b.e.c.PricingController - POST /pricing | customerId=CUST****-002 | productType=HOME_LOAN',
+            payloadLabel: 'Validated PricingRequestDto',
+            payload: `{ "customer_id": "CUST-DEMO-002", "credit_score": 580, "loan_amount": 3000000, "annual_income": 1800000 }`
+          },
+          {
+            badge: 'Stage 3', statusLabel: 'Audit Persisted', title: 'Eligibility Fail + Rejection Audited',
+            component: 'PricingCalculator.validateEligibility() → PricingAuditService.recordRejection()',
+            summary: 'Gate 1 throws InsufficientCreditScoreException (580 < 650). PricingService catches it in the validateEligibility try/catch, marks span ERROR, increments rejection metric, logs PRICING_REJECTED, and persists BOTH a REJECTED PricingRequest row and a PRICING_REJECTED PricingAuditLog row before rethrowing.',
+            actions: ['InsufficientCreditScoreException thrown (580 < 650)', 'pricingMetrics.recordPricingRejection() + structuredLogger.logPricingRejected()', 'auditService.recordRejection() inserts REJECTED row + PRICING_REJECTED audit', 'Rethrow to GlobalExceptionHandler'],
+            otel: 'Span: validateEligibility → StatusCode.ERROR',
+            log: 'WARN  c.b.e.l.StructuredLogger - Pricing request rejected | event_type=PRICING_REJECTED | customerId=CUST****-002 | errorCode=PRICING_INSUFFICIENT_CREDIT_SCORE',
+            payloadLabel: 'Exception & Audit INSERT',
+            payload: `// PricingService.java catch block
+auditService.recordRejection(requestDto, e.getMessage(), e.getErrorCode(), requestIp, traceId);
+
+// PricingAuditService.recordRejection() persists:
+INSERT INTO pricing_requests (customer_id, status, error_message, ...)
+  VALUES ('CUST-DEMO-002', 'REJECTED', 'Customer CUST-DEMO-002 has credit score 580...', ...);
+INSERT INTO pricing_audit_logs (pricing_request_id, action, outcome, metadata, ...)
+  VALUES (10043, 'PRICING_REJECTED', 'REJECTED', '{"errorCode":"PRICING_INSUFFICIENT_CREDIT_SCORE","creditScore":580}', ...);`
+          },
+          {
+            badge: 'Stage 4', statusLabel: 'HTTP 422', title: 'GlobalExceptionHandler → HTTP 422',
+            component: 'GlobalExceptionHandler.java → handlePricingException()',
+            summary: 'Catches PricingException, increments pricing.errors.total counter (error_type=PRICING_INSUFFICIENT_CREDIT_SCORE, http_status=422), sets OTel span ERROR, and serializes structured ErrorResponse JSON with status 422 and trace_id. Zero Kafka event published.',
+            actions: ['meterRegistry.counter("pricing.errors.total", ...).increment()', 'Span.current().setStatus(ERROR) + recordException(ex)', 'Return ResponseEntity status 422 Unprocessable Entity (ErrorResponse)', 'PricingService finally decrements active gauge + MDCFilter clears MDC'],
+            otel: 'metric: pricing_errors_total{error_type="PRICING_INSUFFICIENT_CREDIT_SCORE",http_status="422"}',
+            log: 'WARN  c.b.e.e.GlobalExceptionHandler - Business exception handled | errorCode=PRICING_INSUFFICIENT_CREDIT_SCORE | status=422',
+            payloadLabel: '422 Unprocessable Entity Response',
+            payload: `HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/json
+X-Request-ID: REQ-7F3A1C2D4B5E
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 422,
+  "error": "Unprocessable Entity",
+  "error_code": "PRICING_INSUFFICIENT_CREDIT_SCORE",
+  "message": "Customer CUST-DEMO-002 has credit score 580 which is below the minimum required score of 650",
+  "path": "/api/v1/pricing",
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`
+          }
+        ],
+        invalid: [
+          {
+            badge: 'Stage 1', statusLabel: 'Filter (@Order 1)', title: 'HTTP Ingress — MDCFilter',
+            component: 'MDCFilter.java (@Order(1))',
+            summary: 'MDC requestId assigned and response header X-Request-ID set before DispatcherServlet attempts JSON deserialization and Bean Validation.',
+            actions: ['MDC.put(REQUEST_ID, CLIENT_IP, HTTP_METHOD, REQUEST_URI)', 'response.setHeader("X-Request-ID", requestId)', 'filterChain.doFilter(req, res)'],
+            otel: 'Span: POST /api/v1/pricing',
+            log: 'INFO  c.b.e.logging.MDCFilter - Incoming request | method=POST | uri=/api/v1/pricing',
+            payloadLabel: 'Malformed Constraint Request Body',
+            payload: `POST /api/v1/pricing HTTP/1.1\nContent-Type: application/json\n\n{\n  "customer_id": "CUST-DEMO-003",\n  "product_type": "HOME_LOAN",\n  "loan_amount": -500,\n  "loan_tenure_months": 240,\n  "credit_score": 999999,\n  "annual_income": 2400000\n}`
+          },
+          {
+            badge: 'Stage 2', statusLabel: 'HTTP 400', title: '@Valid Fails → GlobalExceptionHandler 400',
+            component: 'MethodArgumentNotValidException → GlobalExceptionHandler.handleValidationException()',
+            summary: 'Bean Validation rejects the payload BEFORE PricingController.calculatePricing() or PricingService runs (zero DB writes, zero Kafka events). GlobalExceptionHandler returns HTTP 400 with field_errors map, increments pricing.errors.total{error_type="VALIDATION_FAILED"}, and emits VALIDATION_FAILURE log.',
+            actions: ['MethodArgumentNotValidException thrown before controller body runs', 'structuredLogger.logValidationFailure() + pricing.errors.total increment', 'Return HTTP 400 with error_code=PRICING_VALIDATION_FAILED + field_errors'],
+            otel: 'Span: StatusCode.ERROR (Validation failed)',
+            log: 'WARN  c.b.e.e.GlobalExceptionHandler - Validation failed | fields={loanAmount=Minimum loan amount is ₹10,000, creditScore=Credit score maximum is 900}',
+            payloadLabel: '400 Bad Request Validation Envelope',
+            payload: `HTTP/1.1 400 Bad Request
+Content-Type: application/json
+X-Request-ID: REQ-7F3A1C2D4B5E
+
+{
+  "timestamp": "2025-11-26T07:30:00.123",
+  "status": 400,
+  "error": "Validation Failed",
+  "error_code": "PRICING_VALIDATION_FAILED",
+  "message": "Request validation failed. Check 'fieldErrors' for details.",
+  "path": "/api/v1/pricing",
+  "field_errors": {
+    "loanAmount": "Minimum loan amount is ₹10,000",
+    "creditScore": "Credit score maximum is 900"
+  },
+  "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+}`
+          }
+        ]
+      },
+      temporal: {
+        happy: [
+          {
+            badge: 'Stage 1', statusLabel: 'Controller', title: 'POST /workflow/pricing/start',
+            component: 'TemporalPricingController.java → startWorkflow()',
+            summary: 'Client POSTs a valid PricingRequestDto to /api/v1/workflow/pricing/start. Controller extracts client IP and delegates to TemporalPricingService.startPricingWorkflow().',
+            actions: ['@PostMapping("/start") under @RequestMapping("/workflow/pricing")', 'Bean Validation (@Valid) on PricingRequestDto', 'Delegate to temporalPricingService.startPricingWorkflow(requestDto, clientIp)'],
+            otel: 'Span: POST /api/v1/workflow/pricing/start',
+            log: 'INFO  TemporalPricingController - Received request to start Temporal workflow | customerId=CUST****-001',
+            payloadLabel: 'Temporal Workflow Start Request',
+            payload: `POST /api/v1/workflow/pricing/start HTTP/1.1
+Content-Type: application/json
+
+{
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "loan_amount": 5000000,
+  "loan_tenure_months": 240,
+  "credit_score": 780,
+  "annual_income": 2400000
+}`
+          },
+          {
+            badge: 'Stage 2', statusLabel: 'HTTP 202', title: 'WorkflowClient.start() → 202 Accepted',
+            component: 'TemporalPricingService.java → startPricingWorkflow()',
+            summary: 'Hashes customerId with SHA-256 (12 hex chars) to generate PII-safe workflowId ("pricing-<sha256_12>-<uuid8>"), calls WorkflowClient.start(workflow::processLoanPricing, ...) on task queue epricing-pricing-queue, and returns HTTP 202 immediately with status PROCESSING.',
+            actions: ['workflowId = "pricing-" + sha256(customerId)[0..12] + "-" + uuid[0..8]', 'WorkflowOptions: setWorkflowId + setTaskQueue("epricing-pricing-queue")', 'WorkflowClient.start() enqueues workflow & returns HTTP 202 Accepted'],
+            otel: 'Temporal Client gRPC request to temporal:7233',
+            log: 'INFO  TemporalPricingService - Launching Temporal LoanPricingWorkflow | workflowId=pricing-7d3f1a9c2b04-9812a1b2',
+            payloadLabel: '202 Accepted Initial Snapshot',
+            payload: `HTTP/1.1 202 Accepted
+Content-Type: application/json
+
+{
+  "workflow_id": "pricing-7d3f1a9c2b04-9812a1b2",
+  "customer_id": "CUST-DEMO-001",
+  "product_type": "HOME_LOAN",
+  "status": "PROCESSING",
+  "rejection_reason": null,
+  "quote": null,
+  "created_at": null,
+  "updated_at": null
+}`
+          },
+          {
+            badge: 'Stage 3', statusLabel: 'Activity', title: 'Activity: calculateAndPersistPricing()',
+            component: 'LoanPricingWorkflowImpl → PricingActivitiesImpl.calculateAndPersistPricing()',
+            summary: 'Temporal worker dequeues from epricing-pricing-queue and executes calculateAndPersistPricing() (5 retries w/ exponential backoff; fails fast without retry on PricingException). Calls PricingService.calculatePricing(), sets workflow status="QUOTED", and attaches the quote.',
+            actions: ['Activity retry policy: 1s → 10s, max 5 attempts (no retry on PricingException)', 'Executes PricingService.calculatePricing() (all 3 gates + YugabyteDB INSERT)', 'Workflow transitions status="QUOTED", sets PricingResponseDto quote'],
+            otel: 'Temporal Activity execution + calculatePricing spans',
+            log: 'INFO  PricingActivitiesImpl - Executing Temporal Activity: calculateAndPersistPricing | customerId=CUST****-001',
+            payloadLabel: 'Activity Result Attached to Workflow',
+            payload: `{
+  "request_id": 10042,
+  "customer_id": "CUST-DEMO-001",
+  "interest_rate_pa": 8.00,
+  "emi_amount": 41822.00,
+  "risk_category": "LOW_MEDIUM",
+  "status": "CALCULATED",
+  "rate_valid_until": "2025-12-03T07:30:00.123"
+}`
+          },
+          {
+            badge: 'Stage 4', statusLabel: '7-Day Timer', title: 'Workflow.await() — Zero-Thread Durable Wait',
+            component: 'LoanPricingWorkflowImpl → Workflow.await(Duration.ofDays(days), () -> approved || rejected)',
+            summary: 'Enters durable Workflow.await() for rateValidDays (default 7d) with Workflow.getVersion() replay safety for early signals. Worker thread is released (0 CPU, 0 sleeping threads) while Temporal checkpoints event history in temporal-db PostgreSQL.',
+            actions: ['Workflow.getVersion("accept-early-decision-signal", DEFAULT_VERSION, 1)', 'Workflow.await(Duration.ofDays(7), () -> approved || rejected)', 'Poller thread freed; survives service restarts via temporal-db replay'],
+            otel: 'Durable TimerStarted recorded in Temporal event history',
+            log: 'INFO  LoanPricingWorkflowImpl - Rate lock active for 7 days. Awaiting customer signal | workflowId=pricing-7d3f1a9c2b04-9812a1b2',
+            payloadLabel: 'Temporal Event History (Workflow Replay Log)',
+            payload: `EventId | EventType                | Details
+--------|--------------------------|--------------------------------------
+1       | WorkflowExecutionStarted | taskQueue=epricing-pricing-queue
+2       | WorkflowTaskScheduled    | attempt=1
+3       | WorkflowTaskCompleted    | scheduled calculateAndPersistPricing
+4       | ActivityTaskCompleted    | requestId=10042 rate=8.00% emi=41822.00
+5       | MarkerRecorded (Version) | accept-early-decision-signal v1
+6       | TimerStarted             | fireAfter=7d (P7D rate lock window)`
+          },
+          {
+            badge: 'Stage 5', statusLabel: 'APPROVED', title: 'Signal approveQuote() → DB Update + Kafka',
+            component: 'POST /approve → recordQuoteApproval() [@Transactional]',
+            summary: 'Customer POSTs /approve; workflow.approveQuote() wakes Workflow.await() (if timed out instead, recordQuoteExpiration sets EXPIRED). recordQuoteApproval() runs @Transactional with JPA @Version optimistic locking, sets status=APPROVED, writes RATE_APPROVED audit log, and registers TransactionSynchronization.afterCommit() for Kafka.',
+            actions: ['REST POST /approve → workflowStub.approveQuote() signal', 'PricingActivitiesImpl.recordQuoteApproval() [@Transactional + @Version]', 'UPDATE pricing_requests SET status=APPROVED + INSERT pricing_audit_logs', 'TransactionSynchronizationManager.afterCommit() → publishStatusEvent(APPROVED)'],
+            otel: 'Signal received → recordQuoteApproval TX → Kafka producer span',
+            log: 'INFO  LoanPricingWorkflowImpl - Pricing offer approved by customer | workflowId=pricing-7d3f1a9c2b04-9812a1b2',
+            payloadLabel: 'Signal → DB Update → Kafka Event',
+            payload: `// 1. Signal Dispatch Response (HTTP 200)
+{
+  "workflow_id": "pricing-7d3f1a9c2b04-9812a1b2",
+  "status": "APPROVED",
+  "message": "Approval signal dispatched to workflow"
+}
+
+// 2. YugabyteDB Optimistic-Locked Update (inside @Transactional activity)
+UPDATE pricing_requests SET status = 'APPROVED', version = version + 1 WHERE id = 10042 AND version = 0;
+
+// 3. Post-Commit Kafka Event (topic: loan-pricing-events)
+{
+  "request_id": 10042, "customer_id": "CUST-DEMO-001", "status": "APPROVED",
+  "risk_category": "LOW_MEDIUM", "timestamp": "2025-11-26T07:35:12.400Z"
+}`
+          }
+        ]
+      }
+    };
+
+    let _flowMode = 'sync';
+    let _flowOutcome = 'happy';
+    let _flowStageIdx = 0;
+    let _flowAutoTimer = null;
+
+    function _getFlowStages() {
+      return (FLOW_STAGES[_flowMode]?.[_flowOutcome]) || FLOW_STAGES.sync.happy;
+    }
+
+    function renderFlowTab() {
+      if (!_flowTabInit) {
+        _flowTabInit = true;
+        document.getElementById('flow-mode-tablist')?.addEventListener('keydown', (e) => {
+          if (e.target.getAttribute('role') !== 'tab') return;
+          const tabs = ['sync', 'temporal'];
+          const idx = tabs.findIndex(k => `flowtab-${k}` === e.target.id);
+          if (idx === -1) return;
+          let next = -1;
+          if (e.key === 'ArrowRight') next = (idx + 1) % tabs.length;
+          else if (e.key === 'ArrowLeft') next = (idx - 1 + tabs.length) % tabs.length;
+          else if (e.key === 'Home') next = 0;
+          else if (e.key === 'End') next = tabs.length - 1;
+          if (next !== -1) {
+            e.preventDefault();
+            setFlowMode(tabs[next]);
+            document.getElementById(`flowtab-${tabs[next]}`)?.focus();
+          }
+        });
+      }
+      renderFlowOutcomeButtons();
+      renderFlowStages();
+      renderFlowDetail(_flowStageIdx);
+    }
+
+    function setFlowMode(mode) {
+      _flowMode = mode;
+      _flowStageIdx = 0;
+      clearFlowAutoPlay();
+      ['sync', 'temporal'].forEach(k => {
+        const btn = document.getElementById(`flowtab-${k}`);
+        if (!btn) return;
+        const sel = k === mode;
+        btn.setAttribute('aria-selected', sel ? 'true' : 'false');
+        btn.tabIndex = sel ? 0 : -1;
+        if (sel) { btn.classList.add('text-white'); btn.classList.remove('text-slate-400'); }
+        else { btn.classList.remove('text-white'); btn.classList.add('text-slate-400'); }
+      });
+      if (!FLOW_STAGES[mode]?.[_flowOutcome]) _flowOutcome = 'happy';
+      renderFlowOutcomeButtons();
+      renderFlowStages();
+      renderFlowDetail(0);
+    }
+
+    function setFlowOutcome(outcome) {
+      _flowOutcome = outcome;
+      _flowStageIdx = 0;
+      clearFlowAutoPlay();
+      renderFlowOutcomeButtons();
+      renderFlowStages();
+      renderFlowDetail(0);
+    }
+
+    function renderFlowOutcomeButtons() {
+      ['happy', 'rejected', 'invalid'].forEach(o => {
+        const btn = document.getElementById(`outcome-btn-${o}`);
+        if (!btn) return;
+        const available = !!FLOW_STAGES[_flowMode]?.[o];
+        btn.disabled = !available;
+        const active = o === _flowOutcome;
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        if (active) {
+          btn.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs font-mono transition';
+        } else if (!available) {
+          btn.className = 'px-3 py-1.5 rounded-xl bg-white/[0.02] text-slate-600 border border-white/5 text-xs font-mono cursor-not-allowed opacity-50 transition';
+        } else {
+          btn.className = 'px-3 py-1.5 rounded-xl bg-white/5 text-slate-400 border border-white/10 hover:text-white text-xs font-mono transition';
+        }
+      });
+    }
+
+    function renderFlowStages() {
+      const stages = _getFlowStages();
+      const grid = document.getElementById('flow-stages-grid');
+      if (!grid) return;
+      grid.innerHTML = stages.map((s, i) => {
+        const isActive = i === _flowStageIdx;
+        const isDone = i < _flowStageIdx;
+        let baseClass = 'flow-step-btn w-full h-full p-3.5 rounded-2xl border cursor-pointer transition-all duration-200 text-left flex flex-col justify-between';
+        if (isActive) baseClass += ' border-indigo-500/70 bg-indigo-600/15';
+        else if (isDone) baseClass += ' border-emerald-500/30 bg-emerald-900/10';
+        else baseClass += ' border-white/5 bg-white/[0.02] hover:border-white/15';
+        return `
+          <li>
+            <button type="button" class="${baseClass}" ${isActive ? 'aria-current="step"' : ''} onclick="gotoFlowStage(${i})" aria-label="Go to ${s.badge}: ${s.title}">
+              <div>
+                <div class="text-[10px] font-mono font-bold mb-1 ${isActive ? 'text-indigo-400' : isDone ? 'text-emerald-400' : 'text-slate-500'}">${s.badge}</div>
+                <div class="text-xs font-semibold leading-snug ${isActive ? 'text-white' : isDone ? 'text-slate-300' : 'text-slate-400'}">${s.title}</div>
+              </div>
+              <div class="text-[10px] font-mono mt-2 ${isActive ? 'text-indigo-300' : isDone ? 'text-emerald-400' : 'text-slate-500'}">
+                ${isDone ? '✓ Complete' : isActive ? '▶ Active Boundary' : s.statusLabel || 'Pending'}
+              </div>
+            </button>
+          </li>`;
+      }).join('');
+
+      const lbl = document.getElementById('flow-progress-label');
+      if (lbl) lbl.textContent = `Stage ${_flowStageIdx + 1} of ${stages.length}`;
+
+      const prevBtn = document.getElementById('btn-flow-prev');
+      const nextBtn = document.getElementById('btn-flow-next');
+      if (prevBtn) { prevBtn.disabled = _flowStageIdx === 0; prevBtn.classList.toggle('opacity-40', _flowStageIdx === 0); }
+      if (nextBtn) { nextBtn.disabled = _flowStageIdx === stages.length - 1; nextBtn.classList.toggle('opacity-40', _flowStageIdx === stages.length - 1); }
+    }
+
+    function renderFlowDetail(idx) {
+      _flowStageIdx = idx;
+      const stages = _getFlowStages();
+      const s = stages[idx];
+      if (!s) return;
+
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      const setHtml = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val; };
+
+      setEl('flow-detail-badge', `${s.badge.toUpperCase()} OF ${stages.length}`);
+      setEl('flow-detail-title', s.title);
+      setEl('flow-detail-status', s.statusLabel || 'Active');
+      setEl('flow-detail-component', `Component: ${s.component}`);
+      setEl('flow-detail-summary', s.summary);
+
+      setHtml('flow-detail-actions', (s.actions || []).map(a =>
+        `<li><span>${a}</span></li>`
+      ).join(''));
+
+      setEl('flow-detail-otel', s.otel || '—');
+      setEl('flow-detail-log', s.log || '—');
+
+      const code = document.getElementById('flow-payload-code');
+      if (code) code.textContent = s.payload || '';
+      setEl('flow-payload-label', s.payloadLabel || 'Data Snapshot');
+    }
+
+    function gotoFlowStage(idx) {
+      clearFlowAutoPlay();
+      renderFlowDetail(idx);
+      renderFlowStages();
+    }
+
+    function stepFlowStage(delta) {
+      const stages = _getFlowStages();
+      const newIdx = Math.max(0, Math.min(stages.length - 1, _flowStageIdx + delta));
+      renderFlowDetail(newIdx);
+      renderFlowStages();
+      if (newIdx === stages.length - 1 && _flowAutoTimer) clearFlowAutoPlay();
+    }
+
+    function clearFlowAutoPlay() {
+      if (_flowAutoTimer) { clearInterval(_flowAutoTimer); _flowAutoTimer = null; }
+      const btn = document.getElementById('btn-flow-play');
+      if (btn) { btn.setAttribute('aria-pressed', 'false'); btn.textContent = '▶ Auto-Walk'; }
+    }
+
+    function toggleFlowAutoPlay() {
+      const btn = document.getElementById('btn-flow-play');
+      if (_flowAutoTimer) {
+        clearFlowAutoPlay();
+      } else {
+        if (_flowStageIdx >= _getFlowStages().length - 1) {
+          renderFlowDetail(0);
+          renderFlowStages();
+        }
+        _flowAutoTimer = setInterval(() => {
+          const stages = _getFlowStages();
+          if (_flowStageIdx >= stages.length - 1) { clearFlowAutoPlay(); return; }
+          stepFlowStage(1);
+        }, 1800);
+        if (btn) { btn.setAttribute('aria-pressed', 'true'); btn.textContent = '⏹ Stop'; }
+      }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // 7. ARCHITECTURE TOPOLOGY FLOW SWITCHER
     // ═════════════════════════════════════════════════════════════════════
     function setFlowPerspective(flowKey) {
       const flowButtons = ['all', 'sync', 'temporal', 'otel'];
@@ -1966,7 +3868,7 @@ public interface PricingRateLockWorkflow {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // 5. TEMPORAL STEPPER LOGIC
+    // 8. TEMPORAL STEPPER LOGIC
     // ═════════════════════════════════════════════════════════════════════
     let currentTemporalStep = 1;
     const temporalStepsData = [
@@ -2021,7 +3923,7 @@ public interface PricingRateLockWorkflow {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // 6. 17-CONTAINER SERVICE MESH & LIVE ASYNC PING PROBE
+    // 9. 17-CONTAINER SERVICE MESH & LIVE ASYNC PING PROBE
     // ═════════════════════════════════════════════════════════════════════
     let activeContainerFilter = 'All';
 
@@ -2199,7 +4101,7 @@ public interface PricingRateLockWorkflow {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // 7. SPECIFICATION MODALS (Modern Web Guidance Compliant)
+    // 10. SPECIFICATION MODALS (Modern Web Guidance Compliant)
     // ═════════════════════════════════════════════════════════════════════
     function openTierModal(tierKey) {
       const tier = SHOWCASE_DATA.tiers[tierKey];
@@ -2273,12 +4175,43 @@ public interface PricingRateLockWorkflow {
     }
 
     // ═════════════════════════════════════════════════════════════════════
-    // 8. INITIALIZE ON LOAD
+    // 11. INITIALIZE ON LOAD
     // ═════════════════════════════════════════════════════════════════════
     document.addEventListener('DOMContentLoaded', () => {
-      calculateLivePricing();
+      // Set hidden='until-found' on all non-active tab panels
+      TAB_KEYS.slice(1).forEach(k => {
+        const p = document.getElementById(`content-${k}`);
+        if (p) {
+          try { p.hidden = 'until-found'; } catch (_) { p.hidden = true; }
+        }
+      });
+      const calcPanel = document.getElementById('content-calculator');
+      if (calcPanel) calcPanel.removeAttribute('hidden');
+
+      performCalculation();
       renderContainerGrid();
+
+      // IntersectionObserver fallback for .tabs-scroller fade masks
+      if (!CSS.supports('animation-timeline', 'scroll()')) {
+        document.querySelectorAll('.tabs-scroller').forEach(scroller => {
+          const inner = scroller.querySelector('[role="tablist"]');
+          if (!inner) return;
+          const first = inner.firstElementChild;
+          const last  = inner.lastElementChild;
+          const obs = new IntersectionObserver(entries => {
+            entries.forEach(({ target, intersectionRatio }) => {
+              scroller.classList.toggle(
+                target === first ? 'more-start' : 'more-end',
+                intersectionRatio < 1
+              );
+            });
+          }, { root: scroller, threshold: 1, rootMargin: '1px' });
+          if (first) obs.observe(first);
+          if (last && last !== first) obs.observe(last);
+        });
+      }
     });
   </script>
 </body>
 </html>
+
