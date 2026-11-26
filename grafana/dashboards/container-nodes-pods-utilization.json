@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Container & Node Utilization",
   "uid": "epricing-containers",
-  "version": 4,
+  "version": 5,
   "panels": [
     {
       "id": 1,
@@ -61,7 +61,7 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 8,
         "x": 0,
         "y": 1
       },
@@ -115,70 +115,12 @@
       ]
     },
     {
-      "id": 3,
-      "title": "epricing-service Memory",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 4,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus-uid"
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#9FC119",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 500000000
-              },
-              {
-                "color": "#E02F44",
-                "value": 800000000
-              }
-            ]
-          }
-        }
-      },
-      "targets": [
-        {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-service.*\"} or sum(jvm_memory_used_bytes{job=\"epricing-service\", area=\"heap\"})",
-          "legendFormat": "Working Set",
-          "refId": "A"
-        }
-      ]
-    },
-    {
       "id": 4,
       "title": "YugabyteDB CPU %",
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 8,
         "x": 8,
         "y": 1
       },
@@ -232,70 +174,12 @@
       ]
     },
     {
-      "id": 5,
-      "title": "YugabyteDB Memory",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 12,
-        "y": 1
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus-uid"
-      },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#9FC119",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 500000000
-              },
-              {
-                "color": "#E02F44",
-                "value": 1000000000
-              }
-            ]
-          }
-        }
-      },
-      "targets": [
-        {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-yugabytedb.*|.*yugabytedb.*\"}",
-          "legendFormat": "YugabyteDB Memory",
-          "refId": "A"
-        }
-      ]
-    },
-    {
       "id": 6,
       "title": "Node CPU Idle %",
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 8,
         "x": 16,
         "y": 1
       },
@@ -349,14 +233,146 @@
       ]
     },
     {
+      "id": 9005,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
+      "id": 3,
+      "title": "epricing-service Memory",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-uid"
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#9FC119",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 500000000
+              },
+              {
+                "color": "#E02F44",
+                "value": 800000000
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{name=~\".*epricing-service.*\"} or sum(jvm_memory_used_bytes{job=\"epricing-service\", area=\"heap\"})",
+          "legendFormat": "Working Set",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "YugabyteDB Memory",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus-uid"
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#9FC119",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 500000000
+              },
+              {
+                "color": "#E02F44",
+                "value": 1000000000
+              }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{name=~\".*epricing-yugabytedb.*|.*yugabytedb.*\"}",
+          "legendFormat": "YugabyteDB Memory",
+          "refId": "A"
+        }
+      ]
+    },
+    {
       "id": 7,
       "title": "Node Memory Available",
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 1
+        "w": 8,
+        "x": 16,
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -415,7 +431,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 10
       },
       "options": {
         "mode": "html",
@@ -430,7 +446,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 11
       },
       "collapsed": false
     },
@@ -442,7 +458,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 7
+        "y": 12
       },
       "datasource": {
         "type": "prometheus",
@@ -504,7 +520,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 21
       },
       "options": {
         "mode": "html",
@@ -519,7 +535,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 22
       },
       "collapsed": false
     },
@@ -531,7 +547,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 23
       },
       "datasource": {
         "type": "prometheus",
@@ -592,7 +608,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 32
       },
       "options": {
         "mode": "html",
@@ -607,7 +623,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 33
       },
       "collapsed": false
     },
@@ -619,7 +635,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 29
+        "y": 34
       },
       "datasource": {
         "type": "prometheus",
@@ -664,7 +680,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 29
+        "y": 34
       },
       "datasource": {
         "type": "prometheus",
@@ -710,7 +726,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 42
       },
       "options": {
         "mode": "html",
@@ -725,7 +741,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 43
       },
       "collapsed": false
     },
@@ -737,7 +753,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 44
       },
       "datasource": {
         "type": "prometheus",
@@ -789,7 +805,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 44
       },
       "datasource": {
         "type": "prometheus",

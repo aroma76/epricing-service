@@ -26,25 +26,31 @@ Grafana is fully configured at startup via provisioning files. No manual setup i
 ```
 grafana/
 ├── provisioning/
-│   ├── datasources/       # Data source definitions (Prometheus, Loki)
-│   └── dashboards/        # Dashboard provider configuration
+│   ├── datasources/
+│   │   └── datasources.yml                     # Prometheus, Loki, YugabyteDB (PostgreSQL), Tempo
+│   └── dashboards/
+│       └── dashboards.yml                      # Auto-loads grafana/dashboards/ (10s poll interval)
 └── dashboards/
-    ├── epricing-complete-dashboard.json        # Main ePricing dashboard
-    └── container-nodes-pods-utilization.json  # Container/host metrics dashboard
+    ├── epricing-l1-operations-dashboard.json   # L1 Operations & Live YugabyteDB Jobs dashboard
+    ├── epricing-complete-dashboard.json        # Complete Observability (4 Golden Signals) dashboard
+    ├── container-nodes-pods-utilization.json   # Container & host resource metrics dashboard
+    └── log-analysis-dashboard.json             # Loki log analysis & error breakdown dashboard
 ```
 
 ### Datasources (Auto-Provisioned)
 
-Configured in `grafana/provisioning/datasources/`. On startup, Grafana loads:
+Configured in `grafana/provisioning/datasources/datasources.yml`. On startup, Grafana loads:
 
 | Datasource | Type | URL |
 |---|---|---|
 | Prometheus | Prometheus | `http://prometheus:9090` |
 | Loki | Loki | `http://loki:3100` |
+| YugabyteDB | PostgreSQL | `yugabytedb:5433/epricingdb` |
+| Tempo | Tempo | `http://tempo:3200` |
 
 ### Dashboards (Auto-Provisioned)
 
-Configured in `grafana/provisioning/dashboards/`. Grafana loads all JSON dashboards from `grafana/dashboards/` at startup. Changes to JSON files require a Grafana restart or provisioning reload.
+Configured in `grafana/provisioning/dashboards/dashboards.yml` with `updateIntervalSeconds: 10` and `allowUiUpdates: true`. Grafana loads all JSON dashboards from `grafana/dashboards/` at startup and picks up file changes every 10 seconds unless overridden by saved UI edits in the `grafana-data` volume.
 
 ---
 

@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Log Analysis Dashboard",
   "uid": "epricing-logs",
-  "version": 10,
+  "version": 11,
   "panels": [
     {
       "id": 1,
@@ -61,7 +61,7 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 8,
         "x": 0,
         "y": 1
       },
@@ -115,8 +115,8 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
+        "w": 8,
+        "x": 8,
         "y": 1
       },
       "datasource": {
@@ -169,8 +169,8 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 8,
+        "w": 8,
+        "x": 16,
         "y": 1
       },
       "datasource": {
@@ -214,14 +214,30 @@
       ]
     },
     {
+      "id": 9004,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
       "id": 5,
       "title": "DB Errors (5XX from Pricing)",
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 12,
-        "y": 1
+        "w": 8,
+        "x": 0,
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -273,9 +289,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 1
+        "w": 8,
+        "x": 8,
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -327,9 +343,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 1
+        "w": 8,
+        "x": 16,
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -384,7 +400,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 10
       },
       "options": {
         "mode": "html",
@@ -399,7 +415,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 11
       },
       "collapsed": false
     },
@@ -412,7 +428,7 @@
         "h": 8,
         "w": 7,
         "x": 0,
-        "y": 7
+        "y": 12
       },
       "datasource": {
         "type": "prometheus",
@@ -458,7 +474,7 @@
         "h": 8,
         "w": 9,
         "x": 7,
-        "y": 7
+        "y": 12
       },
       "datasource": {
         "type": "prometheus",
@@ -502,7 +518,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 7
+        "y": 12
       },
       "datasource": {
         "type": "loki",
@@ -553,7 +569,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 20
       },
       "options": {
         "mode": "html",
@@ -568,7 +584,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 21
       },
       "collapsed": false
     },
@@ -581,7 +597,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 22
       },
       "datasource": {
         "type": "loki",
@@ -612,7 +628,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 32
       },
       "options": {
         "mode": "html",
@@ -627,7 +643,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 33
       },
       "collapsed": false
     },
@@ -640,7 +656,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 34
       },
       "datasource": {
         "type": "loki",

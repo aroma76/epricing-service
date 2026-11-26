@@ -25,8 +25,9 @@ Designed for **L1 Operations Support**, **Site Reliability Engineers (SREs)**, a
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ 1. System & DB Workload Summary │ 2. Throughput & Latency SLAs │ 3. 4XX vs 5XX Errors  │
-│ 4. DB Pool Health & Blockings   │ 5. Live DB Integration Table │ 6. Error Drill-Down   │
+│ 1. System & DB Workload Summary │ 2. Throughput Volume    │ 3. Target Response Times   │
+│ 4. HTTP 4XX Client Errors       │ 5. HTTP 5XX Server Errs │ 6. DB Pool & Long Queries  │
+│ 7. Live DB Integration Table    │ 8. Error & Rejected Jobs Root Cause Drill-Down       │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -66,87 +67,87 @@ Designed for **L1 Operations Support**, **Site Reliability Engineers (SREs)**, a
 - **Unit:** Percentage (`%`)
 - **What it means:** Percentage of dedicated CPU capacity consumed by the Spring Boot JVM process.
 - **Thresholds:**
-  - 🟢 **Good:** `< 60%` — Healthy headroom for traffic spikes.
-  - 🟡 **Warning:** `60% – 80%` — Sustained load; thread pool saturation possible under sudden bursts.
-  - 🔴 **Bad:** `> 80%` — Severe CPU contention; leads to thread starvation and latency degradation.
+  - 🟢 **Good:** `< 50%` — Healthy headroom for traffic spikes.
+  - 🟡 **Warning:** `50% – 80%` — Elevated load; monitor thread concurrency.
+  - 🔴 **Bad:** `>= 80%` — Severe CPU contention; leads to thread starvation and latency degradation.
 - **Operator Action:** Check thread concurrency (`pricing_requests_active`). If load is legitimate, scale microservice replicas (Horizontal Pod Autoscaler).
 
 ---
 
 ### Panel: Memory Utilization
 - **Component Type:** Stat Gauge (Colored threshold)
-- **Query:** `(sum(jvm_memory_used_bytes{application="epricing-service",area="heap"}) / sum(jvm_memory_max_bytes{application="epricing-service",area="heap"})) * 100`
+- **Query:** `clamp_min(sum(jvm_memory_used_bytes{application="epricing-service",area="heap"}) / clamp_min(sum(jvm_memory_max_bytes{application="epricing-service",area="heap"} > 0), 1) * 100, 0) or vector(0)`
 - **Unit:** Percentage (`%`)
 - **What it means:** Proportion of allocated JVM Heap currently holding live Java objects.
 - **Thresholds:**
-  - 🟢 **Good:** `< 70%` — Regular garbage collection cycles maintaining adequate free heap.
-  - 🟡 **Warning:** `70% – 85%` — Frequent GC pause cycles; monitor GC pause duration.
-  - 🔴 **Bad:** `> 85%` — High risk of `java.lang.OutOfMemoryError: Java heap space` and JVM crash.
+  - 🟢 **Good:** `< 60%` — Regular garbage collection cycles maintaining adequate free heap.
+  - 🟡 **Warning:** `60% – 85%` — Elevated heap occupancy; monitor GC pause duration.
+  - 🔴 **Bad:** `>= 85%` — High risk of `java.lang.OutOfMemoryError: Java heap space` and JVM crash.
 - **Operator Action:** Capture an immediate heap dump: `jcmd <pid> GC.heap_dump /tmp/heap.hprof`. Check for leaking collections or oversized cached entities.
 
 ---
 
-## 1.2 Throughput Volume & Target Response Times
+## 1.2 Throughput Volume & Target Response Times (Split Rows)
 
-### Panels: GUI Requests / API Requests / Mobile & Other
-- **Component Type:** Stat Gauges
+### Panels: GUI Requests / API Requests / Mobile & Other (Row `91`)
+- **Component Type:** Full-Width Stat Row (`3 x w=8`)
 - **Queries:**
-  - GUI: `sum(increase(http_server_requests_seconds_count{application="epricing-service",method="GET"}[$__range]))`
-  - API: `sum(increase(http_server_requests_seconds_count{application="epricing-service",method="POST"}[$__range]))`
-  - Mobile/Internal: `sum(increase(http_server_requests_seconds_count{application="epricing-service",uri=~".*/actuator.*|.*/metrics-demo.*"}[$__range]))`
+  - GUI: `sum(increase(http_server_requests_seconds_count{application="epricing-service",method="GET"}[$__range])) or vector(0)`
+  - API: `sum(increase(http_server_requests_seconds_count{application="epricing-service",method="POST",uri=~".*/pricing.*"}[$__range])) or vector(0)`
+  - Mobile / Other: `sum(increase(http_server_requests_seconds_count{application="epricing-service"}[$__range])) or vector(0)`
 - **Unit:** Request Count
-- **What it means:** Segmentation of traffic by caller medium. POST requests represent core loan calculation and workflow operations; GET requests represent queries and dashboard visual views.
-- **Thresholds:**
-  - 🟢 **Good:** Proportional distribution consistent with daily traffic curves.
-  - 🟡 **Warning:** Zero POST requests while GET requests continue, indicating core calculation API path is failing at the API gateway.
-  - 🔴 **Bad:** Sudden drop to 0 across all channels simultaneously.
-- **Operator Action:** Inspect edge routing, ingress controllers, and SSL/TLS termination proxies.
+- **What it means:** Segmentation of traffic by caller medium. `POST .*/pricing.*` represents core loan calculation and workflow operations; `GET` represents queries and health/UI views; Mobile / Other captures total incoming traffic across all endpoints.
+- **Thresholds:** Always rendered green (`#9FC119`) for volume tracking; monitor alongside the error rows below.
+- **Operator Action:** Inspect edge routing, ingress controllers, and SSL/TLS termination proxies if request volume drops unexpectedly to `0`.
 
 ---
 
-### Panels: GUI (p95 ms) / API (p95 ms) / Mobile (p50 μs)
-- **Component Type:** Stat Gauges with SLA thresholds
+### Panels: GUI (p95 ms) / API (p95 ms) / Mobile (p50 μs) (Row `94`)
+- **Component Type:** Full-Width Stat Row (`3 x w=8`) with SLA thresholds
 - **Queries:**
   - GUI (p95): `histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application="epricing-service",method="GET"}[5m])) by (le)) * 1000`
   - API (p95): `histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application="epricing-service",method="POST"}[5m])) by (le)) * 1000`
   - Mobile (p50): `histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application="epricing-service",uri=~".*/actuator.*|.*/metrics-demo.*"}[5m])) by (le)) * 1000000`
-- **Unit:** Milliseconds (`ms`) for API/GUI; Microseconds (`μs`) for internal probes.
-- **What it means:** The 95th percentile response time. 95% of customer transactions complete faster than this number.
+- **Unit:** Milliseconds (`ms`) for API/GUI; Microseconds (`μs`) for actuator/demo probes.
+- **What it means:** Latency percentile indicators across read, write, and internal probe endpoints.
 - **Thresholds:**
-  - 🟢 **Good:** `< 200 ms` for API; `< 100 ms` for GUI; `< 5000 μs` (5 ms) for internal probes.
-  - 🟡 **Warning:** `200 ms – 500 ms` (API) — Degraded service level; loan calculation taking longer than normal.
-  - 🔴 **Bad:** `> 500 ms` (API) — Direct SLA violation in retail digital banking.
+  - **GUI (p95 ms) & API (p95 ms):** 🟢 Good `< 500 ms` | 🟡 Warning `500 ms – 2000 ms` | 🔴 Bad `>= 2000 ms` (RBI SLA breach)
+  - **Mobile (p50 μs):** 🟢 Good `< 200,000 µs` (200 ms) | 🟡 Warning `200,000 – 500,000 µs` | 🔴 Bad `>= 500,000 µs`
 - **Operator Action:**
-  1. Check `DB Connection Acquire Time (ms)` panel. If DB acquire > 50ms, pool is congested.
-  2. Check Hikari active connections and YugabyteDB CPU.
+  1. Check `DB Connection Acquire Time (ms)` panel in the Complete Observability dashboard.
+  2. Check Hikari active/pending connections and YugabyteDB CPU.
 
 ---
 
-## 1.3 HTTP 4XX Client Errors & HTTP 5XX Server Errors
+## 1.3 HTTP 4XX Client Errors & HTTP 5XX Server Errors (Split Rows)
 
-### Panels: GUI (4XX), API (4XX), Mobile (4XX)
-- **Component Type:** Stat Counters
-- **Query:** `sum(increase(http_server_requests_seconds_count{application="epricing-service",status=~"4..",method="POST"}[$__range])) or vector(0)`
+### Panels: GUI (4XX), API (4XX), Mobile (4XX) (Row `92`)
+- **Component Type:** Full-Width Stat Row (`3 x w=8`)
+- **Queries:**
+  - `GUI (4XX)`: `sum(increase(http_server_requests_seconds_count{application="epricing-service",status=~"4..",method="GET"}[$__range])) or vector(0)`
+  - `API (4XX)`: `sum(increase(http_server_requests_seconds_count{application="epricing-service",status=~"4..",method="POST"}[$__range])) or vector(0)`
+  - `Mobile (4XX)`: `sum(increase(http_server_requests_seconds_count{application="epricing-service",status=~"4..",uri=~".*/actuator.*|.*/metrics-demo.*"}[$__range])) or vector(0)`
 - **Unit:** Count
 - **What it means:** Client-side validation rejections (HTTP 400 Bad Request, 422 Unprocessable Entity). In loan pricing, these indicate underwriting policy rejections (credit score < 650, FOIR > 50%, tenure out of bounds).
 - **Thresholds:**
-  - 🟢 **Good:** `1 – 50` per hour (indicates normal rejected customer loan applications).
-  - 🟡 **Warning:** `> 20%` of total request volume — Possible malformed payload rollout from mobile/web frontend team.
-  - 🔴 **Bad:** Sudden spike to `> 80%` of all traffic — Client frontend integration bug or automated bot attack.
+  - 🟢 **Good:** `0`
+  - 🔴 **Alert Tile (`>= 1`):** Any 4XX turns the tile red so L1 operators inspect the *❌ Error & Rejected Jobs Table* to confirm whether it is a normal underwriting rejection or malformed client payload.
 - **Operator Action:** Inspect the *❌ Error & Rejected Jobs Table* to verify if rejections are legitimate underwriting denials or invalid schema attributes.
 
 ---
 
-### Panels: GUI (5XX), API (5XX), Mobile (5XX)
-- **Component Type:** Stat Counters (Strictly Red Alerting)
-- **Query:** `sum(increase(http_server_requests_seconds_count{application="epricing-service",status=~"5..",method="POST"}[$__range])) or vector(0)`
+### Panels: GUI (5XX), API (5XX), Mobile (5XX) (Row `95`)
+- **Component Type:** Full-Width Stat Row (`3 x w=8`) (Strictly Red Alerting)
+- **Queries:**
+  - `GUI (5XX)`: `sum(increase(http_server_requests_seconds_count{application="epricing-service",status=~"5..",method="GET"}[$__range])) or vector(0)`
+  - `API (5XX)`: `sum(increase(http_server_requests_seconds_count{application="epricing-service",status=~"5..",method="POST"}[$__range])) or vector(0)`
+  - `Mobile (5XX)`: `sum(increase(http_server_requests_seconds_count{application="epricing-service",status=~"5..",uri=~".*/actuator.*|.*/metrics-demo.*"}[$__range])) or vector(0)`
 - **Unit:** Count
 - **What it means:** Internal server crashes, database connection failures, unhandled runtime exceptions, or Kafka broker timeout failures.
 - **Thresholds:**
   - 🟢 **Good:** **Strictly `0`**.
-  - 🟡 **Warning:** `1 – 3` (Transient failure, e.g. temporary DB connection retry).
-  - 🔴 **Bad:** `> 5` — Immediate severity-1 incident. Application is failing to serve loan quotes.
-- **Operator Action:** Immediately open *Log Analysis Dashboard* and filter `level="ERROR"` to extract the Java exception stack trace.
+  - 🔴 **Bad (`>= 1`):** Immediate investigation required; any `5XX` turns the tile red.
+- **Operator Action:** Immediately open *Log Analysis Dashboard* and filter `level="ERROR"` to extract the Java exception stack trace, or inspect the *Error & Rejected Jobs Table*.
 
 ---
 
@@ -156,12 +157,11 @@ Designed for **L1 Operations Support**, **Site Reliability Engineers (SREs)**, a
 - **Component Type:** Stat Counter
 - **Query:** `hikaricp_connections_pending{application="epricing-service",pool="epricing-pool"}`
 - **Unit:** Number of threads waiting
-- **What it means:** The count of Java HTTP threads that requested a database connection from HikariCP but were forced to sleep because all 10 connections are busy.
+- **What it means:** The count of Java HTTP threads that requested a database connection from HikariCP but were forced to wait because pool connections are busy.
 - **Thresholds:**
   - 🟢 **Good:** **Strictly `0`**.
-  - 🟡 **Warning:** `1 – 3` threads pending — Pool approaching exhaustion under load burst.
-  - 🔴 **Bad:** `> 5` threads pending — Impending thread starvation; HTTP requests will soon time out with 500 errors.
-- **Operator Action:** Check if long-running queries are holding connections. Increase `spring.datasource.hikari.maximum-pool-size` if DB CPU is low.
+  - 🔴 **Bad (`>= 1`):** Threads are queued waiting for DB connections; if sustained, HTTP requests will time out with 500 errors.
+- **Operator Action:** Check if long-running queries are holding connections. Verify DB CPU/latency before adjusting `spring.datasource.hikari.maximum-pool-size`.
 
 ---
 
@@ -172,73 +172,75 @@ Designed for **L1 Operations Support**, **Site Reliability Engineers (SREs)**, a
 - **What it means:** Count of connection requests that exceeded the `connection-timeout` limit (30,000 ms) and threw `SQLTransientConnectionException`.
 - **Thresholds:**
   - 🟢 **Good:** **Strictly `0`**.
-  - 🟡 **Warning:** `1` (Isolated connection acquisition failure).
-  - 🔴 **Bad:** `> 2` — Severe connection pool exhaustion or database freeze.
+  - 🔴 **Bad (`>= 1`):** Any connection acquisition timeout turns both tiles red and indicates severe pool exhaustion or DB lock contention.
 - **Operator Action:** Verify YugabyteDB process health: `bin/ysqlsh -p 5433 -U yugabyte -c "SELECT * FROM pg_stat_activity WHERE state != 'idle';"`.
 
 ---
 
-### Panel: DB Sleeping Sessions & DB Logins
+### Panel: DB Sleeping Sessions, DB Logins (Transaction), DB Logins (Reporting)
 - **Component Type:** Stat Counter
 - **Queries:**
-  - Sleeping (Idle): `hikaricp_connections_idle{application="epricing-service",pool="epricing-pool"}`
-  - Logins (Total): `hikaricp_connections_active{...} + hikaricp_connections_idle{...}`
+  - `DB Sleeping Sessions` / `DB Logins (Reporting)`: `hikaricp_connections_idle{application="epricing-service",pool="epricing-pool"}`
+  - `DB Logins (Transaction)`: `hikaricp_connections_active{application="epricing-service",pool="epricing-pool"} + hikaricp_connections_idle{application="epricing-service",pool="epricing-pool"}`
 - **Unit:** Connection Count
-- **What it means:** `Sleeping Sessions` are idle connections in the pool waiting for queries. `Logins` is total open TCP sockets to YugabyteDB (default pool size: 10).
+- **What it means:** `Sleeping Sessions` / `DB Logins (Reporting)` track idle connections in `epricing-pool`. `DB Logins (Transaction)` tracks total open connections (`active + idle`) in `epricing-pool`.
 - **Thresholds:**
-  - 🟢 **Good:** Idle between `2` and `10`; Total Logins stable at `10`.
-  - 🟡 **Warning:** Idle drops to `0` continuously for > 2 minutes.
-  - 🔴 **Bad:** Total Logins drops below `5` while application is running (indicates DB dropping TCP sockets).
-- **Operator Action:** Check network stability between application pods and YugabyteDB.
+  - **DB Logins (Transaction):** 🟢 Good `< 7` | 🟡 Warning `7 – 9` | 🔴 Bad `>= 10` (pool saturated at default max size)
+  - **DB Sleeping Sessions & DB Logins (Reporting):** Green (`#9FC119`)
+- **Operator Action:** Check network stability and connection leak warnings if total logins stay pinned at `>= 10`.
 
 ---
 
 ### Panel: Long Running Query (TXN / RPT)
 - **Component Type:** Stat Counter
-- **Query:** `increase(pricing_requests_total{application="epricing-service",type="failed"}[5m])` and requests exceeding `le="2.0"` seconds.
+- **Queries:**
+  - `Long Running Query (TXN)`: `increase(pricing_requests_total{application="epricing-service",type="failed"}[5m])`
+  - `Long Running Query (RPT)`: `clamp_min(sum(increase(http_server_requests_seconds_bucket{application="epricing-service",le="+Inf"}[5m])) - sum(increase(http_server_requests_seconds_bucket{application="epricing-service",le="2.0"}[5m])), 0) or vector(0)`
 - **Unit:** Count
-- **What it means:** Transactions or queries taking more than 2,000ms to complete.
+- **What it means:** Pricing calculation failures (`TXN`) or HTTP requests exceeding the 2,000ms SLA threshold (`RPT`) over the last 5 minutes.
 - **Thresholds:**
   - 🟢 **Good:** **Strictly `0`**.
-  - 🟡 **Warning:** `1 – 2` during database backup or vacuum operations.
-  - 🔴 **Bad:** `> 5` — Table scan or unindexed query bottlenecking database tablets.
+  - 🔴 **Bad (`>= 1`):** Any calculation failure or `> 2.0s` transaction in the last 5m triggers red alerting.
 - **Operator Action:** Verify range indexes exist on `created_at DESC` per migration `V8__reconcile_schema_and_range_indexes.sql`.
 
 ---
 
 ## 1.5 Live Database Integration & Error Drill-Down Tables
 
-### Panel: Integration Jobs — All Pricing Requests
-- **Component Type:** Interactive Table (Live SQL from YugabyteDB)
+### Panel: Integration Jobs — All Pricing Requests (`id=51`)
+- **Component Type:** Interactive Table (`cellHeight: "md"`, `h=14`, live SQL from YugabyteDB)
 - **Query:**
   ```sql
   SELECT id AS "Job ID", customer_id AS "Customer", product_type AS "Product",
-         loan_amount AS "Loan Amount", interest_rate AS "Rate %", emi_amount AS "EMI",
-         status AS "Status", created_at AS "Submitted At"
-  FROM pricing_requests ORDER BY created_at DESC LIMIT 50;
+         status AS "Status", created_at AT TIME ZONE 'Asia/Kolkata' AS "Started At",
+         processing_time_ms AS "Duration (ms)", calculated_rate AS "Rate %",
+         emi_amount AS "EMI (INR)", <derived Error Summary>,
+         COALESCE(error_message, '') AS "Full Error (DB)", trace_id AS "Trace ID"
+  FROM pricing_requests ORDER BY created_at DESC LIMIT 500;
   ```
-- **Operator Usage:** Real-time visibility into incoming loans without requiring SSH or database access.
-- **Status Color Code:**
-  - 🟢 `CALCULATED` / `APPROVED`: Offer created or accepted.
-  - 🟡 `PENDING`: Awaiting calculation.
-  - ⚪ `EXPIRED`: 7-day rate-lock expired without customer response.
-  - 🔴 `REJECTED` / `ERROR`: Application rejected or calculation aborted.
+- **Operator Usage:** Real-time visibility into incoming loans without requiring SSH or database access. Clicking any `Trace ID` opens the trace in Grafana Tempo.
+- **Status Badge Mapping:**
+  - 🟢 `CALCULATED` / `APPROVED` -> `✅ COMPLETED`
+  - 🟡 `PENDING` -> `⏳ RUNNING`
+  - 🟠 `REJECTED` -> `⚠️ REJECTED`
+  - 🔴 `ERROR` -> `❌ ERROR`
 
 ---
 
-### Panel: ❌ Error & Rejected Jobs — Root Cause Drill-Down
-- **Component Type:** Interactive Table
+### Panel: ❌ Error & Rejected Jobs — Root Cause Drill-Down (`id=52`)
+- **Component Type:** Interactive Table (`cellHeight: "md"`, `h=14`)
 - **Query:**
   ```sql
-  SELECT p.id AS "Job ID", p.customer_id AS "Customer", p.product_type AS "Product",
-         p.status AS "Status", a.outcome AS "Rejection Reason", a.details AS "Audit Detail",
-         p.created_at AS "Failed At"
-  FROM pricing_requests p
-  LEFT JOIN pricing_audit_logs a ON p.id = a.pricing_request_id
-  WHERE p.status IN ('REJECTED', 'ERROR')
-  ORDER BY p.created_at DESC LIMIT 25;
+  SELECT id AS "Job ID", customer_id AS "Customer", product_type AS "Product",
+         status AS "Status", created_at AT TIME ZONE 'Asia/Kolkata' AS "Failed At",
+         processing_time_ms AS "Duration", <categorized Root Cause>,
+         COALESCE(error_message, 'No error message stored in DB') AS "Full Stack (DB)",
+         trace_id AS "Trace ID"
+  FROM pricing_requests
+  WHERE status IN ('ERROR', 'REJECTED')
+  ORDER BY created_at DESC LIMIT 200;
   ```
-- **Operator Usage:** Direct answer for customer support: when a branch officer asks *"Why was loan ID 1042 rejected?"*, this table displays the exact policy rule failure (`PRICING_INSUFFICIENT_CREDIT_SCORE: Score 580 < 650 threshold`).
+- **Operator Usage:** Direct answer for customer support: categorizes common business rejections and DB/timeout errors into human-readable `Root Cause` messages alongside the complete stored `Full Stack (DB)` error and clickable `Trace ID`.
 
 ---
 
@@ -259,9 +261,9 @@ Designed for **L1 Operations Support**, **Site Reliability Engineers (SREs)**, a
 | **Total Requests** | `pricing_requests_total{type="all"}` | Counter | Steadily increasing | Flatline during peak hours | Decreasing / reset unexpectedly (indicates container restart) | Check pod restart count (`kubectl get pods`). |
 | **Successful Pricings** | `pricing_requests_total{type="success"}` | Counter | `> 90%` of all requests | `80% – 90%` | `< 80%` | Inspect rejection causes in audit log table. |
 | **Failed Pricings** | `pricing_requests_total{type="failed"}` | Counter | `0` | `1 – 5` | `> 5` | Check database and rule engine exception logs. |
-| **Active In-Flight** | `pricing_requests_active` | Gauge (Count) | `0 – 5` | `6 – 20` | `> 20` | Threads backing up; inspect downstream Temporal/Kafka bottlenecks. |
-| **Heap Memory Used** | `jvm_memory_used_bytes / max * 100` | Percentage | `< 70%` | `70% – 85%` | `> 85%` | Trigger GC profile and verify heap memory leaks. |
-| **DB Pool Active** | `hikaricp_connections_active` | Gauge (0–10) | `0 – 4` | `5 – 8` | `> 8` | DB connection pool near exhaustion; investigate slow queries. |
+| **Active In-Flight** | `pricing_requests_active` | Gauge (Count) | `< 20` | `20 – 49` | `>= 50` | Threads backing up; inspect downstream Temporal/Kafka bottlenecks. |
+| **Heap Memory Used** | `jvm_memory_used_bytes / max * 100` | Percentage | `< 60%` | `60% – 85%` | `>= 85%` | Trigger GC profile and verify heap memory leaks. |
+| **DB Pool Active** | `hikaricp_connections_active` | Gauge (0–10) | `< 7` | `7 – 9` | `>= 10` | DB connection pool near exhaustion; investigate slow queries. |
 
 ---
 
@@ -304,9 +306,9 @@ Designed for **L1 Operations Support**, **Site Reliability Engineers (SREs)**, a
 - **Unit:** Milliseconds (`ms`)
 - **What it means:** Measures the isolated execution time of the financial math algorithm (reducing balance interest, EMI calculation, FOIR underwriting rules) excluding network transmission time.
 - **Thresholds:**
-  - 🟢 **Good:** `< 15 ms` (financial math is in-memory and extremely fast).
-  - 🟡 **Warning:** `15 ms – 50 ms`.
-  - 🔴 **Bad:** `> 50 ms` — CPU throttling or thread scheduling delays.
+  - 🟢 **Good:** `< 50 ms` (financial math is in-memory and fast).
+  - 🟡 **Warning:** `50 ms – 200 ms`.
+  - 🔴 **Bad:** `>= 200 ms` — CPU throttling or thread scheduling delays.
 
 ---
 
@@ -346,12 +348,12 @@ Designed for **L1 Operations Support**, **Site Reliability Engineers (SREs)**, a
 
 | Panel | Metric Source | Unit | 🟢 Good | 🟡 Warning | 🔴 Bad | Operator Action Plan |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **epricing-service CPU %** | cAdvisor `container_cpu_usage_seconds_total` | `%` of 1 Core | `< 70%` | `70% – 90%` | `> 90%` | Scale pod CPU limits or add container replicas. |
-| **epricing-service Memory** | cAdvisor `container_memory_working_set_bytes` | Bytes (MB/GB) | `< 700 MB` (Limit: 1 GB) | `700 – 900 MB` | `> 900 MB` | Nearing container limit; Linux kernel will issue `OOMKill (Exit 137)`. Increase container memory limit. |
-| **YugabyteDB CPU %** | cAdvisor `container_cpu_usage_seconds_total` | `%` | `< 60%` | `60% – 85%` | `> 85%` | Heavy query load. Check for missing indexes or table locks. |
-| **YugabyteDB Memory** | cAdvisor `container_memory_working_set_bytes` | Bytes (GB) | `< 2.5 GB` (Limit: 3 GB) | `2.5 – 2.8 GB` | `> 2.8 GB` | DocDB block cache saturation. Tune memory limits in docker-compose. |
-| **Node CPU Idle %** | Node Exporter `node_cpu_seconds_total{mode="idle"}` | `%` | `> 40%` | `15% – 40%` | `< 15%` | Host machine/Cloud PC is running out of processing capacity. |
-| **Node Memory Available** | Node Exporter `node_memory_MemAvailable_bytes` | Bytes (GB) | `> 2.0 GB` | `1.0 – 2.0 GB` | `< 1.0 GB` | Host OS memory thrashing; risk of host system freeze. |
+| **epricing-service CPU %** | cAdvisor `container_cpu_usage_seconds_total` | `%` of 1 Core | `< 50%` | `50% – 80%` | `>= 80%` | Scale pod CPU limits or add container replicas. |
+| **epricing-service Memory** | cAdvisor `container_memory_working_set_bytes` | Bytes (MB) | `< 500 MB` | `500 – 800 MB` | `>= 800 MB` | Nearing container limit; inspect JVM heap usage and container limits. |
+| **YugabyteDB CPU %** | cAdvisor `container_cpu_usage_seconds_total` | `%` | `< 50%` | `50% – 80%` | `>= 80%` | Heavy query load. Check for missing indexes or table locks. |
+| **YugabyteDB Memory** | cAdvisor `container_memory_working_set_bytes` | Bytes (MB/GB) | `< 500 MB` | `500 MB – 1 GB` | `>= 1 GB` | DocDB block cache saturation. Review memory limits in docker-compose. |
+| **Node CPU Idle %** | Node Exporter `node_cpu_seconds_total{mode="idle"}` | `%` | `>= 40%` | `20% – 40%` | `< 20%` | Host machine/Cloud PC is running out of processing capacity. |
+| **Node Memory Available** | Node Exporter `node_memory_MemAvailable_bytes` | Bytes (GB) | `>= 2.0 GB` | `1.0 – 2.0 GB` | `< 1.0 GB` | Host OS memory pressure; risk of host system thrashing. |
 
 ---
 
@@ -395,11 +397,12 @@ Designed for **L1 Operations Support**, **Site Reliability Engineers (SREs)**, a
 
 | Panel | Query | Unit | 🟢 Good | 🟡 Warning | 🔴 Bad | Operator Action Plan |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ERROR Log Count** | `sum(count_over_time({application="epricing-service", level="ERROR"}[$__range]))` | Count | **`0`** | `1 – 5` | `> 5` | Unhandled exceptions occurring. Check live stream panel for stack trace. |
-| **WARN Log Count** | `sum(count_over_time({application="epricing-service", level="WARN"}[$__range]))` | Count | Low & stable | Spike `> 50` | `> 200` | Frequent policy rejections, retries, or rate-lock signal warnings. |
-| **INFO Log Count** | `sum(count_over_time({application="epricing-service", level="INFO"}[$__range]))` | Count | Proportional to requests | 0 (no logs) | Massive flood (`> 10,000/min`) | If 0, Promtail or Loki is down; if flooding, log level set to debug in production. |
-| **DB Errors (5XX)** | `pricing_errors_total{error_type="PRICING_CALCULATION_FAILED"}` | Counter | **`0`** | `1` | `> 2` | Database write/commit failures during loan persistence. |
-| **Simulated Errors** | `pricing_demo_errors_total{error_type="SIMULATED_ERROR"}` | Counter | Increments every ~150s | Flat | N/A | Verifies alert routing and traffic generator liveness. |
+| **ERROR Log Count (last range)** | `sum(count_over_time({application="epricing-service", level="ERROR"}[$__range]))` | Count | **`0`** | N/A | `>= 1` | Unhandled exceptions occurring. Check live stream panel for stack trace. |
+| **WARN Log Count (last range)** | `sum(count_over_time({application="epricing-service", level="WARN"}[$__range]))` | Count | **`0`** | `>= 1` | N/A | Frequent policy rejections, retries, or rate-lock signal warnings. |
+| **INFO Log Count (last range)** | `sum(count_over_time({application="epricing-service", level="INFO"}[$__range]))` | Count | Proportional to requests | `0` (no logs) | Massive flood | If `0`, check Promtail/Loki ingestion; if flooding, verify log level config. |
+| **DB Errors (5XX from Pricing)** | `sum(increase(pricing_errors_total{application="epricing-service",error_type="PRICING_CALCULATION_FAILED"}[$__range])) or vector(0)` | Count | **`0`** | N/A | `>= 1` | Database write/commit failures during loan persistence. |
+| **Simulated Errors (Load Test)** | `pricing_demo_errors_total{application="epricing-service",error_type="SIMULATED_ERROR"}` | Counter | **`0`** | `>= 1` (expected during demo traffic) | N/A | Verifies alert routing and traffic generator error simulation. |
+| **Slow Requests Demo Counter** | `pricing_demo_slow_requests_total{application="epricing-service"}` | Counter | **`0`** | `>= 1` (expected during demo traffic) | N/A | Verifies latency alerting on simulated slow requests. |
 
 ---
 

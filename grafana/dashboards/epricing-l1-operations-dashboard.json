@@ -40,7 +40,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing L1 Operations Dashboard",
   "uid": "epricing-l1-ops",
-  "version": 5,
+  "version": 6,
   "panels": [
     {
       "collapsed": false,
@@ -309,7 +309,7 @@
         "y": 6
       },
       "id": 91,
-      "title": "Throughput Volume (Left) & Target Response Times (Right)",
+      "title": "Throughput Volume",
       "type": "row"
     },
     {
@@ -319,7 +319,7 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 8,
         "x": 0,
         "y": 7
       },
@@ -370,8 +370,8 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
+        "w": 8,
+        "x": 8,
         "y": 7
       },
       "datasource": {
@@ -421,8 +421,8 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 8,
+        "w": 8,
+        "x": 16,
         "y": 7
       },
       "datasource": {
@@ -466,15 +466,43 @@
       ]
     },
     {
+      "id": 9002,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 94,
+      "title": "Target Response Times (Latency SLAs)",
+      "type": "row"
+    },
+    {
       "id": 21,
       "title": "GUI (p95 ms)",
       "description": "p95 response time on GET /pricing and /health — SLA under 500ms",
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 12,
-        "y": 7
+        "w": 8,
+        "x": 0,
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -532,9 +560,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 7
+        "w": 8,
+        "x": 8,
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -592,9 +620,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 7
+        "w": 8,
+        "x": 16,
+        "y": 13
       },
       "datasource": {
         "type": "prometheus",
@@ -646,7 +674,7 @@
       ]
     },
     {
-      "id": 9002,
+      "id": 9003,
       "type": "text",
       "title": "",
       "transparent": true,
@@ -654,7 +682,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 11
+        "y": 17
       },
       "options": {
         "mode": "html",
@@ -667,10 +695,10 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 18
       },
       "id": 92,
-      "title": "HTTP 4XX Client Errors (Left) & HTTP 5XX Server Errors (Right)",
+      "title": "HTTP 4XX Client Errors",
       "type": "row"
     },
     {
@@ -680,9 +708,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 8,
         "x": 0,
-        "y": 13
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -735,9 +763,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
-        "y": 13
+        "w": 8,
+        "x": 8,
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -790,9 +818,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 13
+        "w": 8,
+        "x": 16,
+        "y": 19
       },
       "datasource": {
         "type": "prometheus",
@@ -839,15 +867,43 @@
       ]
     },
     {
+      "id": 9007,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "options": {
+        "mode": "html",
+        "content": ""
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 95,
+      "title": "HTTP 5XX Server Errors",
+      "type": "row"
+    },
+    {
       "id": 11,
       "title": "GUI (5XX)",
       "description": "5XX server errors on GET endpoints",
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 12,
-        "y": 13
+        "w": 8,
+        "x": 0,
+        "y": 25
       },
       "datasource": {
         "type": "prometheus",
@@ -900,9 +956,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 13
+        "w": 8,
+        "x": 8,
+        "y": 25
       },
       "datasource": {
         "type": "prometheus",
@@ -955,9 +1011,9 @@
       "type": "stat",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 13
+        "w": 8,
+        "x": 16,
+        "y": 25
       },
       "datasource": {
         "type": "prometheus",
@@ -1004,7 +1060,7 @@
       ]
     },
     {
-      "id": 9003,
+      "id": 9008,
       "type": "text",
       "title": "",
       "transparent": true,
@@ -1012,7 +1068,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 29
       },
       "options": {
         "mode": "html",
@@ -1025,7 +1081,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 30
       },
       "id": 93,
       "title": "Database Health · Connection Pool · Blockings & Long Running Queries",
@@ -1040,7 +1096,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 19
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -1095,7 +1151,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 19
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -1150,7 +1206,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 19
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -1205,7 +1261,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 19
+        "y": 31
       },
       "datasource": {
         "type": "prometheus",
@@ -1256,7 +1312,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 35
       },
       "options": {
         "mode": "html",
@@ -1272,7 +1328,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 24
+        "y": 36
       },
       "datasource": {
         "type": "prometheus",
@@ -1331,7 +1387,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 24
+        "y": 36
       },
       "datasource": {
         "type": "prometheus",
@@ -1382,7 +1438,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 24
+        "y": 36
       },
       "datasource": {
         "type": "prometheus",
@@ -1437,7 +1493,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 24
+        "y": 36
       },
       "datasource": {
         "type": "prometheus",
@@ -1492,7 +1548,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 40
       },
       "options": {
         "mode": "html",
@@ -1505,7 +1561,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 41
       },
       "id": 50,
       "title": "Integration Jobs — All Running / Complete / Error (Live from YugabyteDB)",
@@ -1520,7 +1576,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 42
       },
       "datasource": {
         "type": "postgres",
@@ -1784,7 +1840,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 56
       },
       "options": {
         "mode": "html",
@@ -1797,7 +1853,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 57
       },
       "id": 53,
       "title": "❌ Error & Rejected Jobs — Root Cause Drill-Down (Live from DB)",
@@ -1812,7 +1868,7 @@
         "h": 14,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 58
       },
       "datasource": {
         "type": "postgres",
