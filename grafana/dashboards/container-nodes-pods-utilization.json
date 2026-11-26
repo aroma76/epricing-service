@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Container & Node Utilization",
   "uid": "epricing-containers",
-  "version": 5,
+  "version": 6,
   "panels": [
     {
       "id": 1,
@@ -109,6 +109,7 @@
       "targets": [
         {
           "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".*epricing-service.*\"}[1m])) * 100 or (process_cpu_usage{job=\"epricing-service\"} * 100)",
+          "instant": true,
           "legendFormat": "epricing CPU %",
           "refId": "A"
         }
@@ -168,6 +169,7 @@
       "targets": [
         {
           "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".*epricing-yugabytedb.*|.*yugabytedb.*\"}[1m])) * 100",
+          "instant": true,
           "legendFormat": "YugabyteDB CPU %",
           "refId": "A"
         }
@@ -227,6 +229,7 @@
       "targets": [
         {
           "expr": "avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100",
+          "instant": true,
           "legendFormat": "Node CPU Idle %",
           "refId": "A"
         }
@@ -300,7 +303,8 @@
       },
       "targets": [
         {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-service.*\"} or sum(jvm_memory_used_bytes{job=\"epricing-service\", area=\"heap\"})",
+          "expr": "max(container_memory_working_set_bytes{name=~\".*epricing-service.*\"}) or sum(jvm_memory_used_bytes{job=\"epricing-service\", area=\"heap\"})",
+          "instant": true,
           "legendFormat": "Working Set",
           "refId": "A"
         }
@@ -358,7 +362,8 @@
       },
       "targets": [
         {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-yugabytedb.*|.*yugabytedb.*\"}",
+          "expr": "max(container_memory_working_set_bytes{name=~\".*epricing-yugabytedb.*|.*yugabytedb.*\"})",
+          "instant": true,
           "legendFormat": "YugabyteDB Memory",
           "refId": "A"
         }
@@ -417,6 +422,7 @@
       "targets": [
         {
           "expr": "node_memory_MemAvailable_bytes",
+          "instant": true,
           "legendFormat": "Available RAM",
           "refId": "A"
         }
@@ -573,27 +579,27 @@
       },
       "targets": [
         {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-service.*\"} or sum(jvm_memory_used_bytes{job=\"epricing-service\", area=\"heap\"})",
+          "expr": "max(container_memory_working_set_bytes{name=~\".*epricing-service.*\"}) or sum(jvm_memory_used_bytes{job=\"epricing-service\", area=\"heap\"})",
           "legendFormat": "epricing-service",
           "refId": "A"
         },
         {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-yugabytedb.*|.*yugabytedb.*\"}",
+          "expr": "max(container_memory_working_set_bytes{name=~\".*epricing-yugabytedb.*|.*yugabytedb.*\"})",
           "legendFormat": "yugabytedb",
           "refId": "B"
         },
         {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-prometheus.*|.*prometheus.*\"}",
+          "expr": "max(container_memory_working_set_bytes{name=~\".*epricing-prometheus.*|.*prometheus.*\"})",
           "legendFormat": "prometheus",
           "refId": "C"
         },
         {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-grafana.*|.*grafana.*\"}",
+          "expr": "max(container_memory_working_set_bytes{name=~\".*epricing-grafana.*|.*grafana.*\"})",
           "legendFormat": "grafana",
           "refId": "D"
         },
         {
-          "expr": "container_memory_working_set_bytes{name=~\".*epricing-loki.*|.*loki.*\"}",
+          "expr": "max(container_memory_working_set_bytes{name=~\".*epricing-loki.*|.*loki.*\"})",
           "legendFormat": "loki",
           "refId": "E"
         }
