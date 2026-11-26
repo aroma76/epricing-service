@@ -11,8 +11,8 @@ Kubernetes manifests are organized under the [`k8s/`](../../k8s/) directory for 
 The dedicated **`epricing`** namespace provides multi-tenant isolation and strict Pod Security Standards:
 
 * **Pod Security Standards:** `pod-security.kubernetes.io/enforce: restricted` (ensures non-root, read-only root filesystems, drop all Linux capabilities).
-* **ResourceQuota (`epricing-quota`):** Protects cluster stability with CPU limits (8 cores max) and Memory limits (16 Gi max).
-* **LimitRange (`epricing-limit-range`):** Injects default resource requests (`250m` CPU / `256Mi` RAM) and enforces bounds on individual containers.
+* **ResourceQuota (`epricing-quota`):** Protects cluster stability with CPU requests/limits (`10` / `24` cores) and Memory requests/limits (`20Gi` / `24Gi`) to support HPA scaling up to `maxReplicas: 10` plus `RollingUpdate` (`maxSurge: 1`).
+* **LimitRange (`epricing-limit-range`):** Injects default resource requests (`250m` CPU / `256Mi` RAM) and enforces bounds (`max: 2000m / 2048Mi`) on individual containers.
 
 ---
 
@@ -54,28 +54,33 @@ spec:
             - containerPort: 8081
           env:
             - name: SPRING_PROFILES_ACTIVE
-              value: "prod"
+              value: "k8s"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://otel-collector.monitoring:4318"
+              value: "http://otel-collector.monitoring.svc.cluster.local:4318"
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "250m"
+              memory: "1536Mi"
+              cpu: "500m"
             limits:
-              memory: "512Mi"
-              cpu: "1000m"
+              memory: "2048Mi"
+              cpu: "2000m"
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 36
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness
               port: 8081
-            initialDelaySeconds: 60
-            periodSeconds: 30
+            periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
               port: 8081
-            initialDelaySeconds: 30
-            periodSeconds: 10
+            periodSeconds: 5
 ```
 
 ### Service
@@ -110,9 +115,11 @@ metadata:
   name: epricing-config
   namespace: epricing
 data:
-  SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_PROFILES_ACTIVE: "k8s"
+  LOGGING_FILE_PATH: "/var/log/epricing"
+  LOG_TOTAL_SIZE_CAP: "256MB"
   OTEL_SERVICE_NAME: "epricing-service"
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.monitoring:4318"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.monitoring.svc.cluster.local:4318"
 ```
 
 ### Secret
@@ -136,14 +143,14 @@ data:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: epricing-hpa
+  name: epricing-service-hpa
   namespace: epricing
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
     name: epricing-service
-  minReplicas: 2
+  minReplicas: 3
   maxReplicas: 10
   metrics:
     - type: Resource

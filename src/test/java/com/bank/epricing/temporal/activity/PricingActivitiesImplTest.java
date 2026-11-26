@@ -26,6 +26,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -63,6 +64,9 @@ class PricingActivitiesImplTest {
         when(spanBuilder.setAttribute(anyString(), anyString())).thenReturn(spanBuilder);
         when(spanBuilder.startSpan()).thenReturn(span);
         when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
+
+        // Stub publishPricingEvent to return a completed future (avoids NPE in publishStatusEvent lambda)
+        when(pricingEventProducer.publishPricingEvent(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         pricingService = new PricingService(
                 pricingRepository,
@@ -130,12 +134,12 @@ class PricingActivitiesImplTest {
                 .build();
 
         when(pricingRepository.findById(201L)).thenReturn(Optional.of(request));
-        when(pricingRepository.save(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pricingRepository.saveAndFlush(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         activities.recordQuoteApproval("201", "CUST-ACT-002");
 
         assertEquals(PricingRequest.PricingStatus.APPROVED, request.getStatus());
-        verify(pricingRepository, times(1)).save(request);
+        verify(pricingRepository, times(1)).saveAndFlush(request);
 
         ArgumentCaptor<PricingAuditLog> auditCaptor = ArgumentCaptor.forClass(PricingAuditLog.class);
         verify(auditRepository, times(1)).save(auditCaptor.capture());
@@ -165,7 +169,7 @@ class PricingActivitiesImplTest {
                 .build();
 
         when(pricingRepository.findById(301L)).thenReturn(Optional.of(request));
-        when(pricingRepository.save(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pricingRepository.saveAndFlush(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         String longReason = "R".repeat(600);
         activities.recordQuoteRejection("301", "CUST-ACT-003", longReason);
@@ -174,7 +178,7 @@ class PricingActivitiesImplTest {
         assertTrue(request.getErrorMessage().length() <= 500);
         assertTrue(request.getErrorMessage().endsWith("..."));
 
-        verify(pricingRepository, times(1)).save(request);
+        verify(pricingRepository, times(1)).saveAndFlush(request);
         verify(auditRepository, times(1)).save(any(PricingAuditLog.class));
 
         ArgumentCaptor<LoanPricingEvent> eventCaptor = ArgumentCaptor.forClass(LoanPricingEvent.class);
@@ -195,12 +199,12 @@ class PricingActivitiesImplTest {
                 .build();
 
         when(pricingRepository.findById(401L)).thenReturn(Optional.of(request));
-        when(pricingRepository.save(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pricingRepository.saveAndFlush(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         activities.recordQuoteExpiration("401", "CUST-ACT-004");
 
         assertEquals(PricingRequest.PricingStatus.EXPIRED, request.getStatus());
-        verify(pricingRepository, times(1)).save(request);
+        verify(pricingRepository, times(1)).saveAndFlush(request);
         verify(auditRepository, times(1)).save(any(PricingAuditLog.class));
 
         ArgumentCaptor<LoanPricingEvent> eventCaptor = ArgumentCaptor.forClass(LoanPricingEvent.class);
@@ -233,6 +237,7 @@ class PricingActivitiesImplTest {
         activities.recordQuoteApproval("999", "CUST-ACT-999");
 
         verify(pricingRepository, never()).save(any());
+        verify(pricingRepository, never()).saveAndFlush(any());
         verify(pricingEventProducer, never()).publishPricingEvent(any());
 
         ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
@@ -258,7 +263,7 @@ class PricingActivitiesImplTest {
                 .build();
 
         when(pricingRepository.findById(501L)).thenReturn(Optional.of(request));
-        when(pricingRepository.save(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pricingRepository.saveAndFlush(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // Should complete without NullPointerException even though producer is null
         assertDoesNotThrow(() -> fallbackActivities.recordQuoteApproval("501", "CUST-ACT-006"));
@@ -277,7 +282,7 @@ class PricingActivitiesImplTest {
                 .build();
 
         when(pricingRepository.findById(601L)).thenReturn(Optional.of(request));
-        when(pricingRepository.save(any(PricingRequest.class)))
+        when(pricingRepository.saveAndFlush(any(PricingRequest.class)))
                 .thenThrow(new org.springframework.dao.OptimisticLockingFailureException("Row updated by concurrent transaction"));
 
         assertThrows(org.springframework.dao.OptimisticLockingFailureException.class,
@@ -301,6 +306,7 @@ class PricingActivitiesImplTest {
 
         assertEquals(PricingRequest.PricingStatus.EXPIRED, request.getStatus());
         verify(pricingRepository, never()).save(request);
+        verify(pricingRepository, never()).saveAndFlush(request);
         verify(pricingEventProducer, never()).publishPricingEvent(any());
 
         ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
@@ -325,6 +331,7 @@ class PricingActivitiesImplTest {
 
         assertEquals(PricingRequest.PricingStatus.APPROVED, request.getStatus());
         verify(pricingRepository, never()).save(request);
+        verify(pricingRepository, never()).saveAndFlush(request);
         verify(pricingEventProducer, never()).publishPricingEvent(any());
 
         ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
@@ -349,10 +356,205 @@ class PricingActivitiesImplTest {
 
         assertEquals(PricingRequest.PricingStatus.APPROVED, request.getStatus());
         verify(pricingRepository, never()).save(request);
+        verify(pricingRepository, never()).saveAndFlush(request);
         verify(pricingEventProducer, never()).publishPricingEvent(any());
 
         ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
         verify(auditRepository, times(1)).save(captor.capture());
         assertEquals("SKIPPED_TERMINAL_STATE", captor.getValue().getOutcome());
+        assertEquals("RATE_EXPIRED", captor.getValue().getAction());
+    }
+
+    @Test
+    @DisplayName("R1: Should not overwrite terminal state EXPIRED when quote rejection arrives late")
+    void testRecordQuoteRejection_ExpiredTerminalStateSkipped() {
+        PricingRequest request = PricingRequest.builder()
+                .id(902L)
+                .customerId("CUST-ACT-011")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("2000000"))
+                .status(PricingRequest.PricingStatus.EXPIRED)
+                .traceId("trace-expired-reject")
+                .build();
+
+        when(pricingRepository.findById(902L)).thenReturn(Optional.of(request));
+
+        activities.recordQuoteRejection("902", "CUST-ACT-011", "Late rejection after expiry");
+
+        assertEquals(PricingRequest.PricingStatus.EXPIRED, request.getStatus());
+        assertNull(request.getErrorMessage());
+        verify(pricingRepository, never()).save(any());
+        verify(pricingRepository, never()).saveAndFlush(any());
+        verify(pricingEventProducer, never()).publishPricingEvent(any());
+
+        ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
+        verify(auditRepository, times(1)).save(captor.capture());
+        assertEquals("SKIPPED_TERMINAL_STATE", captor.getValue().getOutcome());
+        assertEquals("RATE_REJECTED", captor.getValue().getAction());
+        assertEquals("trace-expired-reject", captor.getValue().getTraceId());
+    }
+
+    @Test
+    @DisplayName("R1: Should handle duplicate recordQuoteRejection on already REJECTED quote idempotently")
+    void testRecordQuoteRejection_SameStateRejectedSkipped() {
+        PricingRequest request = PricingRequest.builder()
+                .id(903L)
+                .customerId("CUST-ACT-012")
+                .productType("PERSONAL_LOAN")
+                .loanAmount(new BigDecimal("300000"))
+                .status(PricingRequest.PricingStatus.REJECTED)
+                .errorMessage("Original rejection reason")
+                .build();
+
+        when(pricingRepository.findById(903L)).thenReturn(Optional.of(request));
+
+        activities.recordQuoteRejection("903", "CUST-ACT-012", "Duplicate rejection");
+
+        assertEquals(PricingRequest.PricingStatus.REJECTED, request.getStatus());
+        assertEquals("Original rejection reason", request.getErrorMessage());
+        verify(pricingRepository, never()).save(any());
+        verify(pricingRepository, never()).saveAndFlush(any());
+        verify(pricingEventProducer, never()).publishPricingEvent(any());
+
+        ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
+        verify(auditRepository, times(1)).save(captor.capture());
+        assertEquals("SKIPPED_TERMINAL_STATE", captor.getValue().getOutcome());
+        assertEquals("RATE_REJECTED", captor.getValue().getAction());
+    }
+
+    @Test
+    @DisplayName("R1: Should not overwrite terminal state REJECTED when quote expiration timer fires")
+    void testRecordQuoteExpiration_RejectedTerminalStateSkipped() {
+        PricingRequest request = PricingRequest.builder()
+                .id(904L)
+                .customerId("CUST-ACT-013")
+                .productType("AUTO_LOAN")
+                .loanAmount(new BigDecimal("800000"))
+                .status(PricingRequest.PricingStatus.REJECTED)
+                .traceId("trace-rejected-expire")
+                .build();
+
+        when(pricingRepository.findById(904L)).thenReturn(Optional.of(request));
+
+        activities.recordQuoteExpiration("904", "CUST-ACT-013");
+
+        assertEquals(PricingRequest.PricingStatus.REJECTED, request.getStatus());
+        verify(pricingRepository, never()).save(any());
+        verify(pricingRepository, never()).saveAndFlush(any());
+        verify(pricingEventProducer, never()).publishPricingEvent(any());
+
+        ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
+        verify(auditRepository, times(1)).save(captor.capture());
+        assertEquals("SKIPPED_TERMINAL_STATE", captor.getValue().getOutcome());
+        assertEquals("RATE_EXPIRED", captor.getValue().getAction());
+        assertEquals("trace-rejected-expire", captor.getValue().getTraceId());
+    }
+
+    @Test
+    @DisplayName("R1: Should handle duplicate recordQuoteExpiration on already EXPIRED quote idempotently")
+    void testRecordQuoteExpiration_SameStateExpiredSkipped() {
+        PricingRequest request = PricingRequest.builder()
+                .id(905L)
+                .customerId("CUST-ACT-014")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("2500000"))
+                .status(PricingRequest.PricingStatus.EXPIRED)
+                .build();
+
+        when(pricingRepository.findById(905L)).thenReturn(Optional.of(request));
+
+        activities.recordQuoteExpiration("905", "CUST-ACT-014");
+
+        assertEquals(PricingRequest.PricingStatus.EXPIRED, request.getStatus());
+        verify(pricingRepository, never()).save(any());
+        verify(pricingRepository, never()).saveAndFlush(any());
+        verify(pricingEventProducer, never()).publishPricingEvent(any());
+
+        ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
+        verify(auditRepository, times(1)).save(captor.capture());
+        assertEquals("SKIPPED_TERMINAL_STATE", captor.getValue().getOutcome());
+        assertEquals("RATE_EXPIRED", captor.getValue().getAction());
+    }
+
+    @Test
+    @DisplayName("R1: Should handle duplicate recordQuoteApproval on already APPROVED quote idempotently")
+    void testRecordQuoteApproval_SameStateApprovedSkipped() {
+        PricingRequest request = PricingRequest.builder()
+                .id(906L)
+                .customerId("CUST-ACT-015")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("2500000"))
+                .status(PricingRequest.PricingStatus.APPROVED)
+                .build();
+
+        when(pricingRepository.findById(906L)).thenReturn(Optional.of(request));
+
+        activities.recordQuoteApproval("906", "CUST-ACT-015");
+
+        assertEquals(PricingRequest.PricingStatus.APPROVED, request.getStatus());
+        verify(pricingRepository, never()).save(any());
+        verify(pricingRepository, never()).saveAndFlush(any());
+        verify(pricingEventProducer, never()).publishPricingEvent(any());
+
+        ArgumentCaptor<PricingAuditLog> captor = ArgumentCaptor.forClass(PricingAuditLog.class);
+        verify(auditRepository, times(1)).save(captor.capture());
+        assertEquals("SKIPPED_TERMINAL_STATE", captor.getValue().getOutcome());
+        assertEquals("RATE_APPROVED", captor.getValue().getAction());
+    }
+
+    @Test
+    @DisplayName("R1: Should propagate OptimisticLockingFailureException on rejection and expiration save conflicts")
+    void testRecordQuoteRejectionAndExpiration_OptimisticLockingFailure() {
+        PricingRequest rejectCandidate = PricingRequest.builder()
+                .id(907L)
+                .customerId("CUST-ACT-016")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("2000000"))
+                .status(PricingRequest.PricingStatus.CALCULATED)
+                .build();
+        when(pricingRepository.findById(907L)).thenReturn(Optional.of(rejectCandidate));
+        when(pricingRepository.saveAndFlush(rejectCandidate))
+                .thenThrow(new org.springframework.dao.OptimisticLockingFailureException("Concurrent update"));
+
+        assertThrows(org.springframework.dao.OptimisticLockingFailureException.class,
+                () -> activities.recordQuoteRejection("907", "CUST-ACT-016", "Conflict test"));
+
+        PricingRequest expireCandidate = PricingRequest.builder()
+                .id(908L)
+                .customerId("CUST-ACT-017")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("2000000"))
+                .status(PricingRequest.PricingStatus.CALCULATED)
+                .build();
+        when(pricingRepository.findById(908L)).thenReturn(Optional.of(expireCandidate));
+        when(pricingRepository.saveAndFlush(expireCandidate))
+                .thenThrow(new org.springframework.dao.OptimisticLockingFailureException("Concurrent update"));
+
+        assertThrows(org.springframework.dao.OptimisticLockingFailureException.class,
+                () -> activities.recordQuoteExpiration("908", "CUST-ACT-017"));
+    }
+
+    @Test
+    @DisplayName("Should handle null CompletableFuture from PricingEventProducer safely without crashing")
+    void testRecordQuoteApproval_NullPublishFutureHandledSafely() {
+        PricingRequest request = PricingRequest.builder()
+                .id(909L)
+                .customerId("CUST-ACT-018")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("1500000"))
+                .calculatedRate(new BigDecimal("8.50"))
+                .emiAmount(new BigDecimal("14772.00"))
+                .loanTenureMonths(180)
+                .status(PricingRequest.PricingStatus.CALCULATED)
+                .traceId("trace-null-future-test")
+                .build();
+
+        when(pricingRepository.findById(909L)).thenReturn(Optional.of(request));
+        when(pricingRepository.saveAndFlush(any(PricingRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pricingEventProducer.publishPricingEvent(any())).thenReturn(null);
+
+        assertDoesNotThrow(() -> activities.recordQuoteApproval("909", "CUST-ACT-018"));
+        assertEquals(PricingRequest.PricingStatus.APPROVED, request.getStatus());
+        verify(pricingEventProducer, times(1)).publishPricingEvent(any(LoanPricingEvent.class));
     }
 }

@@ -1,0 +1,22 @@
+# Exclude VCS, build artifacts, runtime logs, documentation, and non-app manifests from Docker build context
+.git/
+.gitignore
+.github/
+target/
+logs/
+docs/
+k8s/
+grafana/
+prometheus/
+showcase/
+webhook-logger/
+*.md
+*.xlsx
+*.csv
+docker-compose.yml
+prometheus.yml
+otel-collector-config.yml
+loki-config.yml
+promtail-config.yml
+tempo-config.yml
+alertmanager.yml

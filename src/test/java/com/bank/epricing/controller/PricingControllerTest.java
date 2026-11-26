@@ -239,4 +239,53 @@ class PricingControllerTest {
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error_code").value("PRICING_VALIDATION_FAILED"));
     }
+
+    @Test
+    @DisplayName("R3: POST /pricing should accept enterprise hyphenated customer ID CUST-LIVE-001")
+    void testCalculatePricing_EnterpriseHyphenatedCustomerId() throws Exception {
+        PricingRequestDto dto = PricingRequestDto.builder()
+            .customerId("CUST-LIVE-001")
+            .productType("HOME_LOAN")
+            .loanAmount(new BigDecimal("5000000.00"))
+            .loanTenureMonths(240)
+            .creditScore(780)
+            .annualIncome(new BigDecimal("2400000.00"))
+            .build();
+
+        when(pricingRepository.save(any(PricingRequest.class))).thenAnswer(invocation -> {
+            PricingRequest req = invocation.getArgument(0);
+            if (req.getId() == null) {
+                req.setId(102L);
+            }
+            return req;
+        });
+
+        mockMvc.perform(post("/pricing")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(dto)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.request_id").value(102))
+            .andExpect(jsonPath("$.customer_id").value("CUST-LIVE-001"));
+    }
+
+    @Test
+    @DisplayName("R3: POST /pricing should reject disallowed customer ID formats with HTTP 400")
+    void testCalculatePricing_DisallowedCustomerIdsRejected() throws Exception {
+        for (String invalidId : List.of("USER000001", "cust000001", "CUST_LIVE_001", "CUST------", "CUST01", "CUST" + "A".repeat(47))) {
+            PricingRequestDto dto = PricingRequestDto.builder()
+                .customerId(invalidId)
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("5000000.00"))
+                .loanTenureMonths(240)
+                .creditScore(780)
+                .annualIncome(new BigDecimal("2400000.00"))
+                .build();
+
+            mockMvc.perform(post("/pricing")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error_code").value("PRICING_VALIDATION_FAILED"));
+        }
+    }
 }

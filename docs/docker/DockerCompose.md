@@ -110,18 +110,21 @@ epricing-service:
     yugabytedb:
       condition: service_healthy
     temporal:
-      condition: service_started
+      condition: service_healthy
     kafka:
       condition: service_healthy
   deploy:
     resources:
       limits:
-        memory: 512M
-        cpus: '1.0'
+        memory: 2048M
+        cpus: '2.0'
+      reservations:
+        memory: 1536M
+  stop_grace_period: 35s
   restart: unless-stopped
 ```
 
-Resource limits prevent the container from consuming all host resources. `512M` memory limit forces the JVM to respect container bounds via `-XX:+UseContainerSupport`.
+Resource limits prevent the container from consuming all host resources. `1536M` reservation / `2048M` limit with `MaxRAMPercentage=60.0`, `-Xss512k`, and `-XX:MaxMetaspaceSize=256m` safely accommodates the bounded `217` realistic / `260` ceiling JVM/Tomcat/Temporal/Kafka/OTel threads without cgroup OOM kills.
 
 ### kafka (KRaft Mode)
 

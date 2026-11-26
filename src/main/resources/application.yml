@@ -40,6 +40,9 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
+  lifecycle:
+    timeout-per-shutdown-phase: ${SHUTDOWN_TIMEOUT:25s}
+
   sql:
     init:
       mode: never
@@ -120,6 +123,13 @@ spring:
 # ═══════════════════════════════════════════════════════════════════
 server:
   port: 8080
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_THREADS_MAX:50}
+      min-spare: ${SERVER_TOMCAT_THREADS_MIN_SPARE:8}
+    accept-count: 100
+    max-connections: 8192
   # Context path: all endpoints start with /api/v1
   # e.g., /api/v1/pricing instead of /pricing
   # Versioning is critical in banking APIs — clients depend on stable contracts
@@ -170,14 +180,16 @@ management:
       # "always" shows full health details including DB, disk, etc.
       # In production use "when-authorized" to hide details from public.
       show-details: always
+      probes:
+        enabled: true
       # Health groups let you create custom health checks for different purposes.
       # liveness: Is the app running? (Kubernetes restarts it if not)
       # readiness: Is the app ready to receive traffic? (K8s removes from load balancer if not)
       group:
         liveness:
-          include: ping
+          include: livenessState, ping
         readiness:
-          include: db, diskSpace
+          include: readinessState, db, diskSpace
 
   # ═══════════════════════════════════════════════════════════════
   # METRICS — Micrometer Configuration
@@ -221,8 +233,8 @@ management:
 logging:
   file:
     # Promtail is configured to read from this directory
-    # In Docker Compose, this maps to a shared volume
-    path: ./logs
+    # In Docker Compose, this maps to /app/logs; in Kubernetes, /var/log/epricing
+    path: ${LOGGING_FILE_PATH:./logs}
   level:
     root: INFO
     com.bank: DEBUG  # Verbose for our own code
@@ -273,6 +285,12 @@ epricing:
   # Product/risk-team configurable; defaults to 7 days (tighter than the previous hardcoded 30)
   rate-valid-days: ${RATE_VALID_DAYS:7}
 
+  # Rolling log policy bounds (read by logback-spring.xml via <springProperty>)
+  logging:
+    max-file-size: ${LOG_MAX_FILE_SIZE:100MB}
+    max-history: ${LOG_MAX_HISTORY:30}
+    total-size-cap: ${LOG_TOTAL_SIZE_CAP:3GB}
+
   # ═══════════════════════════════════════════════════════════════
   # TEMPORAL — Durable Workflow Orchestration
   # ═══════════════════════════════════════════════════════════════
@@ -281,6 +299,14 @@ epricing:
     target: ${TEMPORAL_TARGET:localhost:7233}
     namespace: ${TEMPORAL_NAMESPACE:default}
     task-queue: ${TEMPORAL_TASK_QUEUE:epricing-pricing-queue}
+    worker:
+      max-concurrent-workflow-tasks: ${TEMPORAL_MAX_CONCURRENT_WORKFLOW_TASKS:25}
+      max-concurrent-activities: ${TEMPORAL_MAX_CONCURRENT_ACTIVITIES:25}
+      max-concurrent-local-activities: ${TEMPORAL_MAX_CONCURRENT_LOCAL_ACTIVITIES:10}
+      workflow-task-pollers: ${TEMPORAL_WORKFLOW_TASK_POLLERS:2}
+      activity-task-pollers: ${TEMPORAL_ACTIVITY_TASK_POLLERS:2}
+      max-workflow-threads: ${TEMPORAL_MAX_WORKFLOW_THREADS:50}
+      workflow-cache-size: ${TEMPORAL_WORKFLOW_CACHE_SIZE:200}
 
   # ═══════════════════════════════════════════════════════════════
   # KAFKA EVENT STREAMING

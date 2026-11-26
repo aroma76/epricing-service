@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "ePricing Service \u2014 Complete Observability Dashboard. CRMNXT color scheme. Real Prometheus metrics + DB queries.",
+  "description": "ePricing Service — Complete Observability Dashboard. CRMNXT color scheme. Real Prometheus metrics + DB queries.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Complete Observability Dashboard",
   "uid": "epricing-complete",
-  "version": 10,
+  "version": 11,
   "panels": [
     {
       "id": 1,
@@ -495,7 +495,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 11
       },
       "collapsed": false
     },
@@ -507,7 +507,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 10
+        "y": 12
       },
       "datasource": {
         "type": "prometheus",
@@ -555,7 +555,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 10
+        "y": 12
       },
       "datasource": {
         "type": "prometheus",
@@ -608,7 +608,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 22
       },
       "collapsed": false
     },
@@ -621,7 +621,7 @@
         "h": 9,
         "w": 9,
         "x": 0,
-        "y": 19
+        "y": 23
       },
       "datasource": {
         "type": "prometheus",
@@ -666,7 +666,7 @@
         "h": 3,
         "w": 15,
         "x": 9,
-        "y": 19
+        "y": 23
       },
       "datasource": {
         "type": "prometheus",
@@ -735,7 +735,7 @@
         "h": 6,
         "w": 15,
         "x": 9,
-        "y": 22
+        "y": 26
       },
       "datasource": {
         "type": "prometheus",
@@ -790,7 +790,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 34
       },
       "collapsed": false
     },
@@ -802,7 +802,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 29
+        "y": 35
       },
       "datasource": {
         "type": "prometheus",
@@ -853,7 +853,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 29
+        "y": 35
       },
       "datasource": {
         "type": "prometheus",
@@ -904,7 +904,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 29
+        "y": 35
       },
       "datasource": {
         "type": "prometheus",
@@ -952,7 +952,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 45
       },
       "collapsed": false
     },
@@ -964,7 +964,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 38
+        "y": 46
       },
       "datasource": {
         "type": "prometheus",
@@ -1021,7 +1021,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 38
+        "y": 46
       },
       "datasource": {
         "type": "prometheus",
@@ -1068,19 +1068,19 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 56
       },
       "collapsed": false
     },
     {
       "id": 51,
-      "title": "JVM Memory \u2014 Heap Used vs Max",
+      "title": "JVM Memory — Heap Used vs Max",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 47
+        "y": 57
       },
       "datasource": {
         "type": "prometheus",
@@ -1128,7 +1128,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 47
+        "y": 57
       },
       "datasource": {
         "type": "prometheus",

@@ -42,7 +42,7 @@ This project implements a commercial retail banking **ePricing (Electronic Prici
 
 3. **Distributed Enterprise SQL (YugabyteDB 2.20 / PostgreSQL)**:
    - Multi-master distributed ACID database operating on YSQL port `5433`.
-   - Atomic persistence via `@Transactional` bounds; sequential DDL migrations (V1..V6).
+   - Atomic persistence via `@Transactional` bounds; sequential DDL migrations (V1..V8).
    - Dedicated read-replica role isolation (`grafana_reader`).
    > See [`docs/database/DatabaseDesign.md`](docs/database/DatabaseDesign.md).
 
@@ -58,8 +58,8 @@ This project implements a commercial retail banking **ePricing (Electronic Prici
    - Browser-based interactive sandbox in `showcase/` (`index.html`, `glassmorphism.html`) demonstrating real-time calculations, Temporal state transitions, Kafka event payloads, and glassmorphic UI tokens.
    > See [`docs/showcase/InteractiveShowcase.md`](docs/showcase/InteractiveShowcase.md).
 
-7. **Comprehensive Verification Suite (17 Test Classes, 7 Categories)**:
-   - Full test suite combining pure unit tests, `@SpringBootTest` context bootstrap validations (`ApplicationContextBootstrapTest`, `KafkaContextBootstrapTest`), H2 migration tests, in-memory Temporal workflow tests, and live Kafka integration tests.
+7. **Comprehensive Verification Suite (19 Test Classes, 7 Categories)**:
+   - Full test suite combining pure unit tests, `@SpringBootTest` context bootstrap validations (`ApplicationContextBootstrapTest`, `KafkaContextBootstrapTest`), H2 migration tests, DTO validation tests, in-memory Temporal workflow tests, and live Kafka/Temporal integration tests.
    > See [`docs/testing/TestStrategy.md`](docs/testing/TestStrategy.md).
 
 ---
@@ -320,9 +320,9 @@ epricing-service/
 │   │   └── resources/
 │   │       ├── application.yml      # Multi-tier application configuration
 │   │       ├── logback-spring.xml   # Structured JSON log appender configuration
-│   │       └── db/migration/        # Sequential DDL & seed migration scripts (V1..V6)
+│   │       └── db/migration/        # Sequential DDL & seed migration scripts (V1..V8)
 │   └── test/
-│       └── java/com/bank/epricing/  # 17 Test Classes across 7 functional categories
+│       └── java/com/bank/epricing/  # 19 Test Classes across 7 functional categories
 ├── showcase/                        # Interactive Architectural UI Showcase
 │   ├── index.html                   # Interactive pricing & workflow sandbox
 │   └── glassmorphism.html           # Design system component gallery
@@ -371,7 +371,7 @@ epricing-service/
 ```powershell
 mvn clean test
 ```
-*Executes all 17 test classes across 7 categories, including `@SpringBootTest` context bootstrap validations, in-memory Temporal workflow tests, H2 migrations, and Kafka producer tests.*
+*Executes all 19 test classes across 7 categories, including `@SpringBootTest` context bootstrap validations, in-memory Temporal workflow tests, H2 migrations, and Kafka producer tests.*
 
 ### 2. Launch Complete Platform via Docker Compose (17 Containers)
 ```powershell
@@ -391,6 +391,7 @@ docker-compose up --build -d
 
 ## Master Documentation Directory
 
+- **[Production Hardening & Verification Walkthrough](docs/walkthrough.md)** — Implementation and verification walkthrough for R1–R5 (Temporal concurrency guard, bounded 217/260-thread JVM/container sizing, customer ID validation, portable Docker/K8s hardening).
 - **[Production Readiness Audit](docs/PRODUCTION_READINESS_AUDIT.md)** — Exhaustive audit of latent bugs, race conditions, memory leaks, and production traps.
 - **[Architectural Hardening Audit](docs/architectural-audit.md)** — Official architectural verification assessing 5 dimensions and 7 risk vulnerabilities.
 - **[Lakehouse Star-Schema Mapping Manifesto](docs/mapping-manifesto.md)** — Dimensional star-schema mapping OLTP records & Kafka events into BigQuery / Iceberg.
@@ -401,6 +402,6 @@ docker-compose up --build -d
 - **[Temporal Durable Workflows](docs/workflows/TemporalWorkflows.md)** — 7-day rate lock state machine, activity retry policies, and Kafka event triggers.
 - **[Docker Containers Guide](docs/docker/CONTAINERS_GUIDE.md)** — Deep-dive into all 17 platform containers, port mappings, volumes, and healthchecks.
 - **[Docker Compose Reference](docs/docker/DockerCompose.md)** — Orchestration reference for running the complete multi-tier platform in one command.
-- **[Test Strategy & Verification](docs/testing/TestStrategy.md)** — Verification architecture across 17 test classes, 7 categories, and `@SpringBootTest` bootstrap suites.
+- **[Test Strategy & Verification](docs/testing/TestStrategy.md)** — Verification architecture across 19 test classes, 7 categories, and `@SpringBootTest` bootstrap suites.
 - **[AI in Prometheus & Grafana](docs/monitoring/AI_IN_PROMETHEUS_AND_GRAFANA.md)** — Architectural blueprint for PromQL predictive regression, Grafana LLM App plugin, Alertmanager AIOps triage, and air-gapped banking compliance.
 - **[Technical Documentation Hub](docs/README.md)** — Centralized technical documentation hub for the entire repository.

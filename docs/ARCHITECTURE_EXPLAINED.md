@@ -290,7 +290,7 @@ The `epricing-service` repository has evolved beyond a basic POC into a producti
 
 | Component | Status | Purpose & Implementation Details | Reference |
 |---|:---:|---|---|
-| **YugabyteDB (Distributed SQL)** | ✅ Active | Distributed ACID transactional storage wire-compatible with PostgreSQL (Port 5433). Runs database migrations V1..V6. | [`DatabaseDesign.md`](./database/DatabaseDesign.md) |
+| **YugabyteDB (Distributed SQL)** | ✅ Active | Distributed ACID transactional storage wire-compatible with PostgreSQL (Port 5433). Runs database migrations V1..V8. | [`DatabaseDesign.md`](./database/DatabaseDesign.md) |
 | **Apache Kafka 3.8.0 (KRaft)** | ✅ Active | Event streaming broker operating without ZooKeeper on ports 9092 and 29092. Emits `LoanPricingEvent` on 3 partitions. | [`KafkaKRaftBroker.md`](./messaging/KafkaKRaftBroker.md) |
 | **Temporal Workflow Engine** | ✅ Active | Durable orchestration engine managing 7-day loan quote rate locks and asynchronous approval/rejection signals. | [`TemporalWorkflows.md`](./workflows/TemporalWorkflows.md) |
 | **Grafana Tempo (Traces)** | ✅ Active | High-volume distributed trace storage querying on port 3200; visualizes multi-span waterfalls with OTel Collector. | [`OpenTelemetry.md`](./monitoring/OpenTelemetry.md) |

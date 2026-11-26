@@ -27,7 +27,7 @@ RUN mvn clean package -DskipTests -B --no-transfer-progress
 # ── Stage 2: Runtime ─────────────────────────────────────────────
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
-RUN addgroup -S epricing && adduser -S epricing -G epricing  # Non-root user
+RUN addgroup -g 10001 -S epricing && adduser -u 10001 -S epricing -G epricing  # Non-root user
 WORKDIR /app
 COPY --from=builder --chown=epricing:epricing /build/target/*.jar /app/app.jar
 RUN mkdir -p /app/logs && chown epricing:epricing /app/logs
@@ -67,7 +67,7 @@ This dramatically speeds up CI/CD build times when only application code changes
 ## Security: Non-Root User
 
 ```dockerfile
-RUN addgroup -S epricing && adduser -S epricing -G epricing
+RUN addgroup -g 10001 -S epricing && adduser -u 10001 -S epricing -G epricing
 USER epricing
 ```
 
@@ -94,17 +94,17 @@ EXPOSE 8081    # Management port — Actuator endpoints (health, prometheus)
 ```dockerfile
 HEALTHCHECK --interval=30s \
             --timeout=10s \
-            --start-period=60s \
-            --retries=3 \
-            CMD wget --quiet --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+            --start-period=180s \
+            --retries=5 \
+            CMD wget --quiet --tries=1 --spider http://127.0.0.1:8081/actuator/health/liveness || exit 1
 ```
 
 | Parameter | Value | Reason |
 |---|---|---|
 | `--interval` | 30s | Check every 30 seconds |
 | `--timeout` | 10s | Mark unhealthy if no response in 10s |
-| `--start-period` | 60s | Spring Boot startup grace period |
-| `--retries` | 3 | 3 consecutive failures → unhealthy |
+| `--start-period` | 180s | Spring Boot + DB retry + Temporal/Kafka startup grace period |
+| `--retries` | 5 | 5 consecutive failures → unhealthy |
 
 Uses `wget` (pre-installed in Alpine images) to check the Spring Boot Actuator health endpoint.
 
@@ -113,24 +113,37 @@ Uses `wget` (pre-installed in Alpine images) to check the Spring Boot Actuator h
 ## JVM Configuration
 
 ```dockerfile
+ENV SPRING_PROFILES_ACTIVE=docker
+
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
-               -XX:MaxRAMPercentage=75.0 \
+               -XX:InitialRAMPercentage=50.0 \
+               -XX:MaxRAMPercentage=60.0 \
+               -Xss512k \
+               -XX:MaxMetaspaceSize=256m \
+               -XX:ReservedCodeCacheSize=128m \
+               -XX:MaxDirectMemorySize=128m \
                -XX:+UseG1GC \
+               -XX:+ExitOnOutOfMemoryError \
                -XX:+HeapDumpOnOutOfMemoryError \
                -XX:HeapDumpPath=/app/logs/heapdump.hprof \
-               -Djava.security.egd=file:/dev/./urandom \
-               -Dspring.profiles.active=docker"
+               -Djava.security.egd=file:/dev/./urandom"
 ```
 
 | Flag | Purpose |
 |---|---|
 | `UseContainerSupport` | JVM reads container memory limits (not host memory) |
-| `MaxRAMPercentage=75.0` | Heap max = 75% of container memory limit (512MB → ~384MB heap) |
-| `UseG1GC` | G1 garbage collector — better latency for heap < 32GB |
+| `InitialRAMPercentage=50.0` | Initial heap = 50% of container memory limit (`1024 MiB` at `2048 MiB` limit) |
+| `MaxRAMPercentage=60.0` | Heap max = 60% of container memory limit (`1228.8 MiB` at `2048 MiB` limit, leaving `~819 MiB` for bounded `217`/`260` thread stacks + Metaspace + CodeCache + Direct + GC) |
+| `-Xss512k` | Bounds per-thread native stack reservation (`108.5 MiB` at `217` realistic / `130 MiB` at `260` ceiling vs `260 MiB` at `1m`) |
+| `MaxMetaspaceSize=256m` | Caps class metadata native memory at `256 MiB` |
+| `ReservedCodeCacheSize=128m` | Caps JIT compiled code cache at `128 MiB` |
+| `MaxDirectMemorySize=128m` | Caps off-heap Netty/NIO direct byte buffers at `128 MiB` |
+| `UseG1GC` | G1 garbage collector — predictable pause times for heap < 32GB |
+| `ExitOnOutOfMemoryError` | Fails fast on unrecoverable OOM so orchestrator can restart cleanly |
 | `HeapDumpOnOutOfMemoryError` | Capture heap dump on OOM for post-mortem analysis |
 | `HeapDumpPath=/app/logs/heapdump.hprof` | Save heap dump to volume (retrievable after container death) |
 | `java.security.egd=file:/dev/./urandom` | Faster UUID/random generation in containers (avoids `/dev/random` blocking) |
-| `spring.profiles.active=docker` | Activates Docker logging profile in `logback-spring.xml` |
+| `SPRING_PROFILES_ACTIVE=docker` | Default profile via env var (overridable without mutating `JAVA_OPTS`) |
 
 ---
 

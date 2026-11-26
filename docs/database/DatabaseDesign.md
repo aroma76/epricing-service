@@ -1,7 +1,7 @@
 # Database Design & Migration Architecture
 
 **Database:** YugabyteDB (Distributed SQL — YSQL, Port 5433) / PostgreSQL 16+ | **Driver:** Yugabyte Smart Driver (`jdbc-yugabytedb`)  
-**Migrations:** Enterprise Sequential Migration Runner (`DatabaseMigrationInitializer` executing V1..V6)  
+**Migrations:** Enterprise Sequential Migration Runner (`DatabaseMigrationInitializer` executing V1..V8)  
 **ORM:** Spring Data JPA + Hibernate (Dialect: `PostgreSQLDialect`, `ddl-auto: validate`)  
 **Analytical Lakehouse Extension:** [`docs/mapping-manifesto.md`](../mapping-manifesto.md)
 

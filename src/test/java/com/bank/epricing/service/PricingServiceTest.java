@@ -25,6 +25,7 @@ import org.mockito.ArgumentCaptor;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -72,6 +73,7 @@ class PricingServiceTest {
         when(tracer.spanBuilder(anyString())).thenReturn(spanBuilder);
 
         pricingEventProducer = mock(PricingEventProducer.class);
+        when(pricingEventProducer.publishPricingEvent(any())).thenReturn(CompletableFuture.completedFuture(null));
 
         pricingService = new PricingService(
             pricingRepository,
@@ -257,5 +259,39 @@ class PricingServiceTest {
         verify(auditRepository, times(1)).save(argThat(auditLog -> "REJECTED".equals(auditLog.getOutcome())));
         verify(auditRepository, never()).save(argThat(auditLog -> "FAILED".equals(auditLog.getOutcome())));
         verify(pricingEventProducer, never()).publishPricingEvent(any());
+    }
+
+    @Test
+    @DisplayName("Should handle null CompletableFuture from PricingEventProducer without throwing")
+    void testCalculatePricing_NullPublishFutureHandledSafely() {
+        PricingRequestDto requestDto = PricingRequestDto.builder()
+            .customerId("CUST001234")
+            .productType("HOME_LOAN")
+            .loanAmount(new BigDecimal("2500000"))
+            .loanTenureMonths(180)
+            .creditScore(760)
+            .annualIncome(new BigDecimal("1800000"))
+            .build();
+
+        PricingRequest mockSaved = PricingRequest.builder()
+            .id(110L)
+            .customerId("CUST001234")
+            .productType("HOME_LOAN")
+            .loanAmount(new BigDecimal("2500000"))
+            .loanTenureMonths(180)
+            .calculatedRate(new BigDecimal("8.25"))
+            .emiAmount(new BigDecimal("24253.50"))
+            .status(PricingRequest.PricingStatus.CALCULATED)
+            .traceId("mock-trace-id-null-future")
+            .build();
+
+        when(pricingRepository.save(any(PricingRequest.class))).thenReturn(mockSaved);
+        when(pricingEventProducer.publishPricingEvent(any())).thenReturn(null);
+
+        PricingResponseDto response = pricingService.calculatePricing(requestDto, "127.0.0.1");
+
+        assertNotNull(response);
+        assertEquals(110L, response.getRequestId());
+        verify(pricingEventProducer, times(1)).publishPricingEvent(any(LoanPricingEvent.class));
     }
 }

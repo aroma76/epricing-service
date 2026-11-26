@@ -46,6 +46,12 @@ public class OpenTelemetryConfig {
     @Value("${spring.profiles.active:local}")
     private String activeProfile;
 
+    @Value("${otel.traces.sampler:parentbased_always_on}")
+    private String tracesSampler;
+
+    @Value("${otel.traces.sampler.arg:}")
+    private String tracesSamplerArg;
+
     @Bean
     public OpenTelemetry openTelemetry() {
         log.info("Initializing OpenTelemetry SDK | serviceName={} | endpoint={}",
@@ -75,7 +81,10 @@ public class OpenTelemetryConfig {
         props.put("otel.service.name", serviceName);
         props.put("otel.exporter.otlp.endpoint", otlpEndpoint);
         props.put("otel.exporter.otlp.protocol", "http/protobuf");
-        props.put("otel.traces.sampler", "parentbased_always_on");
+        props.put("otel.traces.sampler", tracesSampler);
+        if (tracesSamplerArg != null && !tracesSamplerArg.isBlank()) {
+            props.put("otel.traces.sampler.arg", tracesSamplerArg);
+        }
         props.put("otel.resource.attributes",
             "service.namespace=Bank,team.name=epricing,deployment.environment=" + activeProfile);
         return props;

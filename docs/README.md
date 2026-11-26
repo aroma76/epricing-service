@@ -108,7 +108,7 @@ flowchart TB
 | **Framework** | Spring Boot | 3.3.4 | Application framework & dependency injection container |
 | **Build** | Maven | 3.9+ | Build and dependency management tool |
 | **Distributed SQL** | **YugabyteDB (YSQL)** / PostgreSQL | 2.20+ | Multi-master distributed ACID database (PostgreSQL wire-compatible) |
-| **Database Migrations**| DatabaseMigrationInitializer | V1..V6 | Custom sequential DDL migration runner |
+| **Database Migrations**| DatabaseMigrationInitializer | V1..V8 | Custom sequential DDL migration runner |
 | **JDBC Driver** | `jdbc-yugabytedb` | 42.3.5-yb-4 | Cluster-aware smart JDBC connection pooling |
 | **Workflow Engine** | **Temporal Server** | 1.24.1 | Durable state machines, 7-day rate-lock timers, and signals |
 | **Event Streaming** | **Apache Kafka (KRaft mode)** | 3.8.0 | Single-node ZooKeeper-less event broker, `loan-pricing-events` |
@@ -251,7 +251,7 @@ epricing-service/
 
 ## Quick Start & Verification
 
-### 1. Execute Automated Test Suite (17 Test Classes)
+### 1. Execute Automated Test Suite (19 Test Classes)
 On Windows PowerShell:
 ```powershell
 mvn clean test
@@ -306,6 +306,7 @@ docker-compose up --build -d
 
 | Category | Document Link | Description |
 |---|---|---|
+| **Production Hardening Walkthrough** | **[`walkthrough.md`](./walkthrough.md)** | R1–R5 implementation & verification walkthrough: Temporal concurrency guard, bounded 217/260-thread sizing, customer ID regex, portable Docker/K8s hardening |
 | **Production Readiness Audit** | **[`PRODUCTION_READINESS_AUDIT.md`](./PRODUCTION_READINESS_AUDIT.md)** | Exhaustive audit of latent bugs, race conditions, memory leaks, and production traps with RCA and fixes |
 | **Architectural Hardening Audit** | **[`architectural-audit.md`](./architectural-audit.md)** | Official 35.6 KB architectural verification assessing 5 dimensions, 7 risk vulnerabilities, and roadmap |
 | **Lakehouse Star-Schema Manifesto** | **[`mapping-manifesto.md`](./mapping-manifesto.md)** | High-fidelity dimensional star-schema mapping OLTP records & Kafka events into BigQuery / Iceberg |
@@ -320,10 +321,10 @@ docker-compose up --build -d
 | **Durable Workflows** | **[`workflows/TemporalWorkflows.md`](./workflows/TemporalWorkflows.md)** | Temporal state machines, 7-day rate locks, activity retry policies, and Kafka event triggers |
 | **Docker Containers Guide** | **[`docker/CONTAINERS_GUIDE.md`](./docker/CONTAINERS_GUIDE.md)** | Exhaustive deep-dive into all 17 platform containers, port mappings, volumes, and healthchecks |
 | **Docker Compose Reference** | **[`docker/DockerCompose.md`](./docker/DockerCompose.md)** | Declarative orchestration guide for running the complete multi-tier platform in one command |
-| **Test Strategy & Verification** | **[`testing/TestStrategy.md`](./testing/TestStrategy.md)** | Verification architecture across 17 test classes, 7 categories, and `@SpringBootTest` bootstrap suites |
+| **Test Strategy & Verification** | **[`testing/TestStrategy.md`](./testing/TestStrategy.md)** | Verification architecture across 19 test classes, 7 categories, and `@SpringBootTest` bootstrap suites |
 | **Logging & PII Sanitization** | **[`logging/LoggingStrategy.md`](./logging/LoggingStrategy.md)** | JSON logging, MDC propagation, `maskCustomerId()`, and coarse amount bracketing |
 | **Security Standards** | **[`security/Security.md`](./security/Security.md)** | Actuator lockdown, fail-fast secrets, proxy-aware IP extraction, and threat evaluation |
-| **Database Design** | **[`database/DatabaseDesign.md`](./database/DatabaseDesign.md)** | YugabyteDB schema, Flyway migrations (V1..V6), constraints, and analytical lakehouse linkage |
+| **Database Design** | **[`database/DatabaseDesign.md`](./database/DatabaseDesign.md)** | YugabyteDB schema, Flyway migrations (V1..V8), constraints, and analytical lakehouse linkage |
 | **Hands-On Observability Lab** | **[`HANDS_ON_OBSERVABILITY_LAB.md`](./HANDS_ON_OBSERVABILITY_LAB.md)** | Real-world incident triage drills: high latency, DB locks, Kafka outages, and alert handling |
 | **AI in Prometheus & Grafana** | **[`monitoring/AI_IN_PROMETHEUS_AND_GRAFANA.md`](./monitoring/AI_IN_PROMETHEUS_AND_GRAFANA.md)** | Architectural guide on AI/ML in Prometheus & Grafana: PromQL forecasting, Grafana LLM plugin, and AIOps |
 | **Compliance Hardening Guide** | **[`compliance/COMPLIANCE_FIXES.md`](./compliance/COMPLIANCE_FIXES.md)** | Comprehensive audit of fixed banking compliance vulnerabilities and data hygiene standards |

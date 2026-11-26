@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -27,6 +28,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -335,34 +337,12 @@ public class PricingService {
                     TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                         @Override
                         public void afterCommit() {
-                            try {
-                                pricingEventProducer.publishPricingEvent(event)
-                                    .whenComplete((result, ex) -> {
-                                        if (ex != null) {
-                                            log.error("CRITICAL: Async Kafka publish failed post-commit | requestId={} | error={}",
-                                                event.getRequestId(), ex.getMessage(), ex);
-                                        }
-                                    });
-                            } catch (Exception e) {
-                                log.error("Failed to submit Kafka publish post-commit | requestId={} | error={}",
-                                    event.getRequestId(), e.getMessage(), e);
-                            }
+                            dispatchPricingEvent(event, "post-commit");
                         }
                     });
                 } else {
                     // No active transaction (e.g. called directly in tests) — publish immediately
-                    try {
-                        pricingEventProducer.publishPricingEvent(event)
-                            .whenComplete((result, ex) -> {
-                                if (ex != null) {
-                                    log.error("CRITICAL: Async Kafka publish failed | requestId={} | error={}",
-                                        event.getRequestId(), ex.getMessage(), ex);
-                                }
-                            });
-                    } catch (Exception e) {
-                        log.error("Failed to publish loan pricing event to Kafka | requestId={} | error={}",
-                            savedRequest.getId(), e.getMessage(), e);
-                    }
+                    dispatchPricingEvent(event, "immediate");
                 }
             }
 
@@ -546,5 +526,27 @@ public class PricingService {
                 ? entity.getCreatedAt().plusDays(rateValidDays)
                 : LocalDateTime.now().plusDays(rateValidDays))
             .build();
+    }
+
+    /**
+     * Dispatches a loan pricing domain event via the configured producer with
+     * null-safe async failure logging.
+     */
+    private void dispatchPricingEvent(LoanPricingEvent event, String dispatchMode) {
+        try {
+            CompletableFuture<SendResult<String, Object>> publishFuture =
+                pricingEventProducer.publishPricingEvent(event);
+            if (publishFuture != null) {
+                publishFuture.whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("CRITICAL: Async Kafka publish failed ({}) | requestId={} | error={}",
+                            dispatchMode, event.getRequestId(), ex.getMessage(), ex);
+                    }
+                });
+            }
+        } catch (Exception e) {
+            log.error("Failed to publish loan pricing event to Kafka ({}) | requestId={} | error={}",
+                dispatchMode, event.getRequestId(), e.getMessage(), e);
+        }
     }
 }

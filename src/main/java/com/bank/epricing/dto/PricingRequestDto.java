@@ -12,8 +12,8 @@ public class PricingRequestDto {
 
     @NotBlank(message = "Customer ID is required")
     @Pattern(
-        regexp = "^CUST[0-9]{6,10}$",
-        message = "Customer ID must be in format CUST followed by 6-10 digits"
+        regexp = "^CUST(?=[A-Z0-9-]*[A-Z0-9])[A-Z0-9-]{6,46}$",
+        message = "Customer ID must start with CUST followed by 6-46 uppercase alphanumeric characters or hyphens (total 10-50 chars)"
     )
     @JsonProperty("customer_id")
     private String customerId;

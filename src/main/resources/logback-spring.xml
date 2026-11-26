@@ -36,6 +36,9 @@
     -->
     <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="epricing-service"/>
     <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="./logs"/>
+    <springProperty scope="local" name="LOG_MAX_FILE_SIZE" source="epricing.logging.max-file-size" defaultValue="100MB"/>
+    <springProperty scope="local" name="LOG_MAX_HISTORY" source="epricing.logging.max-history" defaultValue="30"/>
+    <springProperty scope="local" name="LOG_TOTAL_SIZE_CAP" source="epricing.logging.total-size-cap" defaultValue="3GB"/>
 
     <!--
       ═══════════════════════════════════════════════════════════════
@@ -115,19 +118,18 @@
             <fileNamePattern>${LOG_PATH}/archived/epricing-service.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
 
             <!-- Maximum size before rotating to a new file -->
-            <maxFileSize>100MB</maxFileSize>
+            <maxFileSize>${LOG_MAX_FILE_SIZE}</maxFileSize>
 
-            <!-- Keep at most 30 days of logs.
-                 After 30 days, old files are automatically deleted.
+            <!-- Keep at most N days of logs.
+                 After N days, old files are automatically deleted.
                  In production, logs are usually shipped to long-term storage
                  (S3, GCS) before local deletion. Regulatory compliance for
                  banking may require 7 years of audit logs. -->
-            <maxHistory>30</maxHistory>
+            <maxHistory>${LOG_MAX_HISTORY}</maxHistory>
 
             <!-- Total size cap across all archived files.
-                 Prevents logs from consuming more than 3GB of disk.
-                 Critical on containers with limited storage. -->
-            <totalSizeCap>3GB</totalSizeCap>
+                 Prevents logs from exhausting bounded container emptyDir/disk. -->
+            <totalSizeCap>${LOG_TOTAL_SIZE_CAP}</totalSizeCap>
         </rollingPolicy>
 
         <!-- Same JSON encoder as console — consistent format -->
@@ -207,8 +209,8 @@
         </root>
     </springProfile>
 
-    <!-- PRODUCTION / DOCKER profile -->
-    <springProfile name="prod,docker,staging">
+    <!-- PRODUCTION / DOCKER / K8S profile -->
+    <springProfile name="prod,docker,staging,k8s">
         <!-- Suppress verbose framework logging in production -->
         <logger name="org.springframework" level="WARN"/>
         <logger name="org.hibernate" level="WARN"/>
@@ -227,7 +229,7 @@
     </springProfile>
 
     <!-- DEFAULT (no profile active) — used in local IntelliJ runs -->
-    <springProfile name="!local &amp; !dev &amp; !prod &amp; !docker &amp; !staging">
+    <springProfile name="!local &amp; !dev &amp; !prod &amp; !docker &amp; !staging &amp; !k8s">
         <logger name="org.springframework" level="INFO"/>
         <logger name="org.hibernate.SQL" level="DEBUG"/>
         <logger name="com.bank" level="DEBUG"/>

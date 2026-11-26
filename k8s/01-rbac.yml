@@ -11,7 +11,7 @@ metadata:
   labels:
     app.kubernetes.io/name: epricing-service
     app.kubernetes.io/component: service-account
-automountServiceAccountToken: true
+automountServiceAccountToken: false
 ---
 # ─── 2. Application Least-Privilege Role ──────────────────────────────────
 # Permits application pods only necessary runtime metadata queries

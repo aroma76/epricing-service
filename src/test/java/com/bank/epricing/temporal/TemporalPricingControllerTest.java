@@ -2,10 +2,13 @@ package com.bank.epricing.temporal;
 
 import com.bank.epricing.dto.PricingRequestDto;
 import com.bank.epricing.dto.PricingResponseDto;
+import com.bank.epricing.exception.GlobalExceptionHandler;
+import com.bank.epricing.logging.StructuredLogger;
 import com.bank.epricing.temporal.controller.TemporalPricingController;
 import com.bank.epricing.temporal.dto.PricingWorkflowResult;
 import com.bank.epricing.temporal.service.TemporalPricingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -72,7 +76,11 @@ class TemporalPricingControllerTest {
         objectMapper = new ObjectMapper();
         stubService = new StubTemporalPricingService();
         TemporalPricingController controller = new TemporalPricingController(stubService);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        GlobalExceptionHandler exceptionHandler =
+                new GlobalExceptionHandler(new SimpleMeterRegistry(), new StructuredLogger());
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(exceptionHandler)
+                .build();
     }
 
     @Test
@@ -166,5 +174,59 @@ class TemporalPricingControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.workflow_id").value("wf-123"))
             .andExpect(jsonPath("$.status").value("QUOTED"));
+    }
+
+    @Test
+    @DisplayName("R3: POST /workflow/pricing/start accepts enterprise hyphenated customer ID CUST-LIVE-001")
+    void testStartWorkflowAcceptsHyphenatedCustomerId() throws Exception {
+        PricingRequestDto request = PricingRequestDto.builder()
+                .customerId("CUST-LIVE-001")
+                .productType("HOME_LOAN")
+                .loanAmount(new BigDecimal("5000000.00"))
+                .loanTenureMonths(240)
+                .creditScore(780)
+                .annualIncome(new BigDecimal("1800000.00"))
+                .build();
+
+        PricingResponseDto quote = new PricingResponseDto();
+        quote.setRequestId(102L);
+        quote.setCustomerId("CUST-LIVE-001");
+        quote.setInterestRatePA(new BigDecimal("8.50"));
+
+        stubService.mockResult = new PricingWorkflowResult(
+                "pricing-CUST-LIVE-001-abcd1234",
+                "CUST-LIVE-001",
+                "HOME_LOAN",
+                "QUOTED",
+                quote
+        );
+
+        mockMvc.perform(post("/workflow/pricing/start")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.customer_id").value("CUST-LIVE-001"))
+                .andExpect(jsonPath("$.status").value("QUOTED"));
+    }
+
+    @Test
+    @DisplayName("R3: POST /workflow/pricing/start rejects invalid customer IDs with HTTP 400")
+    void testStartWorkflowRejectsInvalidCustomerIds() throws Exception {
+        for (String invalidId : List.of("INVALID_ID", "USER000001", "cust000001", "CUST------", "CUST_LIVE_001")) {
+            PricingRequestDto request = PricingRequestDto.builder()
+                    .customerId(invalidId)
+                    .productType("HOME_LOAN")
+                    .loanAmount(new BigDecimal("5000000.00"))
+                    .loanTenureMonths(240)
+                    .creditScore(780)
+                    .annualIncome(new BigDecimal("1800000.00"))
+                    .build();
+
+            mockMvc.perform(post("/workflow/pricing/start")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error_code").value("PRICING_VALIDATION_FAILED"));
+        }
     }
 }

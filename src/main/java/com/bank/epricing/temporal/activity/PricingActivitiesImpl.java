@@ -14,12 +14,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Implementation of Temporal Pricing Activities.
@@ -43,6 +47,12 @@ import java.time.Instant;
 public class PricingActivitiesImpl implements PricingActivities {
 
     private static final Logger log = LoggerFactory.getLogger(PricingActivitiesImpl.class);
+
+    private static final Set<PricingRequest.PricingStatus> TERMINAL_STATUSES = EnumSet.of(
+            PricingRequest.PricingStatus.APPROVED,
+            PricingRequest.PricingStatus.REJECTED,
+            PricingRequest.PricingStatus.EXPIRED
+    );
 
     private final PricingService pricingService;
     private final PricingAuditRepository auditRepository;
@@ -94,13 +104,7 @@ public class PricingActivitiesImpl implements PricingActivities {
             return;
         }
 
-        PricingRequest requestEntity;
-        try {
-            requestEntity = pricingRepository.findById(reqId).orElse(null);
-        } catch (OptimisticLockingFailureException e) {
-            log.error("Optimistic lock conflict during recordQuoteApproval for requestId={}: {}", reqId, e.getMessage());
-            throw e;
-        }
+        PricingRequest requestEntity = pricingRepository.findById(reqId).orElse(null);
 
         if (requestEntity == null) {
             log.warn("Cannot approve quote: quote record not found | requestId={}", reqId);
@@ -117,8 +121,7 @@ public class PricingActivitiesImpl implements PricingActivities {
             return;
         }
 
-        if (requestEntity.getStatus() == PricingRequest.PricingStatus.EXPIRED ||
-            requestEntity.getStatus() == PricingRequest.PricingStatus.REJECTED) {
+        if (TERMINAL_STATUSES.contains(requestEntity.getStatus())) {
             log.warn("Cannot approve quote already in terminal state: {} | requestId={}", requestEntity.getStatus(), reqId);
             PricingAuditLog audit = PricingAuditLog.builder()
                     .pricingRequestId(reqId)
@@ -135,7 +138,13 @@ public class PricingActivitiesImpl implements PricingActivities {
         }
 
         requestEntity.setStatus(PricingRequest.PricingStatus.APPROVED);
-        PricingRequest saved = pricingRepository.save(requestEntity);
+        PricingRequest saved;
+        try {
+            saved = pricingRepository.saveAndFlush(requestEntity);
+        } catch (OptimisticLockingFailureException e) {
+            log.error("Optimistic lock conflict during recordQuoteApproval for requestId={}: {}", reqId, e.getMessage());
+            throw e;
+        }
         log.info("Updated pricing_requests status to APPROVED | requestId={}", reqId);
 
         PricingAuditLog audit = PricingAuditLog.builder()
@@ -176,13 +185,7 @@ public class PricingActivitiesImpl implements PricingActivities {
             return;
         }
 
-        PricingRequest requestEntity;
-        try {
-            requestEntity = pricingRepository.findById(reqId).orElse(null);
-        } catch (OptimisticLockingFailureException e) {
-            log.error("Optimistic lock conflict during recordQuoteRejection for requestId={}: {}", reqId, e.getMessage());
-            throw e;
-        }
+        PricingRequest requestEntity = pricingRepository.findById(reqId).orElse(null);
 
         if (requestEntity == null) {
             log.warn("Cannot reject quote: quote record not found | requestId={}", reqId);
@@ -199,13 +202,13 @@ public class PricingActivitiesImpl implements PricingActivities {
             return;
         }
 
-        if (requestEntity.getStatus() == PricingRequest.PricingStatus.APPROVED) {
-            log.warn("Cannot reject quote already in APPROVED state | requestId={}", reqId);
+        if (TERMINAL_STATUSES.contains(requestEntity.getStatus())) {
+            log.warn("Cannot reject quote already in terminal state: {} | requestId={}", requestEntity.getStatus(), reqId);
             PricingAuditLog audit = PricingAuditLog.builder()
                     .pricingRequestId(reqId)
                     .customerId(customerId)
                     .action("RATE_REJECTED")
-                    .description("Quote rejection skipped: quote already in APPROVED state")
+                    .description("Quote rejection skipped: quote already in terminal state " + requestEntity.getStatus())
                     .performedBy("temporal-worker")
                     .outcome("SKIPPED_TERMINAL_STATE")
                     .requestIp("127.0.0.1")
@@ -220,7 +223,13 @@ public class PricingActivitiesImpl implements PricingActivities {
             ? reason.substring(0, 497) + "..."
             : reason;
         requestEntity.setErrorMessage(safeReason);
-        PricingRequest saved = pricingRepository.save(requestEntity);
+        PricingRequest saved;
+        try {
+            saved = pricingRepository.saveAndFlush(requestEntity);
+        } catch (OptimisticLockingFailureException e) {
+            log.error("Optimistic lock conflict during recordQuoteRejection for requestId={}: {}", reqId, e.getMessage());
+            throw e;
+        }
         log.info("Updated pricing_requests status to REJECTED | requestId={}", reqId);
 
         PricingAuditLog audit = PricingAuditLog.builder()
@@ -261,13 +270,7 @@ public class PricingActivitiesImpl implements PricingActivities {
             return;
         }
 
-        PricingRequest requestEntity;
-        try {
-            requestEntity = pricingRepository.findById(reqId).orElse(null);
-        } catch (OptimisticLockingFailureException e) {
-            log.error("Optimistic lock conflict during recordQuoteExpiration for requestId={}: {}", reqId, e.getMessage());
-            throw e;
-        }
+        PricingRequest requestEntity = pricingRepository.findById(reqId).orElse(null);
 
         if (requestEntity == null) {
             log.warn("Cannot expire quote: quote record not found | requestId={}", reqId);
@@ -284,13 +287,13 @@ public class PricingActivitiesImpl implements PricingActivities {
             return;
         }
 
-        if (requestEntity.getStatus() == PricingRequest.PricingStatus.APPROVED) {
-            log.warn("Cannot expire quote already in APPROVED state | requestId={}", reqId);
+        if (TERMINAL_STATUSES.contains(requestEntity.getStatus())) {
+            log.warn("Cannot expire quote already in terminal state: {} | requestId={}", requestEntity.getStatus(), reqId);
             PricingAuditLog audit = PricingAuditLog.builder()
                     .pricingRequestId(reqId)
                     .customerId(customerId)
                     .action("RATE_EXPIRED")
-                    .description("Quote expiration skipped: quote already in APPROVED state")
+                    .description("Quote expiration skipped: quote already in terminal state " + requestEntity.getStatus())
                     .performedBy("temporal-worker")
                     .outcome("SKIPPED_TERMINAL_STATE")
                     .requestIp("127.0.0.1")
@@ -301,7 +304,13 @@ public class PricingActivitiesImpl implements PricingActivities {
         }
 
         requestEntity.setStatus(PricingRequest.PricingStatus.EXPIRED);
-        PricingRequest saved = pricingRepository.save(requestEntity);
+        PricingRequest saved;
+        try {
+            saved = pricingRepository.saveAndFlush(requestEntity);
+        } catch (OptimisticLockingFailureException e) {
+            log.error("Optimistic lock conflict during recordQuoteExpiration for requestId={}: {}", reqId, e.getMessage());
+            throw e;
+        }
         log.info("Updated pricing_requests status to EXPIRED | requestId={}", reqId);
 
         PricingAuditLog audit = PricingAuditLog.builder()
@@ -340,13 +349,16 @@ public class PricingActivitiesImpl implements PricingActivities {
 
         Runnable sendTask = () -> {
             try {
-                pricingEventProducer.publishPricingEvent(event)
-                    .whenComplete((result, ex) -> {
+                CompletableFuture<SendResult<String, Object>> publishFuture =
+                        pricingEventProducer.publishPricingEvent(event);
+                if (publishFuture != null) {
+                    publishFuture.whenComplete((result, ex) -> {
                         if (ex != null) {
                             log.error("Failed to publish {} event to Kafka asynchronously | requestId={} | error={}",
                                     status, req.getId(), ex.getMessage(), ex);
                         }
                     });
+                }
             } catch (Exception e) {
                 log.error("Failed to publish {} event to Kafka | requestId={} | error={}",
                         status, req.getId(), e.getMessage(), e);

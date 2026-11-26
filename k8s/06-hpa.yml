@@ -18,18 +18,14 @@ spec:
   minReplicas: 3
   maxReplicas: 10
   metrics:
+    # Scale on CPU only: memory Utilization on JVM workloads with InitialRAMPercentage=50%
+    # against a 1536Mi request (~1470Mi steady RSS) would false-trigger at 80% (1229Mi) at idle.
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: 70
-    - type: Resource
-      resource:
-        name: memory
-        target:
-          type: Utilization
-          averageUtilization: 80
   behavior:
     scaleDown:
       stabilizationWindowSeconds: 300

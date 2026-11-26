@@ -34,8 +34,8 @@ RUN mvn clean package -DskipTests -B --no-transfer-progress
 # ═══════════════════════════════════════════════════════════
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
-# Security: Non-root user for banking compliance
-RUN addgroup -S epricing && adduser -S epricing -G epricing
+# Security: Non-root user with explicit deterministic UID/GID (matches Kubernetes securityContext)
+RUN addgroup -g 10001 -S epricing && adduser -u 10001 -S epricing -G epricing
 
 WORKDIR /app
 
@@ -54,21 +54,29 @@ EXPOSE 8080
 # EXPOSE 8081: Management port — Actuator, Prometheus scraping
 EXPOSE 8081
 
-# Container healthcheck
+# Container healthcheck (uses IPv4 loopback to avoid Alpine localhost/IPv6 resolution ambiguity)
 HEALTHCHECK --interval=30s \
             --timeout=10s \
             --start-period=180s \
             --retries=5 \
-            CMD wget --quiet --tries=1 --spider http://localhost:8081/actuator/health/liveness || exit 1
+            CMD wget --quiet --tries=1 --spider http://127.0.0.1:8081/actuator/health/liveness || exit 1
 
-# Container-aware JVM tuning flags
+# Default Spring profile (overridable via environment variable without mutating JAVA_OPTS)
+ENV SPRING_PROFILES_ACTIVE=docker
+
+# Container-aware JVM tuning flags (bounded 217 realistic / 260 ceiling threads inside 2048M limit)
 ENV JAVA_OPTS="-XX:+UseContainerSupport \
-               -XX:MaxRAMPercentage=75.0 \
+               -XX:InitialRAMPercentage=50.0 \
+               -XX:MaxRAMPercentage=60.0 \
+               -Xss512k \
+               -XX:MaxMetaspaceSize=256m \
+               -XX:ReservedCodeCacheSize=128m \
+               -XX:MaxDirectMemorySize=128m \
                -XX:+UseG1GC \
+               -XX:+ExitOnOutOfMemoryError \
                -XX:+HeapDumpOnOutOfMemoryError \
                -XX:HeapDumpPath=/app/logs/heapdump.hprof \
-               -Djava.security.egd=file:/dev/./urandom \
-               -Dspring.profiles.active=docker"
+               -Djava.security.egd=file:/dev/./urandom"
 
 # Launch application with exec to ensure SIGTERM reaches JVM process for graceful shutdown
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]

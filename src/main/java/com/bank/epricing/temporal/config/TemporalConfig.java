@@ -8,6 +8,8 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * Spring Configuration for Temporal Client and Worker.
@@ -34,6 +38,27 @@ public class TemporalConfig {
 
     @Value("${epricing.temporal.task-queue:epricing-pricing-queue}")
     private String taskQueue;
+
+    @Value("${epricing.temporal.worker.max-concurrent-workflow-tasks:25}")
+    private int maxConcurrentWorkflowTasks;
+
+    @Value("${epricing.temporal.worker.max-concurrent-activities:25}")
+    private int maxConcurrentActivities;
+
+    @Value("${epricing.temporal.worker.max-concurrent-local-activities:10}")
+    private int maxConcurrentLocalActivities;
+
+    @Value("${epricing.temporal.worker.workflow-task-pollers:2}")
+    private int workflowTaskPollers;
+
+    @Value("${epricing.temporal.worker.activity-task-pollers:2}")
+    private int activityTaskPollers;
+
+    @Value("${epricing.temporal.worker.max-workflow-threads:50}")
+    private int maxWorkflowThreads;
+
+    @Value("${epricing.temporal.worker.workflow-cache-size:200}")
+    private int workflowCacheSize;
 
     private WorkerFactory workerFactory;
 
@@ -60,9 +85,22 @@ public class TemporalConfig {
 
     @Bean
     public WorkerFactory workerFactory(WorkflowClient workflowClient, PricingActivitiesImpl activities) {
-        log.info("Initializing Temporal WorkerFactory for task-queue '{}'", taskQueue);
-        this.workerFactory = WorkerFactory.newInstance(workflowClient);
-        Worker worker = workerFactory.newWorker(taskQueue);
+        log.info("Initializing Temporal WorkerFactory for task-queue '{}' (maxWorkflowThreads={}, maxConcurrentWorkflowTasks={}, maxConcurrentActivities={})",
+                taskQueue, maxWorkflowThreads, maxConcurrentWorkflowTasks, maxConcurrentActivities);
+        WorkerFactoryOptions factoryOptions = WorkerFactoryOptions.newBuilder()
+                .setMaxWorkflowThreadCount(maxWorkflowThreads)
+                .setWorkflowCacheSize(workflowCacheSize)
+                .build();
+        this.workerFactory = WorkerFactory.newInstance(workflowClient, factoryOptions);
+
+        WorkerOptions workerOptions = WorkerOptions.newBuilder()
+                .setMaxConcurrentWorkflowTaskExecutionSize(maxConcurrentWorkflowTasks)
+                .setMaxConcurrentActivityExecutionSize(maxConcurrentActivities)
+                .setMaxConcurrentLocalActivityExecutionSize(maxConcurrentLocalActivities)
+                .setMaxConcurrentWorkflowTaskPollers(workflowTaskPollers)
+                .setMaxConcurrentActivityTaskPollers(activityTaskPollers)
+                .build();
+        Worker worker = workerFactory.newWorker(taskQueue, workerOptions);
 
         // Register workflow implementation
         worker.registerWorkflowImplementationTypes(LoanPricingWorkflowImpl.class);
@@ -80,8 +118,9 @@ public class TemporalConfig {
     @PreDestroy
     public void stopWorkers() {
         if (workerFactory != null) {
-            log.info("Stopping Temporal Worker Factory gracefully");
+            log.info("Stopping Temporal Worker Factory gracefully (awaiting up to 15s for in-flight tasks)");
             workerFactory.shutdown();
+            workerFactory.awaitTermination(15, TimeUnit.SECONDS);
         }
     }
 }

@@ -1,0 +1,43 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# 08-networkpolicy.yml — Zero-Trust Cloud-Agnostic NetworkPolicy
+# ═══════════════════════════════════════════════════════════════════════════
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: epricing-service-netpol
+  namespace: epricing
+  labels:
+    app.kubernetes.io/name: epricing-service
+    app.kubernetes.io/component: security
+    app.kubernetes.io/part-of: bank-digital-onboarding
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: epricing-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Business REST API (port 8080) & Management / Actuator probes + Prometheus scrape (port 8081)
+    - ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8081
+  egress:
+    # Cluster DNS resolution (CoreDNS / kube-dns)
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # YugabyteDB YSQL (5433), Kafka broker (9092), Temporal gRPC (7233), OTel OTLP HTTP (4318)
+    - ports:
+        - protocol: TCP
+          port: 5433
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 7233
+        - protocol: TCP
+          port: 4318

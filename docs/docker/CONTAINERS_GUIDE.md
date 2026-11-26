@@ -130,7 +130,7 @@ graph TB
 | # | Container Name | Docker Image | Host Port(s) | Category | Memory Limit |
 |---|---|---|---|---|---|
 | 01 | `epricing-yugabytedb` | `yugabytedb/yugabyte:2.20.1.0-b97` | `5433, 7000, 9000, 15433` | Database | Host default |
-| 02 | `epricing-service` | `epricing-service:latest` (Custom) | `8080, 8089` | Application | 1024 MB |
+| 02 | `epricing-service` | `epricing-service:latest` (Custom) | `8080, 8089` | Application | 2048 MB (1536 MB res.) |
 | 03 | `prometheus` | `prom/prometheus:v2.53.0` | `9090` | Observability | Host default |
 | 04 | `grafana` | `grafana/grafana:11.1.0` | `3000` | Visualization | Host default |
 | 05 | `loki` | `grafana/loki:3.1.0` | `3100` | Observability | Host default |
@@ -212,7 +212,7 @@ SELECT count(*), status FROM pricing_requests GROUP BY status;
 #### 1. Overview & Image
 - **Image:** Built locally via `Dockerfile` (Multi-stage build based on `eclipse-temurin:21-jre-alpine`)
 - **Container Name:** `epricing-service`
-- **Security:** Runs as non-root user `epricing` (UID/GID 1000).
+- **Security:** Runs as non-root user `epricing` (UID/GID `10001`).
 
 #### 2. Why This Container Exists
 This is the core business engine. It calculates risk-adjusted loan quotes, performs income and credit eligibility validation, writes immutable audit entries, records OpenTelemetry trace spans, and executes Temporal workflow activities.
@@ -244,18 +244,20 @@ LOGGING_FILE_PATH: /app/logs
 deploy:
   resources:
     limits:
-      memory: 1024M
+      memory: 2048M
       cpus: '2.0'
     reservations:
-      memory: 512M
+      memory: 1536M
 ```
-*Prevents JVM heap spikes from destabilizing the host OS. Uses `-XX:+UseContainerSupport`.*
+*Prevents JVM heap/native spikes from destabilizing the host OS. Uses `-XX:+UseContainerSupport -XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=60.0 -Xss512k -XX:MaxMetaspaceSize=256m` sized for the bounded `217` realistic / `260` ceiling thread envelope.*
 
 #### 7. Health Check
 ```yaml
-test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8081/actuator/health"]
+test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:8081/actuator/health/readiness"]
 interval: 30s
-start_period: 90s
+timeout: 10s
+retries: 5
+start_period: 180s
 ```
 
 #### 8. How to Inspect Live
@@ -699,16 +701,16 @@ Step 2: Workflow & Telemetry Infrastructure
         └── otel-collector starts (depends on tempo: service_started)
 
 Step 3: Core Application & Routing
-        ├── epricing-service starts (depends on yugabytedb: service_healthy, kafka: service_healthy, otel-collector: service_started)
+        ├── epricing-service starts (depends on yugabytedb: service_healthy, temporal: service_healthy, kafka: service_healthy, otel-collector: service_started)
         ├── promtail starts (depends on loki: service_started)
-        └── temporal-ui starts (depends on temporal: service_started)
+        └── temporal-ui starts (depends on temporal: service_healthy)
 
 Step 4: Monitoring, Exporters & Traffic Simulation
         ├── prometheus starts
         ├── cadvisor & node-exporter start
         ├── alertmanager starts (depends on prometheus: service_started)
         ├── grafana starts (depends on prometheus & tempo: service_started)
-        └── traffic-generator starts (depends on epricing-service: service_started)
+        └── traffic-generator starts (depends on epricing-service: service_healthy)
 ```
 
 ---

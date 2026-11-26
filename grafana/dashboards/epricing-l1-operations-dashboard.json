@@ -2,7 +2,7 @@
   "annotations": {
     "list": []
   },
-  "description": "ePricing L1 Operations Dashboard \u2014 CRMNXT-style. Stat tiles go GREEN/YELLOW/RED. Integration Jobs table pulled from DB \u2014 no DB login needed.",
+  "description": "ePricing L1 Operations Dashboard — CRMNXT-style. Stat tiles go GREEN/YELLOW/RED. Integration Jobs table pulled from DB — no DB login needed.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
@@ -40,7 +40,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing L1 Operations Dashboard",
   "uid": "epricing-l1-ops",
-  "version": 3,
+  "version": 4,
   "panels": [
     {
       "collapsed": false,
@@ -290,7 +290,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 7
       },
       "id": 91,
       "title": "Throughput Volume (Left) & Target Response Times (Right)",
@@ -305,7 +305,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 6
+        "y": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -356,7 +356,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 6
+        "y": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -407,7 +407,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 6
+        "y": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -452,13 +452,13 @@
     {
       "id": 21,
       "title": "GUI (p95 ms)",
-      "description": "p95 response time on GET /pricing and /health \u2014 SLA under 500ms",
+      "description": "p95 response time on GET /pricing and /health — SLA under 500ms",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 6
+        "y": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -512,13 +512,13 @@
     {
       "id": 22,
       "title": "API (p95 ms)",
-      "description": "p95 response time on POST /pricing \u2014 RBI SLA: under 2000ms",
+      "description": "p95 response time on POST /pricing — RBI SLA: under 2000ms",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 6
+        "y": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -571,14 +571,14 @@
     },
     {
       "id": 23,
-      "title": "Mobile (p50 \u03bcs)",
-      "description": "p50 median response time in microseconds for actuator/mobile endpoints \u2014 matches CRMNXT 0\u03bcs display",
+      "title": "Mobile (p50 μs)",
+      "description": "p50 median response time in microseconds for actuator/mobile endpoints — matches CRMNXT 0μs display",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 6
+        "y": 8
       },
       "datasource": {
         "type": "prometheus",
@@ -597,7 +597,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "\u00b5s",
+          "unit": "µs",
           "decimals": 0,
           "color": {
             "mode": "thresholds"
@@ -624,7 +624,7 @@
       "targets": [
         {
           "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=\"epricing-service\",uri=~\".*/actuator.*|.*/metrics-demo.*\"}[5m])) by (le)) * 1000000",
-          "legendFormat": "p50 \u03bcs",
+          "legendFormat": "p50 μs",
           "refId": "A"
         }
       ]
@@ -635,7 +635,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 14
       },
       "id": 92,
       "title": "HTTP 4XX Client Errors (Left) & HTTP 5XX Server Errors (Right)",
@@ -650,7 +650,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 11
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -705,7 +705,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 11
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -760,7 +760,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 11
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -815,7 +815,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 11
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -864,13 +864,13 @@
     {
       "id": 12,
       "title": "API (5XX)",
-      "description": "5XX errors on POST /pricing \u2014 uncaught exceptions, DB failures",
+      "description": "5XX errors on POST /pricing — uncaught exceptions, DB failures",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 11
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -925,7 +925,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 11
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -977,22 +977,22 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 21
       },
       "id": 93,
-      "title": "Database Health \u00b7 Connection Pool \u00b7 Blockings & Long Running Queries",
+      "title": "Database Health · Connection Pool · Blockings & Long Running Queries",
       "type": "row"
     },
     {
       "id": 41,
       "title": "DB Blockings (Transaction)",
-      "description": "HikariCP threads waiting for a connection \u2014 DB bottleneck indicator. 0 = healthy.",
+      "description": "HikariCP threads waiting for a connection — DB bottleneck indicator. 0 = healthy.",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 16
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -1041,13 +1041,13 @@
     {
       "id": 42,
       "title": "DB Blockings (Reporting)",
-      "description": "Connection timeouts \u2014 connections that failed to acquire in time",
+      "description": "Connection timeouts — connections that failed to acquire in time",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 16
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -1102,7 +1102,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 16
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -1151,13 +1151,13 @@
     {
       "id": 46,
       "title": "DB Sleeping Sessions",
-      "description": "Idle (sleeping) DB connections \u2014 open but not querying",
+      "description": "Idle (sleeping) DB connections — open but not querying",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 16
+        "y": 22
       },
       "datasource": {
         "type": "prometheus",
@@ -1202,13 +1202,13 @@
     {
       "id": 44,
       "title": "DB Logins (Transaction)",
-      "description": "Total DB sessions (active + idle) on transaction pool \u2014 matches CRMNXT 'Transaction=171' meaning total pool connections",
+      "description": "Total DB sessions (active + idle) on transaction pool — matches CRMNXT 'Transaction=171' meaning total pool connections",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 20
+        "y": 26
       },
       "datasource": {
         "type": "prometheus",
@@ -1261,13 +1261,13 @@
     {
       "id": 45,
       "title": "DB Logins (Reporting)",
-      "description": "Idle DB connections (reporting pool equivalent) \u2014 open but not actively querying",
+      "description": "Idle DB connections (reporting pool equivalent) — open but not actively querying",
       "type": "stat",
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 20
+        "y": 26
       },
       "datasource": {
         "type": "prometheus",
@@ -1318,7 +1318,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 20
+        "y": 26
       },
       "datasource": {
         "type": "prometheus",
@@ -1373,7 +1373,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 20
+        "y": 26
       },
       "datasource": {
         "type": "prometheus",
@@ -1425,22 +1425,22 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 24
+        "y": 32
       },
       "id": 50,
-      "title": "Integration Jobs \u2014 All Running / Complete / Error (Live from YugabyteDB)",
+      "title": "Integration Jobs — All Running / Complete / Error (Live from YugabyteDB)",
       "type": "row"
     },
     {
       "id": 51,
-      "title": "Integration Jobs \u2014 All Pricing Requests (Click any row to expand full details)",
-      "description": "GREEN=COMPLETED \u00b7 YELLOW=RUNNING \u00b7 RED=ERROR \u00b7 ORANGE=REJECTED. Click any row to expand and see full error details. No DB login needed \u2014 data pulled live from YugabyteDB.",
+      "title": "Integration Jobs — All Pricing Requests (Click any row to expand full details)",
+      "description": "GREEN=COMPLETED · YELLOW=RUNNING · RED=ERROR · ORANGE=REJECTED. Click any row to expand and see full error details. No DB login needed — data pulled live from YugabyteDB.",
       "type": "table",
       "gridPos": {
-        "h": 12,
+        "h": 14,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 33
       },
       "datasource": {
         "type": "postgres",
@@ -1451,7 +1451,7 @@
           "show": false
         },
         "showHeader": true,
-        "cellHeight": "sm",
+        "cellHeight": "md",
         "sortBy": [
           {
             "desc": true,
@@ -1497,27 +1497,27 @@
                       "CALCULATED": {
                         "color": "#9FC119",
                         "index": 0,
-                        "text": "\u2705 COMPLETED"
+                        "text": "✅ COMPLETED"
                       },
                       "APPROVED": {
                         "color": "#9FC119",
                         "index": 1,
-                        "text": "\u2705 COMPLETED"
+                        "text": "✅ COMPLETED"
                       },
                       "PENDING": {
                         "color": "#E8B904",
                         "index": 2,
-                        "text": "\u23f3 RUNNING"
+                        "text": "⏳ RUNNING"
                       },
                       "ERROR": {
                         "color": "#E02F44",
                         "index": 3,
-                        "text": "\u274c ERROR"
+                        "text": "❌ ERROR"
                       },
                       "REJECTED": {
                         "color": "#FF780A",
                         "index": 4,
-                        "text": "\u26a0\ufe0f REJECTED"
+                        "text": "⚠️ REJECTED"
                       }
                     }
                   }
@@ -1690,7 +1690,7 @@
             "uid": "yugabytedb-uid"
           },
           "format": "table",
-          "rawSql": "SELECT\n  id                                                                  AS \"Job ID\",\n  customer_id                                                         AS \"Customer\",\n  product_type                                                        AS \"Product\",\n  status                                                              AS \"Status\",\n  created_at AT TIME ZONE 'Asia/Kolkata'                             AS \"Started At\",\n  processing_time_ms                                                  AS \"Duration (ms)\",\n  calculated_rate                                                     AS \"Rate %\",\n  emi_amount                                                          AS \"EMI (INR)\",\n  CASE\n    WHEN status IN ('ERROR', 'REJECTED') AND error_message IS NOT NULL\n      THEN CASE\n        WHEN error_message ILIKE '%credit%score%' OR error_message ILIKE '%credit_score%'\n          THEN 'Credit score below minimum threshold'\n        WHEN error_message ILIKE '%loan%amount%' OR error_message ILIKE '%loan_amount%'\n          THEN 'Loan amount outside permitted range'\n        WHEN error_message ILIKE '%income%'\n          THEN 'Income insufficient for requested loan'\n        WHEN error_message ILIKE '%expired%or%aborted%' OR error_message ILIKE '%Transaction%expired%'\n          THEN 'DB Transaction conflict \u2014 retry required'\n        WHEN error_message ILIKE '%CannotAcquireLockException%' OR error_message ILIKE '%lock%'\n          THEN 'DB lock acquisition failed \u2014 concurrent write conflict'\n        WHEN error_message ILIKE '%JpaSystemException%'\n          THEN 'JPA persistence layer error'\n        WHEN error_message ILIKE '%Connection%'\n          THEN 'Database connection failure'\n        WHEN error_message ILIKE '%timeout%'\n          THEN 'Request timed out'\n        ELSE SUBSTRING(error_message FROM 1 FOR 120)\n      END\n    WHEN status IN ('ERROR','REJECTED') AND error_message IS NULL\n      THEN 'Error captured \u2014 no message recorded'\n    ELSE ''\n  END                                                                 AS \"Error Summary\",\n  COALESCE(error_message, '')                                         AS \"Full Error (DB)\",\n  trace_id                                                            AS \"Trace ID\"\nFROM pricing_requests\nORDER BY created_at DESC\nLIMIT 500",
+          "rawSql": "SELECT\n  id                                                                  AS \"Job ID\",\n  customer_id                                                         AS \"Customer\",\n  product_type                                                        AS \"Product\",\n  status                                                              AS \"Status\",\n  created_at AT TIME ZONE 'Asia/Kolkata'                             AS \"Started At\",\n  processing_time_ms                                                  AS \"Duration (ms)\",\n  calculated_rate                                                     AS \"Rate %\",\n  emi_amount                                                          AS \"EMI (INR)\",\n  CASE\n    WHEN status IN ('ERROR', 'REJECTED') AND error_message IS NOT NULL\n      THEN CASE\n        WHEN error_message ILIKE '%credit%score%' OR error_message ILIKE '%credit_score%'\n          THEN 'Credit score below minimum threshold'\n        WHEN error_message ILIKE '%loan%amount%' OR error_message ILIKE '%loan_amount%'\n          THEN 'Loan amount outside permitted range'\n        WHEN error_message ILIKE '%income%'\n          THEN 'Income insufficient for requested loan'\n        WHEN error_message ILIKE '%expired%or%aborted%' OR error_message ILIKE '%Transaction%expired%'\n          THEN 'DB Transaction conflict — retry required'\n        WHEN error_message ILIKE '%CannotAcquireLockException%' OR error_message ILIKE '%lock%'\n          THEN 'DB lock acquisition failed — concurrent write conflict'\n        WHEN error_message ILIKE '%JpaSystemException%'\n          THEN 'JPA persistence layer error'\n        WHEN error_message ILIKE '%Connection%'\n          THEN 'Database connection failure'\n        WHEN error_message ILIKE '%timeout%'\n          THEN 'Request timed out'\n        ELSE SUBSTRING(error_message FROM 1 FOR 120)\n      END\n    WHEN status IN ('ERROR','REJECTED') AND error_message IS NULL\n      THEN 'Error captured — no message recorded'\n    ELSE ''\n  END                                                                 AS \"Error Summary\",\n  COALESCE(error_message, '')                                         AS \"Full Error (DB)\",\n  trace_id                                                            AS \"Trace ID\"\nFROM pricing_requests\nORDER BY created_at DESC\nLIMIT 500",
           "refId": "A"
         }
       ]
@@ -1701,22 +1701,22 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 49
       },
       "id": 53,
-      "title": "\u274c Error & Rejected Jobs \u2014 Root Cause Drill-Down (Live from DB)",
+      "title": "❌ Error & Rejected Jobs — Root Cause Drill-Down (Live from DB)",
       "type": "row"
     },
     {
       "id": 52,
-      "title": "Error & Rejected Jobs \u2014 Root Cause Drill-Down (Live from DB)",
+      "title": "Error & Rejected Jobs — Root Cause Drill-Down (Live from DB)",
       "description": "Only ERROR and REJECTED records. 'Root Cause' extracts the meaningful failure reason from the raw DB error. 'Full Stack' shows the complete stored error. No DB login needed.",
       "type": "table",
       "gridPos": {
-        "h": 12,
+        "h": 14,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 50
       },
       "datasource": {
         "type": "postgres",
@@ -1727,7 +1727,7 @@
           "show": false
         },
         "showHeader": true,
-        "cellHeight": "sm"
+        "cellHeight": "md"
       },
       "fieldConfig": {
         "defaults": {
@@ -1767,12 +1767,12 @@
                       "ERROR": {
                         "color": "#E02F44",
                         "index": 0,
-                        "text": "\u274c ERROR"
+                        "text": "❌ ERROR"
                       },
                       "REJECTED": {
                         "color": "#FF780A",
                         "index": 1,
-                        "text": "\u26a0\ufe0f REJECTED"
+                        "text": "⚠️ REJECTED"
                       }
                     }
                   }
@@ -1901,7 +1901,7 @@
             "uid": "yugabytedb-uid"
           },
           "format": "table",
-          "rawSql": "SELECT\n  id                                                                  AS \"Job ID\",\n  customer_id                                                         AS \"Customer\",\n  product_type                                                        AS \"Product\",\n  status                                                              AS \"Status\",\n  created_at AT TIME ZONE 'Asia/Kolkata'                             AS \"Failed At\",\n  processing_time_ms                                                  AS \"Duration\",\n  CASE\n    WHEN error_message ILIKE '%credit%score%' OR error_message ILIKE '%credit_score%'\n      THEN '\u274c Credit score below minimum threshold'\n    WHEN error_message ILIKE '%loan%amount%' OR error_message ILIKE '%loan_amount%'\n      THEN '\u274c Loan amount outside permitted range'\n    WHEN error_message ILIKE '%income%'\n      THEN '\u274c Income insufficient for requested loan'\n    WHEN error_message ILIKE '%expired%or%aborted%' OR error_message ILIKE '%Transaction%expired%'\n      THEN '\u26a0\ufe0f DB Transaction conflict \u2014 YugabyteDB lock expired (retry safe)'\n    WHEN error_message ILIKE '%CannotAcquireLockException%'\n      THEN '\u26a0\ufe0f Concurrent write conflict \u2014 lock acquisition failed'\n    WHEN error_message ILIKE '%JpaSystemException%'\n      THEN '\u26a0\ufe0f JPA persistence layer error \u2014 check DB integrity'\n    WHEN error_message ILIKE '%Connection%' OR error_message ILIKE '%connection refused%'\n      THEN '\ud83d\udd34 Database connection failure'\n    WHEN error_message ILIKE '%timeout%'\n      THEN '\ud83d\udd34 Request timed out \u2014 SLA breach'\n    WHEN error_message IS NULL\n      THEN '\u26a0\ufe0f Error recorded but no message captured'\n    ELSE CONCAT('\u26a0\ufe0f ', SUBSTRING(error_message FROM 1 FOR 150))\n  END                                                                 AS \"Root Cause\",\n  COALESCE(error_message, 'No error message stored in DB')           AS \"Full Stack (DB)\",\n  trace_id                                                            AS \"Trace ID\"\nFROM pricing_requests\nWHERE status IN ('ERROR', 'REJECTED')\nORDER BY created_at DESC\nLIMIT 200",
+          "rawSql": "SELECT\n  id                                                                  AS \"Job ID\",\n  customer_id                                                         AS \"Customer\",\n  product_type                                                        AS \"Product\",\n  status                                                              AS \"Status\",\n  created_at AT TIME ZONE 'Asia/Kolkata'                             AS \"Failed At\",\n  processing_time_ms                                                  AS \"Duration\",\n  CASE\n    WHEN error_message ILIKE '%credit%score%' OR error_message ILIKE '%credit_score%'\n      THEN '❌ Credit score below minimum threshold'\n    WHEN error_message ILIKE '%loan%amount%' OR error_message ILIKE '%loan_amount%'\n      THEN '❌ Loan amount outside permitted range'\n    WHEN error_message ILIKE '%income%'\n      THEN '❌ Income insufficient for requested loan'\n    WHEN error_message ILIKE '%expired%or%aborted%' OR error_message ILIKE '%Transaction%expired%'\n      THEN '⚠️ DB Transaction conflict — YugabyteDB lock expired (retry safe)'\n    WHEN error_message ILIKE '%CannotAcquireLockException%'\n      THEN '⚠️ Concurrent write conflict — lock acquisition failed'\n    WHEN error_message ILIKE '%JpaSystemException%'\n      THEN '⚠️ JPA persistence layer error — check DB integrity'\n    WHEN error_message ILIKE '%Connection%' OR error_message ILIKE '%connection refused%'\n      THEN '🔴 Database connection failure'\n    WHEN error_message ILIKE '%timeout%'\n      THEN '🔴 Request timed out — SLA breach'\n    WHEN error_message IS NULL\n      THEN '⚠️ Error recorded but no message captured'\n    ELSE CONCAT('⚠️ ', SUBSTRING(error_message FROM 1 FOR 150))\n  END                                                                 AS \"Root Cause\",\n  COALESCE(error_message, 'No error message stored in DB')           AS \"Full Stack (DB)\",\n  trace_id                                                            AS \"Trace ID\"\nFROM pricing_requests\nWHERE status IN ('ERROR', 'REJECTED')\nORDER BY created_at DESC\nLIMIT 200",
           "refId": "A"
         }
       ]

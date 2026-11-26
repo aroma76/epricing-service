@@ -15,7 +15,7 @@ The `epricing-service` verification architecture rejects the fragile practice of
 - Kafka producer auto-configuration, serializers, and KRaft connectivity.
 - Temporal workflow determinism and activity replay semantics.
 
-Therefore, the test suite implements a **multi-tiered testing pyramid** consisting of **17 test classes** spanning **7 functional categories**, executing both lightweight unit tests and full `@SpringBootTest` context bootstrap validations.
+Therefore, the test suite implements a **multi-tiered testing pyramid** consisting of **19 test classes** spanning **7 functional categories**, executing both lightweight unit tests and full `@SpringBootTest` context bootstrap validations.
 
 ```
                          ▲
@@ -36,7 +36,7 @@ Therefore, the test suite implements a **multi-tiered testing pyramid** consisti
 
 ---
 
-## 2. Master Test Inventory: 17 Classes Across 7 Functional Categories
+## 2. Master Test Inventory: 19 Classes Across 7 Functional Categories
 
 | # | Functional Category | Test Class | Test Type / Annotations | Scope & Architectural Coverage |
 |---|---------------------|------------|-------------------------|--------------------------------|
@@ -54,9 +54,11 @@ Therefore, the test suite implements a **multi-tiered testing pyramid** consisti
 | 12 | **Messaging & Kafka** | `LoanPricingEventTest` | Jackson JSON Test | Tests bidirectional serialization/deserialization, snake_case/camelCase aliases, and ISO-8601 millisecond timestamps. |
 | 13 | **Messaging & Kafka** | `PricingEventProducerTest` | Unit Test (Mockito) | Verifies `KafkaPricingEventProducer`, 3000ms fail-fast exception handling, disabled flag handling, and traceparent injection. |
 | 14 | **Messaging & Kafka** | `KafkaLiveBrokerIntegrationTest` | Integration Test | Publishes domain events to a real or embedded Kafka broker and verifies topic partition assignment and metadata. |
-| 15 | **Database & Migrations**| `DatabaseMigrationInitializerTest` | H2 Integration Test | Executes custom migration runner (V1 through V6 scripts) against PostgreSQL-compatible H2 mode to verify DDL integrity. |
+| 15 | **Database & Migrations**| `DatabaseMigrationInitializerTest` | H2 Integration Test | Executes custom migration runner (V1 through V8 scripts) against PostgreSQL-compatible H2 mode to verify DDL integrity. |
 | 16 | **Database & Persistence**| `PricingPersistenceAtomicityTest` | Persistence Test | Verifies that `pricing_requests` and `pricing_audit_logs` are committed atomically, preventing orphaned rows. |
 | 17 | **Security & Logging** | `StructuredLoggerTest` | Unit Test | Tests PII masking (`maskCustomerId()`), coarse amount bracketing (`amountBracket()`), and Logback JSON structured formatting. |
+| 18 | **DTO Contracts & Paging**| `PagedResponseTest` | Unit Test | Validates pagination metadata, page indexing, and immutable wrapper contracts for `PagedResponse`. |
+| 19 | **DTO Validation** | `PricingRequestDtoValidationTest` | Parameterized Bean Validation | Validates 19 boundary and adversarial customer ID, loan amount, tenure, and product type Jakarta validation rules. |
 
 ---
 
@@ -139,7 +141,7 @@ void testProducerFailFastTimeout() {
 All commands adhere to **Windows PowerShell** syntax invariants (using `;` instead of `&&`):
 
 ```powershell
-# Run the complete test suite (all 17 test classes)
+# Run the complete test suite (all 19 test classes)
 mvn clean test
 
 # Run only Context Bootstrap Tests
@@ -164,4 +166,4 @@ Before committing changes or cutting releases:
 2. **Deterministic Replay**: In-memory Temporal workflow tests pass with zero non-deterministic method calls.
 3. **Fail-Fast Producer**: Kafka producer tests pass under simulated broker failure without throwing unhandled runtime exceptions.
 4. **PII Sanitization**: All log output in `StructuredLoggerTest` contains masked identifiers (`CUST****1234`).
-5. **Zero Test Regressions**: All 17 test classes complete with 0 failures and 0 errors.
+5. **Zero Test Regressions**: All 19 test classes complete with 0 failures and 0 errors.
