@@ -26,6 +26,9 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
     private boolean approved = false;
     private boolean rejected = false;
     private String rejectionReason = null;
+    private boolean earlyApproved = false;
+    private boolean earlyRejected = false;
+    private String earlyRejectionReason = null;
     private PricingWorkflowResult result;
 
     // Configure resilient activity options with automatic exponential backoff retry
@@ -48,12 +51,6 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
                                             com.bank.epricing.exception.PricingException.FoirExceededException.class
                                                     .getName(),
                                             com.bank.epricing.exception.PricingException.UnsupportedProductTypeException.class
-                                                    .getName(),
-                                            // ISSUE-06 FIX: PricingCalculationException must be in doNotRetry;
-                                            // Temporal does NOT respect Java inheritance for setDoNotRetry matching.
-                                            // Without this entry, any calculation failure causes 5x retry storms
-                                            // and 5x duplicate error records in pricing_requests.
-                                            com.bank.epricing.exception.PricingException.PricingCalculationException.class
                                                     .getName())
                                     .build())
                     .build());
@@ -62,7 +59,7 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
     public PricingWorkflowResult processLoanPricing(PricingRequestDto requestDto, String requestIp, int rateValidDays) {
         String workflowId = Workflow.getInfo().getWorkflowId();
         log.info("Starting LoanPricingWorkflow | workflowId={} | customerId={}",
-            workflowId, StructuredLogger.maskCustomerId(requestDto.getCustomerId()));
+                workflowId, StructuredLogger.maskCustomerId(requestDto.getCustomerId()));
 
         // Initialize snapshot immediately so early queries do not return null
         result = new PricingWorkflowResult(
@@ -84,9 +81,10 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
                     workflowId, e.getMessage());
             status = "REJECTED";
             result.setStatus(status);
-            String failureReason = (e.getCause() != null && e.getCause().getMessage() != null && !e.getCause().getMessage().isBlank())
-                ? e.getCause().getMessage()
-                : (e.getMessage() != null ? e.getMessage() : "Pricing calculation rejected");
+            String failureReason = (e.getCause() != null && e.getCause().getMessage() != null
+                    && !e.getCause().getMessage().isBlank())
+                            ? e.getCause().getMessage()
+                            : (e.getMessage() != null ? e.getMessage() : "Pricing calculation rejected");
             result.setRejectionReason(failureReason);
             result.setUpdatedAt(java.time.Instant.ofEpochMilli(Workflow.currentTimeMillis()).toString());
             return result;
@@ -96,11 +94,29 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
                 ? quote.getRequestId().toString()
                 : null;
 
-        // Step 2: Durable wait for approval/rejection or rate-lock expiration (unless already signaled)
+        // Step 2: Durable wait for approval/rejection or rate-lock expiration.
+        // Preserve deterministic replay for pre-existing 7-day workflows (DEFAULT_VERSION)
+        // while allowing early signals sent during calculation on new executions (v1).
         int days = rateValidDays > 0 ? rateValidDays : 7;
         log.info("Rate lock active for {} days. Awaiting customer signal | workflowId={}", days, workflowId);
 
-        if (!approved && !rejected) {
+        int earlySignalVersion = Workflow.getVersion(
+                "accept-early-decision-signal", Workflow.DEFAULT_VERSION, 1);
+        if (earlySignalVersion >= 1) {
+            if (earlyApproved && !rejected) {
+                this.approved = true;
+            } else if (earlyRejected && !approved) {
+                this.rejected = true;
+                this.rejectionReason = earlyRejectionReason;
+            }
+            if (!approved && !rejected) {
+                Workflow.await(Duration.ofDays(days), () -> approved || rejected);
+            }
+        } else {
+            if (earlyApproved || earlyRejected) {
+                log.warn("Ignoring pre-quote signal on legacy workflow version (status={}) | workflowId={}",
+                        status, workflowId);
+            }
             Workflow.await(Duration.ofDays(days), () -> approved || rejected);
         }
 
@@ -131,21 +147,30 @@ public class LoanPricingWorkflowImpl implements LoanPricingWorkflow {
 
     @Override
     public void approveQuote() {
-        if (approved || rejected || "EXPIRED".equals(status)) {
+        if (approved || rejected || earlyApproved || earlyRejected || "EXPIRED".equals(status)) {
             log.warn("Cannot approve quote in state: {} (approved={}, rejected={})", status, approved, rejected);
             return;
         }
-        this.approved = true;
+        if ("QUOTED".equals(status)) {
+            this.approved = true;
+        } else {
+            this.earlyApproved = true;
+        }
     }
 
     @Override
     public void rejectQuote(String reason) {
-        if (approved || rejected || "EXPIRED".equals(status)) {
+        if (approved || rejected || earlyApproved || earlyRejected || "EXPIRED".equals(status)) {
             log.warn("Cannot reject quote in state: {} (approved={}, rejected={})", status, approved, rejected);
             return;
         }
-        this.rejected = true;
-        this.rejectionReason = reason;
+        if ("QUOTED".equals(status)) {
+            this.rejected = true;
+            this.rejectionReason = reason;
+        } else {
+            this.earlyRejected = true;
+            this.earlyRejectionReason = reason;
+        }
     }
 
     @Override

@@ -11,6 +11,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.Worker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,6 +36,8 @@ class LoanPricingWorkflowTest {
     static class TestPricingActivities implements PricingActivities {
         PricingResponseDto quoteResponse;
         RuntimeException calculationException;
+        CountDownLatch calcStartedLatch;
+        CountDownLatch allowCalcCompleteLatch;
         int calculateCount = 0;
         int approvalCount = 0;
         int rejectionCount = 0;
@@ -44,6 +49,16 @@ class LoanPricingWorkflowTest {
         @Override
         public PricingResponseDto calculateAndPersistPricing(PricingRequestDto requestDto, String requestIp) {
             calculateCount++;
+            if (calcStartedLatch != null) {
+                calcStartedLatch.countDown();
+            }
+            if (allowCalcCompleteLatch != null) {
+                try {
+                    allowCalcCompleteLatch.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             if (calculationException != null) {
                 throw calculationException;
             }
@@ -265,6 +280,48 @@ class LoanPricingWorkflowTest {
         assertEquals(1, activitiesStub.calculateCount);
         assertEquals(0, activitiesStub.approvalCount);
         assertEquals(0, activitiesStub.rejectionCount);
+        assertEquals(0, activitiesStub.expirationCount);
+    }
+
+    @Test
+    @DisplayName("Should replay pre-versioned Nov 19 early-signal history without NonDeterministicException")
+    void testReplayNov19EarlySignalHistoryWithoutNonDeterminism() {
+        assertDoesNotThrow(() ->
+                WorkflowReplayer.replayWorkflowExecutionFromResource(
+                        "temporal/nov19-early-signal-history.json",
+                        LoanPricingWorkflowImpl.class
+                )
+        );
+    }
+
+    @Test
+    @DisplayName("New executions accept early approval signals received while calculation is running")
+    void testEarlyApprovalSignalDuringCalculationSucceedsImmediately() throws Exception {
+        PricingRequestDto request = createSampleRequest();
+        activitiesStub.quoteResponse = createSampleQuote();
+        activitiesStub.calcStartedLatch = new CountDownLatch(1);
+        activitiesStub.allowCalcCompleteLatch = new CountDownLatch(1);
+
+        LoanPricingWorkflow workflow = client.newWorkflowStub(
+                LoanPricingWorkflow.class,
+                WorkflowOptions.newBuilder()
+                        .setTaskQueue(TASK_QUEUE)
+                        .setWorkflowId("wf-test-early-approve")
+                        .build()
+        );
+
+        WorkflowClient.start(workflow::processLoanPricing, request, "127.0.0.1", 7);
+
+        assertTrue(activitiesStub.calcStartedLatch.await(5, TimeUnit.SECONDS),
+                "Calculation activity should have started");
+        workflow.approveQuote();
+        activitiesStub.allowCalcCompleteLatch.countDown();
+
+        PricingWorkflowResult result = WorkflowStub.fromTyped(workflow).getResult(PricingWorkflowResult.class);
+        assertNotNull(result);
+        assertEquals("APPROVED", result.getStatus());
+        assertEquals(1, activitiesStub.calculateCount);
+        assertEquals(1, activitiesStub.approvalCount);
         assertEquals(0, activitiesStub.expirationCount);
     }
 }

@@ -164,9 +164,9 @@ Observed Result (`Exit Code: 0`, `01:21 min` with live Docker Compose stack runn
 - `PricingRequestDtoValidationTest`: `Tests run: 19, Failures: 0, Errors: 0, Skipped: 0`
 - `PricingControllerTest`: `Tests run: 9, Failures: 0, Errors: 0, Skipped: 0`
 - `TemporalPricingControllerTest`: `Tests run: 7, Failures: 0, Errors: 0, Skipped: 0`
-- `LoanPricingWorkflowTest`: `Tests run: 4, Failures: 0, Errors: 0, Skipped: 0`
+- `LoanPricingWorkflowTest`: `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0` (including `WorkflowReplayer` regression test against captured Nov 19 pre-versioned history and concurrent early-signal approval test)
 - `PricingServiceTest` (7), `PricingPersistenceAtomicityTest` (3), `PricingEventProducerTest` (11), `PricingCalculatorTest` (20), `HealthControllerTest` (5), `PagedResponseTest` (3), `LoanPricingEventTest` (3), `StructuredLoggerTest` (4), `TemporalPricingServiceTest` (1) — all `Failures: 0, Errors: 0, Skipped: 0`.
-- Live-broker integration tests (`TemporalWorkflowLiveIntegrationTest` 1, `KafkaLiveBrokerIntegrationTest` 1): executed and passed against live Kafka (`:9092`) and Temporal (`:7233`) (`Tests run: 129, Failures: 0, Errors: 0, Skipped: 0` across `19` test classes, **`BUILD SUCCESS`**); guarded by JUnit `Assumptions` for offline runs.
+- Live-broker integration tests (`TemporalWorkflowLiveIntegrationTest` 1, `KafkaLiveBrokerIntegrationTest` 1): executed and passed against live Kafka (`:9092`) and Temporal (`:7233`) (`Tests run: 131, Failures: 0, Errors: 0, Skipped: 0` across `19` test classes, **`BUILD SUCCESS`**); guarded by JUnit `Assumptions` for offline runs.
 
 ### 6.2 Docker Compose & Image Build Verification
 1. `docker compose config --quiet; Write-Output "COMPOSE_EXIT:$LASTEXITCODE"` -> `COMPOSE_EXIT:0`.
