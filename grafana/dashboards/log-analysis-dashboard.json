@@ -107,7 +107,8 @@
           "legendFormat": "ERROR logs",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Total `ERROR` Log Events in Selected Time Window (Loki)**\n\nCounts JSON log entries shipped by Promtail to Loki matching `{application=\"epricing-service\", level=\"ERROR\"}` over `$__range`.\n\n- **Green:** `0`\n- **Red:** `≥ 1` — Unhandled runtime exceptions, DB failures, or `/metrics-demo/simulate-error` events occurred; inspect *ERROR Logs — Live Stream* below."
     },
     {
       "id": 3,
@@ -161,7 +162,8 @@
           "legendFormat": "WARN logs",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Total `WARN` Log Events in Selected Time Window (Loki)**\n\nCounts warning logs in Loki matching `{application=\"epricing-service\", level=\"WARN\"}` over `$__range`.\n\n- **Typical causes:** Business rejections (`PRICING_REJECTED` when credit score `< 650` or `FOIR > 50%`), Bean Validation failures (`VALIDATION_FAILURE`), slow operations (`> 200ms` DB / `> 500ms` op), or `/metrics-demo/simulate-slow`.\n- **Green:** `0` | **Yellow:** `≥ 1`"
     },
     {
       "id": 4,
@@ -211,7 +213,8 @@
           "legendFormat": "INFO logs",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Total `INFO` Log Events in Selected Time Window (Loki)**\n\nCounts informational structured logs (`PRICING_STARTED`, `PRICING_COMPLETED`, `MDCFilter` ingress/exit, Kafka publish confirmations) in Loki over `$__range`.\n\n- **Health signal:** `0` while traffic is running indicates Promtail log shipping or `/app/logs` volume ingestion stalled."
     },
     {
       "id": 9004,
@@ -281,7 +284,8 @@
           "legendFormat": "Calc Errors",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Technical Pricing Failures (`PRICING_CALCULATION_FAILED` in Time Window)**\n\nPrometheus counter increment (`pricing_errors_total{error_type=\"PRICING_CALCULATION_FAILED\"}`) over `$__range`.\n\n- **Triggers when:** An unexpected runtime/DB exception is wrapped into `PricingCalculationException` inside `PricingService.calculatePricing()`.\n- **Green:** Strictly `0` | **Red:** `≥ 1` (check *ERROR Logs — Live Stream* for full Java stack trace)."
     },
     {
       "id": 6,
@@ -335,7 +339,8 @@
           "legendFormat": "Simulated",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Simulated Observability Drill Errors (Cumulative)**\n\nTracks `pricing_demo_errors_total{error_type=\"SIMULATED_ERROR\"}`, emitted strictly by `GET /api/v1/metrics-demo/simulate-error` (`MetricsDemoController`, inactive in `prod`). Kept separate from `pricing_errors_total` so test drills never poison real production error alerts.\n\n- **Yellow:** `≥ 1` (expected periodically when `traffic-generator` runs step `mod 25`)."
     },
     {
       "id": 7,
@@ -389,7 +394,8 @@
           "legendFormat": "Slow Demo",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Simulated Slow Latency Drill Counter (Cumulative)**\n\nTracks `pricing_demo_slow_requests_total` from `GET /api/v1/metrics-demo/simulate-slow` (`800–1500 ms` deliberate sleep for Grafana latency visualization, disabled in `prod`).\n\n- **Yellow:** `≥ 1` (expected periodically when `traffic-generator` runs step `mod 15`)."
     },
     {
       "id": 9001,
@@ -422,7 +428,7 @@
     {
       "id": 41,
       "title": "All Error Types (Cumulative)",
-      "description": "Cumulative count of pricing errors by error type",
+      "description": "**Cumulative Pricing Exceptions by Machine Error Code (Prometheus)**\n\nBreaks down `pricing_errors_total` by `error_type` label (`GlobalExceptionHandler`):\n- `PRICING_INSUFFICIENT_CREDIT_SCORE` / `PRICING_FOIR_EXCEEDED` / `PRICING_AMOUNT_EXCEEDS_ELIGIBILITY` (`422`)\n- `VALIDATION_FAILED` / `TEMPORAL_DISABLED` (`400`)\n- `PRICING_CALCULATION_FAILED` / `UNHANDLED_*` (`500`).",
       "type": "bargauge",
       "gridPos": {
         "h": 8,
@@ -468,7 +474,7 @@
     {
       "id": 42,
       "title": "Error Rate Over Time",
-      "description": "Rate of pricing errors per second by error type",
+      "description": "**Pricing Exception Rate Over Time (`errors/sec` by `error_type`)**\n\n1-minute rolling rate (`rate(pricing_errors_total[1m])`) split by `error_type` so you can see immediately whether a spike comes from client `422` underwriting rejections or `500` server exceptions.",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
@@ -558,7 +564,8 @@
           "legendFormat": "INFO/s",
           "refId": "C"
         }
-      ]
+      ],
+      "description": "**Log Event Rate by Severity Level Over Time (Loki)**\n\n1-minute per-second rate of `ERROR`, `WARN`, and `INFO` log lines ingested by Loki for `epricing-service`.\n\n- **Use:** Spot sudden log storms (verbose debug/retry loops) or spikes in `ERROR`/`WARN` matching HTTP failure bursts."
     },
     {
       "id": 9002,
@@ -591,7 +598,7 @@
     {
       "id": 21,
       "title": "ERROR Logs — Live Stream",
-      "description": "All ERROR level log lines from epricing-service. Scroll to see recent failures.",
+      "description": "**Live `ERROR` Log Stream (Loki JSON Logs)**\n\nReal-time stream of `{application=\"epricing-service\", level=\"ERROR\"}` structured JSON records shipped via Promtail.\n\n- **Includes:** `@timestamp`, logger class, masked `customerId` (`CUST****`), `requestId`, exception `stack_trace`, and derived **View Trace** link (`traceId` opens the exact distributed trace in Grafana Tempo).",
       "type": "logs",
       "gridPos": {
         "h": 10,
@@ -650,7 +657,7 @@
     {
       "id": 31,
       "title": "Pricing Calculation Logs",
-      "description": "All log lines related to pricing requests — success and failure",
+      "description": "**Live Pricing & Engine Activity Log Stream (Loki Regex Filter)**\n\nStreams `{application=\"epricing-service\"} |~ \"pricing|PRICING|ePricing\"` covering `PRICING_STARTED`, `PRICING_COMPLETED`, `PRICING_REJECTED`, `DB_OPERATION`, Kafka publishes, and Temporal activity execution.\n\n- **Tip:** Click any log entry's `Trace ID` link to jump directly into Grafana Tempo spans for that request.",
       "type": "logs",
       "gridPos": {
         "h": 10,

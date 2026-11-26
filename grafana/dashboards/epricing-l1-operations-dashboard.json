@@ -57,7 +57,7 @@
     {
       "id": 7,
       "title": "Total Jobs (DB)",
-      "description": "Total pricing_requests rows in DB (all statuses)",
+      "description": "**Cumulative Total Loan Requests in YugabyteDB**\n\nCounts every row stored in `pricing_requests` across all statuses (`CALCULATED`, `APPROVED`, `REJECTED`, `EXPIRED`, `PENDING`, `ERROR`).\n\n- **Source:** YugabyteDB SQL (`SELECT COUNT(*) FROM pricing_requests`)\n- **Healthy:** Monotonically rising when traffic or `traffic-generator` is active.\n- **Check if abnormal:** If flatlined or zero/erroring, check YugabyteDB container health (`:5433` / `:15433`) and `epricing-service` readiness probe.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -112,7 +112,7 @@
     {
       "id": 8,
       "title": "Enabled Jobs (DB)",
-      "description": "COUNT of CALCULATED/APPROVED records in DB",
+      "description": "**Eligible & Rate-Locked Loans in Pipeline**\n\nCounts rows in `pricing_requests` currently in `CALCULATED` (valid quote issued) or `APPROVED` (rate locked via Temporal signal) status—excluding `REJECTED`, `ERROR`, `PENDING`, and `EXPIRED`.\n\n- **Source:** YugabyteDB SQL (`WHERE status IN ('CALCULATED','APPROVED')`)\n- **Healthy:** Growing steadily alongside `Total Jobs (DB)`.\n- **Check if abnormal:** If `Total Jobs` grows while `Enabled Jobs` stalls, inspect the *Error & Rejected Jobs* table below for widespread underwriting rejections or DB errors.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -167,7 +167,7 @@
     {
       "id": 5,
       "title": "CPU Utilization",
-      "description": "JVM process CPU %. Alert at 80%.",
+      "description": "**ePricing Service JVM Process CPU %**\n\nMeasures CPU share used specifically by the Spring Boot JVM process (`process_cpu_usage * 100`), scraped every 10s from `/actuator/prometheus`.\n\n- **Green:** `< 50%` (healthy headroom)\n- **Yellow:** `50% – 80%` (elevated load / GC activity)\n- **Red:** `≥ 80%` (`EPricingHighCPU` alert threshold—thread contention & latency spikes likely)\n- **Action:** Correlate with `Active In-Flight Requests` and check container CPU throttling in *Container & Node Utilization*.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -227,7 +227,7 @@
     {
       "id": 6,
       "title": "Memory Utilization",
-      "description": "JVM Heap used %. Alert at 85%.",
+      "description": "**JVM Heap Memory Utilization %**\n\nRatio of live heap bytes used (`jvm_memory_used_bytes{area=\"heap\"}`) to bounded max heap (`jvm_memory_max_bytes{area=\"heap\"} > 0`). Uses `> 0` so G1GC regions reporting `-1` don't skew the percentage.\n\n- **Green:** `< 60%` (normal sawtooth GC recovery)\n- **Yellow:** `60% – 85%` (rising heap occupancy)\n- **Red:** `≥ 85%` (`EPricingHighHeapUsage` alert threshold—high risk of `OutOfMemoryError`)\n- **Action:** Inspect the *JVM Memory — Heap Used vs Max* sawtooth trend in the Complete Observability dashboard.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -315,7 +315,7 @@
     {
       "id": 31,
       "title": "GUI Requests",
-      "description": "Total GET requests in time window",
+      "description": "**Read / Lookup Traffic Volume (All HTTP `GET` Requests in Selected Time Window)**\n\nTotal HTTP `GET` requests handled by `epricing-service` during the dashboard time range (`$__range`, e.g. last 30m).\n\n- **Includes:** `GET /api/v1/pricing` (paginated history), `GET /api/v1/pricing/{id}` (quote lookup), `GET /api/v1/workflow/pricing/{id}[/status]` (Temporal status polling), and `GET /api/v1/health/*` probes.\n- **Query:** `sum(increase(http_server_requests_seconds_count{method=\"GET\"}[$__range]))`\n- **Why 'GUI':** Follows the CRMNXT L1 ops template naming for interactive/portal read lookups (`GET`) versus write pricing APIs (`POST`).",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -366,7 +366,7 @@
     {
       "id": 32,
       "title": "API Requests",
-      "description": "Total POST /pricing calls in time window",
+      "description": "**Core Loan Pricing Write Volume (HTTP `POST` to `/pricing*` in Time Window)**\n\nTotal `POST` calls hitting pricing calculation or Temporal rate-lock endpoints during the selected dashboard range (`$__range`).\n\n- **Includes:** `POST /api/v1/pricing` (sync calculation + DB save + Kafka event) and `POST /api/v1/workflow/pricing/start` / `approve` / `reject`.\n- **Query:** `sum(increase(http_server_requests_seconds_count{method=\"POST\",uri=~\".*/pricing.*\"}[$__range]))`\n- **Check if abnormal:** A drop to `0` during active traffic means upstream callers or `traffic-generator` stopped submitting quotes.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -417,7 +417,7 @@
     {
       "id": 33,
       "title": "Mobile / Other",
-      "description": "Total actuator and other endpoint requests",
+      "description": "**Total Service HTTP Traffic Volume (All Methods & Endpoints in Time Window)**\n\nCumulative count of **all** HTTP requests (`GET`, `POST`, `/pricing`, `/workflow/pricing`, `/health`, `/metrics-demo`) served by `epricing-service` over `$__range`.\n\n- **Query note:** Currently aggregates all `http_server_requests_seconds_count` without filtering to `/actuator` or `/metrics-demo` only, so this value equals overall microservice HTTP volume rather than strictly mobile/actuator calls.\n- **Check if abnormal:** `0` indicates no HTTP ingress is reaching port `:8080` at all.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -496,7 +496,7 @@
     {
       "id": 21,
       "title": "GUI (p95 ms)",
-      "description": "p95 response time on GET /pricing and /health — SLA under 500ms",
+      "description": "**Read Endpoint Latency — 95th Percentile (`GET` Requests)**\n\n95% of HTTP `GET` requests (`/pricing`, `/workflow/pricing/{id}`, `/health/*`) finished faster than this value over a 5-minute rolling window (`[5m]`).\n\n- **Green:** `< 500 ms` (target read SLA)\n- **Yellow:** `500 ms – 2,000 ms` (slow DB query / pool wait)\n- **Red:** `≥ 2,000 ms` (SLA breach)\n- **Action:** If elevated, check `DB Blockings` and YugabyteDB CPU.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -556,7 +556,7 @@
     {
       "id": 22,
       "title": "API (p95 ms)",
-      "description": "p95 response time on POST /pricing — RBI SLA: under 2000ms",
+      "description": "**Core Pricing Write Latency — 95th Percentile (`POST` Requests)**\n\n95% of HTTP `POST` requests (underwriting gates + `BigDecimal` EMI calculation + YugabyteDB commit + Kafka dispatch) completed faster than this value over a 5-minute window (`[5m]`).\n\n- **Green:** `< 500 ms` (typical sync path is `< 50 ms`)\n- **Yellow:** `500 ms – 2,000 ms` (degraded persistence or GC pauses)\n- **Red:** `≥ 2,000 ms` (`EPricingHighLatency` RBI SLA breach)\n- **Action:** Check `DB Connection Acquire Time` and Temporal/Kafka broker reachability.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -616,7 +616,7 @@
     {
       "id": 23,
       "title": "Mobile (p50 μs)",
-      "description": "p50 median response time in microseconds for actuator/mobile endpoints — matches CRMNXT 0μs display",
+      "description": "**Internal Diagnostics & Probe Median Latency (p50 in Microseconds)**\n\n50th-percentile (median) response time for `/actuator/*` and `/metrics-demo/*` endpoints over `[5m]`, scaled to microseconds (`* 1,000,000`). Expected to remain elevated briefly if `metrics-demo/simulate-slow` was triggered (`800–1500 ms`).\n\n- **Green:** `< 200,000 µs` (`200 ms`)\n- **Yellow:** `200,000 – 500,000 µs` (`200–500 ms`)\n- **Red:** `≥ 500,000 µs` (`500 ms+`)",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -704,7 +704,7 @@
     {
       "id": 2,
       "title": "GUI (4XX)",
-      "description": "4XX errors on /health and /pricing GET endpoints",
+      "description": "**Client Errors on Read Endpoints (`GET` HTTP `4XX` in Time Window)**\n\nCount of `4XX` responses on `GET` requests over `$__range`—most commonly `404 Not Found` (`PRICING_REQUEST_NOT_FOUND` on unknown IDs) or `400 Bad Request` (`ARGUMENT_TYPE_MISMATCH` on invalid query params).\n\n- **Green:** `0`\n- **Red:** `≥ 1` (review client callers or malformed lookup IDs in Loki `WARN` logs).",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -759,7 +759,7 @@
     {
       "id": 3,
       "title": "API (4XX)",
-      "description": "4XX errors on POST /pricing (validation failures, bad requests)",
+      "description": "**Business Policy Rejections & Validation Errors (`POST` HTTP `4XX` in Time Window)**\n\nCount of `4XX` responses on `POST` calls over `$__range`. Covers both normal banking underwriting denials and invalid schemas:\n- **HTTP `422`:** `PRICING_INSUFFICIENT_CREDIT_SCORE` (`< 650`), `PRICING_AMOUNT_EXCEEDS_ELIGIBILITY` (`> 10x income`), `PRICING_FOIR_EXCEEDED` (`> 50%` monthly income).\n- **HTTP `400`:** `PRICING_VALIDATION_FAILED`, `MALFORMED_REQUEST_BODY`, `TEMPORAL_DISABLED`.\n\n- **Action:** Note that `traffic-generator` intentionally sends credit-score `580` (~108s) and excess-loan (~168s) samples; drill into the *Error & Rejected Jobs* table below to verify expected vs unexpected rejections.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -814,7 +814,7 @@
     {
       "id": 4,
       "title": "Mobile (4XX)",
-      "description": "4XX errors on actuator/metrics-demo endpoints (mobile/other client traffic)",
+      "description": "**Client Errors on `/actuator` & `/metrics-demo` (`4XX` in Time Window)**\n\nCount of `4XX` responses on management or demo routes over `$__range`.\n\n- **Green:** `0`\n- **Red:** `≥ 1` (note: in `prod` profile `@Profile(\"!prod\")` disables `/metrics-demo`, so hitting those routes returns `404`).",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -897,7 +897,7 @@
     {
       "id": 11,
       "title": "GUI (5XX)",
-      "description": "5XX server errors on GET endpoints",
+      "description": "**Server Crashes on Read Endpoints (`GET` HTTP `5XX` in Time Window)**\n\nInternal server failures (`500`/`503`) returned by `GET` endpoints—such as YugabyteDB down during `/api/v1/health/readiness` (`503`) or unhandled query exceptions.\n\n- **Green:** Strictly `0`\n- **Red:** `≥ 1` — Immediate investigation in Loki (`level=\"ERROR\"`) and YugabyteDB health check.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -952,7 +952,7 @@
     {
       "id": 12,
       "title": "API (5XX)",
-      "description": "5XX errors on POST /pricing — uncaught exceptions, DB failures",
+      "description": "**Server Failures on Core Pricing `POST` APIs (`5XX` in Time Window)**\n\nUnhandled server exceptions (`INTERNAL_SERVER_ERROR` / `PRICING_CALCULATION_FAILED` / `503`) on `POST` pricing or Temporal workflow calls.\n\n- **Green:** Strictly `0`\n- **Red:** `≥ 1` (`P1` / `EPricingHighErrorRate` risk) — Check *Error & Rejected Jobs* table and Loki `ERROR Logs` using the captured `Trace ID`.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1007,7 +1007,7 @@
     {
       "id": 13,
       "title": "Mobile (5XX)",
-      "description": "5XX errors on actuator/metrics-demo endpoints (mobile/other client traffic)",
+      "description": "**Server Failures on `/actuator` & `/metrics-demo` (`5XX` in Time Window)**\n\nUnhandled `5XX` responses on actuator or demo observability routes over `$__range`.\n\n- **Green:** Strictly `0`\n- **Red:** `≥ 1` — Inspect JVM logs for exception stack traces.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1090,7 +1090,7 @@
     {
       "id": 41,
       "title": "DB Blockings (Transaction)",
-      "description": "HikariCP threads waiting for a connection — DB bottleneck indicator. 0 = healthy.",
+      "description": "**HikariCP Pending Threads Waiting for a DB Connection**\n\nLive count of application threads currently blocked waiting to check out a connection from `epricing-pool` (`hikaricp_connections_pending`).\n\n- **Green:** Strictly `0` (connections acquired immediately)\n- **Red:** `≥ 1` (`EPricingDBConnectionPoolLow` alert fires after 2m)—pool exhaustion or slow YugabyteDB transactions blocking threads.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1145,7 +1145,7 @@
     {
       "id": 42,
       "title": "DB Blockings (Reporting)",
-      "description": "Connection timeouts — connections that failed to acquire in time",
+      "description": "**HikariCP Connection Acquisition Timeouts (`epricing-pool`)**\n\nCumulative count of threads that waited longer than `connection-timeout` (`30,000 ms`) and failed with `SQLTransientConnectionException` (`hikaricp_connections_timeout_total`).\n\n- **Note:** Reads the same `hikaricp_connections_timeout_total` counter as *DB Blocker Count* for the CRMNXT dual-column layout.\n- **Green:** Strictly `0` | **Red:** `≥ 1` (severe YugabyteDB contention or connection leak).",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1200,7 +1200,7 @@
     {
       "id": 43,
       "title": "DB Blocker Count",
-      "description": "Total HikariCP connection timeouts since start. 0 = healthy.",
+      "description": "**Total DB Connection Acquisition Timeouts Since App Start**\n\nTotal occurrences of `hikaricp_connections_timeout_total` on `epricing-pool` since JVM startup.\n\n- **Green:** Strictly `0` (no request ever timed out waiting for a DB slot)\n- **Red:** `≥ 1` — Inspect YugabyteDB active queries (`pg_stat_activity`) and Hikari leak detection warnings.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1255,7 +1255,7 @@
     {
       "id": 46,
       "title": "DB Sleeping Sessions",
-      "description": "Idle (sleeping) DB connections — open but not querying",
+      "description": "**Idle Connections Ready in HikariCP Pool (`epricing-pool`)**\n\nNumber of open physical YugabyteDB connections currently idle and ready for instant reuse (`hikaricp_connections_idle`). `application.yml` maintains `minimum-idle: 5` by default.\n\n- **Healthy:** `5` during quiet traffic; lower only when active bursts check out connections.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1322,7 +1322,7 @@
     {
       "id": 44,
       "title": "DB Logins (Transaction)",
-      "description": "Total DB sessions (active + idle) on transaction pool — matches CRMNXT 'Transaction=171' meaning total pool connections",
+      "description": "**Total Open Connections in HikariCP Pool (`active + idle`)**\n\nCombined active + idle connections currently held open in `epricing-pool` against YugabyteDB.\n\n- **Thresholds (L1 panel):** Green `< 7`, Yellow `7–9`, Red `≥ 10` (configured pool ceiling is `maximum-pool-size: 20` in `application.yml`).\n- **Action:** If pinned at ceiling alongside non-zero `Pending`, check for slow queries or long transactions.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1381,7 +1381,7 @@
     {
       "id": 45,
       "title": "DB Logins (Reporting)",
-      "description": "Idle DB connections (reporting pool equivalent) — open but not actively querying",
+      "description": "**Idle Connections Ready in Pool (Reporting Slot Equivalent)**\n\nMirrors `hikaricp_connections_idle` on `epricing-pool` (ePricing uses one shared YugabyteDB transactional pool rather than a separate reporting DB pool).\n\n- **Healthy:** Typically `5` idle connections at rest.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1432,7 +1432,7 @@
     {
       "id": 47,
       "title": "Long Running Query (TXN)",
-      "description": "Pricing calculation failures in last 5 min. 0 = healthy.",
+      "description": "**Technical Pricing Calculation Failures (Last 5 Minutes)**\n\nIncrease in `pricing_requests_total{type=\"failed\"}` over `[5m]`. Counts unexpected technical/persistence failures during `PricingService.calculatePricing()` (does **not** count business rejections like low credit score).\n\n- **Green:** Strictly `0`\n- **Red:** `≥ 1` — Open *Error & Rejected Jobs* below or check Loki `level=\"ERROR\"`.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1487,7 +1487,7 @@
     {
       "id": 48,
       "title": "Long Running Query (RPT)",
-      "description": "HTTP requests exceeding 2s SLA threshold in last 5 min",
+      "description": "**Slow HTTP Requests Exceeding 2.0s SLA (Last 5 Minutes)**\n\nNumber of HTTP requests in the last 5m taking longer than `2.0` seconds (`http_server_requests_seconds_bucket{le=\"+Inf\"} - {le=\"2.0\"}`).\n\n- **Green:** `0`\n- **Red:** `≥ 1` — Check whether `/metrics-demo/simulate-slow` (`0.8–1.5s`, normally `< 2s`) or genuine DB/Kafka stalls pushed requests above 2s.",
       "type": "stat",
       "gridPos": {
         "h": 4,
@@ -1570,7 +1570,7 @@
     {
       "id": 51,
       "title": "Integration Jobs — All Pricing Requests (Click any row to expand full details)",
-      "description": "GREEN=COMPLETED · YELLOW=RUNNING · RED=ERROR · ORANGE=REJECTED. Click any row to expand and see full error details. No DB login needed — data pulled live from YugabyteDB.",
+      "description": "**Live YugabyteDB Pricing Audit Table (Latest 500 Requests)**\n\nQueries `pricing_requests` directly via the read-only `grafana_reader` PostgreSQL/YSQL connection so L1 support can inspect quotes without SSH/DB CLI access.\n\n- **Statuses:** `CALCULATED` / `APPROVED` (green), `PENDING` (yellow), `REJECTED` (orange), `ERROR` (red).\n- **Columns:** IST timestamp (`Asia/Kolkata`), `Duration (ms)`, `Rate %`, `EMI (INR)`, categorized `Error Summary`, raw `Full Error (DB)`, and clickable `Trace ID` (opens distributed trace in Grafana Tempo).",
       "type": "table",
       "gridPos": {
         "h": 14,
@@ -1862,7 +1862,7 @@
     {
       "id": 52,
       "title": "Error & Rejected Jobs — Root Cause Drill-Down (Live from DB)",
-      "description": "Only ERROR and REJECTED records. 'Root Cause' extracts the meaningful failure reason from the raw DB error. 'Full Stack' shows the complete stored error. No DB login needed.",
+      "description": "**Error & Business Rejection Root-Cause Table (Latest 200 Rows)**\n\nFiltered live SQL view (`WHERE status IN ('ERROR', 'REJECTED')`) from YugabyteDB.\n\n- **How to use:** `Root Cause` classifies common underwriting denials (low credit score, 10x income cap, 50% FOIR) vs technical faults (DB lock/transaction expiration, JPA failure, connection refused, timeout). Click `Trace ID` to jump straight to Tempo spans.",
       "type": "table",
       "gridPos": {
         "h": 14,

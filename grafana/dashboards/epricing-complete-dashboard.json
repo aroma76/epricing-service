@@ -118,7 +118,8 @@
           "legendFormat": "Service",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Prometheus Scrape Reachability (`up{job=\"epricing-service\"}`)**\n\nIndicates whether Prometheus can successfully scrape `http://epricing-service:8081/actuator/prometheus` every 10s.\n\n- **Green (`UP` / `1`):** Actuator management port `:8081` is healthy and responding.\n- **Red (`DOWN` / `0`):** Container crashed, hung, or unreachable (`EPricingServiceDown` critical alert fires after `1m`)."
     },
     {
       "id": 3,
@@ -165,7 +166,8 @@
           "legendFormat": "Total",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Cumulative Pricing Requests Received (`pricing_requests_total{type=\"all\"}`)**\n\nCustom Micrometer counter incremented at entry to `PricingService.calculatePricing()` for both sync REST calls and Temporal `calculateAndPersistPricing` activities.\n\n- **Note:** Resets to `0` if `epricing-service` restarts; use `rate()` or `increase()` graphs for restart-safe throughput."
     },
     {
       "id": 4,
@@ -212,7 +214,8 @@
           "legendFormat": "Success",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Cumulative Successful Pricing Calculations (`type=\"success\"`)**\n\nCount of requests since JVM startup that passed all 3 statutory gates (credit score ≥ 650, LTI ≤ 10x, FOIR ≤ 50%) and committed atomically (`pricing_requests` + `pricing_audit_logs`) to YugabyteDB.\n\n- **Compare with:** *Total Requests* to eyeball approval yield vs rejections."
     },
     {
       "id": 5,
@@ -263,7 +266,8 @@
           "legendFormat": "Failed",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Cumulative Technical Failures (`type=\"failed\"`)**\n\nCount of unexpected technical or runtime errors during pricing calculation (`PricingService.recordPricingFailure()`). Excludes business rule rejections (which increment `type=\"rejected\"` instead).\n\n- **Green:** `0` | **Red:** `≥ 1` — Inspect *ERROR Logs* and YugabyteDB `ERROR` rows immediately."
     },
     {
       "id": 9001,
@@ -334,7 +338,8 @@
           "legendFormat": "In-Flight",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Live Concurrent In-Flight Pricing Requests (`pricing_requests_active`)**\n\nMicrometer `AtomicLong` gauge incremented on entering `PricingService.calculatePricing()` and decremented in its `finally` block.\n\n- **Green:** `< 20` (fast sub-10ms completion means gauge normally reads `0–2`)\n- **Yellow:** `20 – 49` (concurrency surge or slowing DB writes)\n- **Red:** `≥ 50` (`EPricingRequestBacklog` alert threshold—threads piling up on DB or downstream stalls)."
     },
     {
       "id": 7,
@@ -390,7 +395,8 @@
           "legendFormat": "CPU %",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**JVM Process CPU Usage (`process_cpu_usage * 100`)**\n\nCPU percentage actively used by the `epricing-service` JVM process.\n\n- **Green:** `< 50%` | **Yellow:** `50% – 80%` | **Red:** `≥ 80%` (`EPricingHighCPU` alert fires after 5m)."
     },
     {
       "id": 8,
@@ -446,7 +452,8 @@
           "legendFormat": "Heap %",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**JVM Heap Memory Used % (`area=\"heap\"`)**\n\nPercentage of bounded G1GC Java heap currently occupied (`sum(used) / sum(max > 0) * 100`).\n\n- **Green:** `< 60%` | **Yellow:** `60% – 85%` | **Red:** `≥ 85%` (`EPricingHighHeapUsage` OOM risk alert)."
     },
     {
       "id": 9,
@@ -501,7 +508,8 @@
           "legendFormat": "Active",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Active Checked-Out HikariCP DB Connections (`epricing-pool`)**\n\nNumber of database connections actively executing SQL queries at scrape time (`hikaricp_connections_active`).\n\n- **Green:** `< 7` | **Yellow:** `7 – 9` | **Red:** `≥ 10` (configured pool max is `20` in `application.yml`; sustained high values signal slow YugabyteDB queries)."
     },
     {
       "id": 9002,
@@ -577,7 +585,8 @@
           "legendFormat": "Error req/s",
           "refId": "B"
         }
-      ]
+      ],
+      "description": "**HTTP Throughput Rate by Outcome (req/s over 1m)**\n\nPer-second arrival rate of HTTP traffic split by Spring outcome:\n- **`SUCCESS`:** HTTP `2XX` responses (`201 Created`, `200 OK`, `202 Accepted`)\n- **`Errors`:** `CLIENT_ERROR` (`4XX` underwriting rejections/validation) + `SERVER_ERROR` (`5XX` crashes).\n\n- **Use:** Confirms steady ingress traffic (~0.17 req/s baseline from 6s `traffic-generator`) and spots sudden traffic drops or error spikes."
     },
     {
       "id": 12,
@@ -630,7 +639,8 @@
           "legendFormat": "p99",
           "refId": "C"
         }
-      ]
+      ],
+      "description": "**End-to-End HTTP Latency Percentiles (`p50`, `p95`, `p99` in ms)**\n\nDistribution of total HTTP request duration computed from Micrometer histograms over a 5m rolling rate window across all endpoints.\n\n- **p50:** Typical median user experience.\n- **p95 (`EPricingHighLatency` alert if `> 2,000 ms`):** Tail latency experienced by the slowest 5% of calls.\n- **p99:** Worst 1% spikes (often reflects GC pauses, `/metrics-demo/simulate-slow` 800–1500ms runs, or DB locks)."
     },
     {
       "id": 9003,
@@ -663,7 +673,7 @@
     {
       "id": 21,
       "title": "Requests by Product Type",
-      "description": "Total pricing requests grouped by loan product type",
+      "description": "**Loan Demand Mix by Product Type (`pricing_product_requests_total`)**\n\nCumulative request volume broken down by `product` label: `HOME_LOAN`, `PERSONAL_LOAN`, `BUSINESS_LOAN`, `AUTO_LOAN`, `EDUCATION_LOAN`.\n\n- **Use:** Tracks business mix; an unexpected `0` bar for one product usually signals a broken frontend product code or multiplier regression.",
       "type": "bargauge",
       "gridPos": {
         "h": 9,
@@ -773,7 +783,8 @@
           "legendFormat": "p99 calc ms",
           "refId": "C"
         }
-      ]
+      ],
+      "description": "**Core Financial Math Engine Latency SLA (`pricing_calculation_duration_seconds`)**\n\nMeasures **pure underwriting & BigDecimal rate/EMI math time** inside `PricingService`, excluding YugabyteDB commit and network time (`p50` / `p95` / `p99` in ms over `[5m]`).\n\n- **Green:** `< 50 ms` | **Yellow:** `50 – 200 ms` | **Red:** `≥ 200 ms` (indicates JVM CPU starvation or GC pause)."
     },
     {
       "id": 24,
@@ -828,7 +839,8 @@
           "legendFormat": "p99 (tail) ms",
           "refId": "C"
         }
-      ]
+      ],
+      "description": "**Pricing Engine Calculation Duration Trend (`p50`, `p95`, `p99` ms)**\n\nTime-series view of pure in-JVM pricing calculation latency (`pricing_calculation_duration_seconds_bucket`).\n\n- **Diagnostic tip:** Compare this with *Response Time Percentiles* (`id=12`): if HTTP latency jumps while calculation duration stays `< 5 ms`, the slowdown is in **YugabyteDB I/O**, **HikariCP wait**, or `/metrics-demo/simulate-slow`—not math logic."
     },
     {
       "id": 9004,
@@ -907,7 +919,8 @@
           "legendFormat": "{{error_type}}",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Cumulative Application Errors Grouped by `error_type` (`pricing_errors_total`)**\n\nCounts every exception caught by `GlobalExceptionHandler`, labeled by exact machine code:\n- Business `422`: `PRICING_INSUFFICIENT_CREDIT_SCORE`, `PRICING_AMOUNT_EXCEEDS_ELIGIBILITY`, `PRICING_FOIR_EXCEEDED`\n- Client `400`: `VALIDATION_FAILED`, `MALFORMED_REQUEST_BODY`, `TEMPORAL_DISABLED`\n- Server `500`: `UNHANDLED_*`, `PRICING_CALCULATION_FAILED`.\n\n- **Note:** Excludes `pricing_demo_errors_total` so demo errors never pollute real alert error budgets."
     },
     {
       "id": 32,
@@ -958,7 +971,8 @@
           "legendFormat": "4XX Total",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Total HTTP `4XX` Client & Underwriting Rejections in Time Range**\n\nTotal `4XX` responses served across all endpoints during `$__range`. In this service, `422` underwriting rejections (`credit_score < 650` or `FOIR > 50%`) count as `4XX`.\n\n- **Green:** `0` | **Red:** `≥ 1` — Check *Errors by Type* (`id=31`) to distinguish expected loan denials from `VALIDATION_FAILED` bugs."
     },
     {
       "id": 33,
@@ -1006,7 +1020,8 @@
           "legendFormat": "5XX/s",
           "refId": "B"
         }
-      ]
+      ],
+      "description": "**HTTP Error Rate Over Time (`4XX` vs `5XX` req/s)**\n\n1-minute rolling rate of `status=~\"4..\"` (policy rejections / bad inputs) alongside `status=~\"5..\"` (`EPricingHighErrorRate` fires if `5XX > 5%` for 3m).\n\n- **Healthy:** `5XX` flat at `0`; occasional `4XX` bumps match underwriting policy rejections."
     },
     {
       "id": 9005,
@@ -1091,7 +1106,8 @@
           "legendFormat": "Max Pool Size",
           "refId": "D"
         }
-      ]
+      ],
+      "description": "**HikariCP Connection Pool Saturation (`epricing-pool`)**\n\nTracks pool health across 4 series:\n- `active`: currently running SQL queries\n- `idle`: warm connections ready in pool (min 5)\n- `pending`: threads blocked waiting for a free connection (must stay `0`)\n- `max`: configured `maximum-pool-size` (default `20` in `application.yml`).\n\n- **Action:** If `pending > 0` or `active` stays pinned at `max`, inspect YugabyteDB latency and `DB Connection Acquire Time`."
     },
     {
       "id": 42,
@@ -1138,7 +1154,8 @@
           "legendFormat": "Max Acquire ms",
           "refId": "B"
         }
-      ]
+      ],
+      "description": "**HikariCP Connection Checkout Wait Time (`avg` & `max` in ms)**\n\nTime a thread waits for `HikariPool` to hand over a physical connection to YugabyteDB (`hikaricp_connections_acquire_seconds`).\n\n- **Healthy:** `< 5 ms`\n- **Warning:** `5 – 50 ms` (pool contention building)\n- **Critical:** `> 50 ms` (threads queuing behind slow DB commits or pool exhaustion)."
     },
     {
       "id": 9006,
@@ -1214,7 +1231,8 @@
           "legendFormat": "Heap Max",
           "refId": "B"
         }
-      ]
+      ],
+      "description": "**JVM Heap Memory Used vs Maximum Committed (`bytes`)**\n\nTracks G1GC heap allocation (`jvm_memory_used_bytes{area=\"heap\"}`) against bounded max heap (`> 0`). Look for a **healthy sawtooth pattern** (steady rise, sharp drop on GC).\n\n- **Unhealthy pattern:** Rising baseline floor approaching `max` across GC cycles indicates a memory leak or oversized `JAVA_OPTS` cache retention."
     },
     {
       "id": 52,
@@ -1259,7 +1277,8 @@
           "legendFormat": "JVM CPU %",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**JVM Process CPU Utilization Over Time (`%`)**\n\nRolling time series of `process_cpu_usage * 100` for `epricing-service`.\n\n- **Healthy:** `< 50%` | **Warning:** `50–80%` | **Critical:** `> 80%` (`EPricingHighCPU` alert)."
     }
   ]
 }

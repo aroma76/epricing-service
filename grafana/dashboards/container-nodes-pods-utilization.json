@@ -113,7 +113,8 @@
           "legendFormat": "epricing CPU %",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**ePricing Container CPU Usage (% of 1 CPU Core)**\n\nInstant CPU utilization of the `epricing-service` container from cAdvisor (`rate(container_cpu_usage_seconds_total[1m]) * 100`), with JVM `process_cpu_usage` fallback if cAdvisor is unavailable. Container limit in `docker-compose.yml` is `2.0` CPUs (`200%`).\n\n- **Green:** `< 50%` | **Yellow:** `50% – 80%` | **Red:** `≥ 80%`"
     },
     {
       "id": 4,
@@ -173,7 +174,8 @@
           "legendFormat": "YugabyteDB CPU %",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**YugabyteDB Container CPU Usage (% of 1 CPU Core)**\n\nCPU consumed by `epricing-yugabytedb` (`yb-master` + `yb-tserver` + YSQL query engine) via cAdvisor.\n\n- **Green:** `< 50%` | **Yellow:** `50% – 80%` | **Red:** `≥ 80%` — High sustained CPU indicates heavy SQL writes, missing indexes, or DocDB compaction."
     },
     {
       "id": 6,
@@ -233,7 +235,8 @@
           "legendFormat": "Node CPU Idle %",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Host / Worker Node CPU Idle Capacity %**\n\nAverage idle CPU percentage across all host CPU cores reported by `node-exporter` (`avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100`).\n\n- **Green:** `≥ 40%` idle (plenty of host headroom)\n- **Yellow:** `20% – 40%` idle\n- **Red:** `< 20%` idle — Host/Docker VM is CPU-saturated across all running containers."
     },
     {
       "id": 9005,
@@ -308,7 +311,8 @@
           "legendFormat": "Working Set",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**ePricing Container Working Set Memory**\n\nActive RAM working set (heap + metaspace + native/direct buffers + OS page cache) via `max(container_memory_working_set_bytes)`, falling back to JVM heap if cAdvisor lacks cgroup metrics. Docker Compose memory limit is `2048 MiB` (`MaxRAMPercentage=60%` = ~`1.2 GiB` heap).\n\n- **Green:** `< 500 MB` | **Yellow:** `500 – 800 MB` | **Red:** `≥ 800 MB` (higher baseline ~1.1 GB is expected once warmed under `InitialRAMPercentage=50%`)."
     },
     {
       "id": 5,
@@ -367,7 +371,8 @@
           "legendFormat": "YugabyteDB Memory",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**YugabyteDB Container Working Set Memory**\n\nActive non-reclaimable working-set RAM used by `epricing-yugabytedb` (`yb-master` + `yb-tserver` + DocDB block cache).\n\n- **Green:** `< 500 MB` | **Yellow:** `500 MB – 1 GB` | **Red:** `≥ 1 GB` — Monitor for host RAM pressure if YugabyteDB + Temporal + Kafka run together."
     },
     {
       "id": 7,
@@ -426,7 +431,8 @@
           "legendFormat": "Available RAM",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "**Host Machine Available Memory (`MemAvailable`)**\n\nEstimate of RAM immediately available on the host/VM for starting or scaling workloads without swapping (`node_memory_MemAvailable_bytes`).\n\n- **Green:** `≥ 2.0 GB` | **Yellow:** `1.0 – 2.0 GB` | **Red:** `< 1.0 GB` — High risk of Linux OOM-killer terminating containers."
     },
     {
       "id": 9001,
@@ -515,7 +521,8 @@
           "legendFormat": "loki",
           "refId": "E"
         }
-      ]
+      ],
+      "description": "**Container CPU Utilization Comparison (Over Time)**\n\nMulti-series CPU percentage (`100% = 1 full core`) across core stack containers: `epricing-service`, `yugabytedb`, `prometheus`, `grafana`, and `loki`.\n\n- **Note:** Core stack also runs `kafka`, `temporal`, `otel-collector`, and `tempo` (not plotted separately here); check *Node CPU by Mode* if total host CPU spikes."
     },
     {
       "id": 9002,
@@ -603,7 +610,8 @@
           "legendFormat": "loki",
           "refId": "E"
         }
-      ]
+      ],
+      "description": "**Container Working-Set Memory Over Time (`bytes`)**\n\nAggregates `max(container_memory_working_set_bytes)` per service to avoid duplicate series after container restarts, comparing `epricing-service`, `yugabytedb`, `prometheus`, `grafana`, and `loki`.\n\n- **Healthy:** Flat or bounded plateau. A monotonic upward slope over hours without plateauing suggests a memory leak or unbounded TSDB/cache growth."
     },
     {
       "id": 9003,
@@ -676,7 +684,8 @@
           "legendFormat": "Node Total RX",
           "refId": "B"
         }
-      ]
+      ],
+      "description": "**Container & Host Network Inbound Throughput (`bytes/s`)**\n\n1-minute rate of received bytes per Docker virtual interface (`container_network_receive_bytes_total`, excluding `lo` and `br-*`) overlaid with total host `node_network_receive_bytes_total`.\n\n- **Use:** Verifies HTTP/SQL/OTLP/Kafka packet flow and detects sudden ingress blackouts (`0 B/s`)."
     },
     {
       "id": 32,
@@ -721,7 +730,8 @@
           "legendFormat": "Node Total TX",
           "refId": "B"
         }
-      ]
+      ],
+      "description": "**Container & Host Network Outbound Throughput (`bytes/s`)**\n\n1-minute rate of transmitted bytes per network interface (`container_network_transmit_bytes_total`, excluding `lo` and `br-*`) alongside host NIC transmit rate.\n\n- **Use:** Tracks OTLP trace batches, SQL writes, and API responses leaving containers."
     },
     {
       "id": 9004,
@@ -801,7 +811,8 @@
           "legendFormat": "Idle %",
           "refId": "C"
         }
-      ]
+      ],
+      "description": "**Host OS CPU Breakdown by Execution Mode (`user` / `system` / `idle`)**\n\nPercentage of host CPU time spent in application code (`user`), kernel syscalls/network/cgroups (`system`), and remaining free (`idle`).\n\n- **Healthy:** Low `system` (`< 20%`) and healthy `idle` headroom."
     },
     {
       "id": 42,
@@ -851,7 +862,8 @@
           "legendFormat": "Free RAM",
           "refId": "C"
         }
-      ]
+      ],
+      "description": "**Host Physical Memory Distribution (`MemTotal` / `MemAvailable` / `MemFree`)**\n\nHost RAM capacity vs genuinely available memory (`MemAvailable`, which includes reclaimable Linux page cache) vs strictly unallocated `MemFree`.\n\n- **Important:** Low `MemFree` alone is normal in Linux due to disk caching—watch `MemAvailable` (`id=7`) for true memory pressure."
     }
   ]
 }
