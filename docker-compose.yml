@@ -565,11 +565,11 @@ services:
   # cAdvisor (Container Advisor) analyzes resource usage (CPU, memory, disk, network)
   # and performance characteristics of all running Docker containers.
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.61.1
     container_name: cadvisor
+    privileged: true
     command:
       - "-docker_only=true"
-      - "-raw_cgroup_prefix_whitelist=/docker/"
     ports:
       - "8085:8080"  # Map host 8085 to container 8080 (changed from 8082 to avoid conflict with Dapr)
     volumes:
@@ -577,7 +577,10 @@ services:
       - /var/run:/var/run:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg:/dev/kmsg
     networks:
       - epricing-network
     restart: unless-stopped
@@ -729,7 +732,7 @@ services:
       - epricing-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "temporal operator cluster health --address 127.0.0.1:7233 || exit 1"]
+      test: ["CMD-SHELL", "temporal operator cluster health --address $$(hostname):7233 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12

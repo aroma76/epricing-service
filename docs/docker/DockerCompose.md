@@ -26,7 +26,7 @@
 | `tempo` | `grafana/tempo:2.5.0` | `3200` | Distributed tracing backend |
 | `otel-collector` | `otel/opentelemetry-collector-contrib:0.107.0` | `4317`, `4318`, `8888`, `8889` | Telemetry pipeline |
 | `traffic-generator` | `alpine/curl:latest` | — | Automatic traffic simulation |
-| `cadvisor` | `gcr.io/cadvisor/cadvisor:v0.49.1` | `8085` | Container resource metrics |
+| `cadvisor` | `ghcr.io/google/cadvisor:v0.61.1` | `8085` | Container resource metrics |
 | `node-exporter` | `prom/node-exporter:v1.8.1` | `9100` | Host OS metrics |
 | `alertmanager` | `prom/alertmanager:v0.27.0` | `9093` | Alert routing, grouping & deduplication |
 | `webhook-logger` | `python:3.11-alpine` | `5001` | Local alert notification receiver |

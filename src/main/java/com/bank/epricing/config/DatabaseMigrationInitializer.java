@@ -51,10 +51,12 @@ public class DatabaseMigrationInitializer implements InitializingBean {
 
     public void runMigrations() {
         log.info("Starting Enterprise Database Schema Migration Check (pre-JPA initialization)...");
-        try (Connection conn = acquireConnectionWithRetry(15, 3000)) {
+        Connection conn = null;
+        boolean lockAcquired = false;
+        try {
+            conn = acquireConnectionWithRetry(15, 3000);
             String dbProduct = conn.getMetaData().getDatabaseProductName().toLowerCase();
             boolean isPostgresOrYugabyte = dbProduct.contains("postgres") || dbProduct.contains("yugabyte");
-            boolean lockAcquired = false;
 
             if (isPostgresOrYugabyte) {
                 log.info("Attempting distributed PostgreSQL advisory lock ({}) for schema migration...", MIGRATION_LOCK_ID);
@@ -65,97 +67,62 @@ public class DatabaseMigrationInitializer implements InitializingBean {
                 } catch (Exception lockEx) {
                     log.warn("Advisory locks not supported or disabled on database engine ({}) [{}]. Proceeding with migration safely.",
                             dbProduct, lockEx.getMessage());
+                    if (isConnectionClosed(conn)) {
+                        log.info("Re-acquiring database connection after advisory lock probe invalidated pooled connection.");
+                        closeQuietly(conn);
+                        conn = acquireConnectionWithRetry(15, 3000);
+                    }
                 }
             }
 
-            try {
-                // 1. Ensure schema_history table exists
-                try (PreparedStatement stmt = conn.prepareStatement(
-                        "CREATE TABLE IF NOT EXISTS schema_history (" +
-                                "  version VARCHAR(50) PRIMARY KEY," +
-                                "  description VARCHAR(200) NOT NULL," +
-                                "  script VARCHAR(200) NOT NULL," +
-                                "  installed_on TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP" +
-                                ")")) {
-                    stmt.execute();
+            // 1. Ensure schema_history table exists
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    "CREATE TABLE IF NOT EXISTS schema_history (" +
+                            "  version VARCHAR(50) PRIMARY KEY," +
+                            "  description VARCHAR(200) NOT NULL," +
+                            "  script VARCHAR(200) NOT NULL," +
+                            "  installed_on TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP" +
+                            ")")) {
+                stmt.execute();
+            }
+
+            // 2. Discover all migration scripts under db/migration/
+            PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+            Resource[] resources = resolver.getResources("classpath:db/migration/V*.sql");
+            Arrays.sort(resources, Comparator.comparingInt(r -> {
+                String name = r.getFilename();
+                if (name == null || !name.startsWith("V")) return 0;
+                try {
+                    return Integer.parseInt(name.substring(1).split("__")[0]);
+                } catch (Exception e) {
+                    return 0;
+                }
+            }));
+
+            for (Resource resource : resources) {
+                String filename = resource.getFilename();
+                if (filename == null)
+                    continue;
+
+                String version = filename.split("__")[0];
+                String description = filename.substring(version.length() + 2).replace(".sql", "").replace("_", " ");
+
+                // 3. Check if script was already applied
+                boolean alreadyApplied = false;
+                try (PreparedStatement checkStmt = conn.prepareStatement(
+                        "SELECT COUNT(*) FROM schema_history WHERE version = ?")) {
+                    checkStmt.setString(1, version);
+                    try (ResultSet rs = checkStmt.executeQuery()) {
+                        if (rs.next() && rs.getInt(1) > 0) {
+                            alreadyApplied = true;
+                        }
+                    }
                 }
 
-                // 2. Discover all migration scripts under db/migration/
-                PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-                Resource[] resources = resolver.getResources("classpath:db/migration/V*.sql");
-                Arrays.sort(resources, Comparator.comparingInt(r -> {
-                    String name = r.getFilename();
-                    if (name == null || !name.startsWith("V")) return 0;
-                    try {
-                        return Integer.parseInt(name.substring(1).split("__")[0]);
-                    } catch (Exception e) {
-                        return 0;
-                    }
-                }));
-
-                for (Resource resource : resources) {
-                    String filename = resource.getFilename();
-                    if (filename == null)
-                        continue;
-
-                    String version = filename.split("__")[0];
-                    String description = filename.substring(version.length() + 2).replace(".sql", "").replace("_", " ");
-
-                    // 3. Check if script was already applied
-                    boolean alreadyApplied = false;
-                    try (PreparedStatement checkStmt = conn.prepareStatement(
-                            "SELECT COUNT(*) FROM schema_history WHERE version = ?")) {
-                        checkStmt.setString(1, version);
-                        try (ResultSet rs = checkStmt.executeQuery()) {
-                            if (rs.next() && rs.getInt(1) > 0) {
-                                alreadyApplied = true;
-                            }
-                        }
-                    }
-
-                    if (!alreadyApplied) {
-                        if (filename.startsWith("V6")) {
-                            if (!isPostgresOrYugabyte) {
-                                log.info("Skipping V6 role migration on non-Postgres/Yugabyte database: {}", dbProduct);
-                                try (PreparedStatement insertStmt = conn.prepareStatement(
-                                        "INSERT INTO schema_history (version, description, script) VALUES (?, ?, ?)")) {
-                                    insertStmt.setString(1, version);
-                                    insertStmt.setString(2, description);
-                                    insertStmt.setString(3, filename);
-                                    insertStmt.executeUpdate();
-                                }
-                                continue;
-                            }
-                            // For PostgreSQL / YugabyteDB, ensure role exists without nested PL/pgSQL block
-                            try (PreparedStatement checkRole = conn.prepareStatement("SELECT 1 FROM pg_roles WHERE rolname = 'grafana_reader'")) {
-                                try (ResultSet rs = checkRole.executeQuery()) {
-                                    if (!rs.next()) {
-                                        try (Statement createStmt = conn.createStatement()) {
-                                            createStmt.execute("CREATE ROLE grafana_reader WITH LOGIN PASSWORD 'grafana_reader_pass'");
-                                            log.info("Created database role 'grafana_reader'");
-                                        } catch (Exception createRoleEx) {
-                                            log.warn("Could not create database role 'grafana_reader' (insufficient permissions or existing): {}", createRoleEx.getMessage());
-                                        }
-                                    }
-                                }
-                            }
-                            // ISSUE-11 FIX: Dynamically grant CONNECT on current active database
-                            String currentDb = conn.getCatalog();
-                            if (currentDb != null && !currentDb.isBlank()) {
-                                try (Statement grantStmt = conn.createStatement()) {
-                                    grantStmt.execute("GRANT CONNECT ON DATABASE \"" + currentDb + "\" TO grafana_reader");
-                                } catch (Exception ex) {
-                                    log.warn("Could not grant CONNECT on database '{}' to grafana_reader: {}", currentDb, ex.getMessage());
-                                }
-                            }
-                        }
-
-                        log.info("Applying database migration: {} - {}", filename, description);
-                        boolean originalAutoCommit = conn.getAutoCommit();
-                        try {
-                            conn.setAutoCommit(false);
-                            ScriptUtils.executeSqlScript(conn, resource);
-
+                if (!alreadyApplied) {
+                    if (filename.startsWith("V6")) {
+                        if (!isPostgresOrYugabyte) {
+                            log.info("Skipping V6 role migration on non-Postgres/Yugabyte database: {}", dbProduct);
                             try (PreparedStatement insertStmt = conn.prepareStatement(
                                     "INSERT INTO schema_history (version, description, script) VALUES (?, ?, ?)")) {
                                 insertStmt.setString(1, version);
@@ -163,32 +130,104 @@ public class DatabaseMigrationInitializer implements InitializingBean {
                                 insertStmt.setString(3, filename);
                                 insertStmt.executeUpdate();
                             }
-                            conn.commit();
-                            log.info("Successfully applied database migration: {}", filename);
-                        } catch (Exception ex) {
-                            conn.rollback();
-                            throw ex;
-                        } finally {
-                            conn.setAutoCommit(originalAutoCommit);
+                            continue;
                         }
-                    } else {
-                        log.debug("Database migration already applied: {}", filename);
+                        // For PostgreSQL / YugabyteDB, ensure role exists without nested PL/pgSQL block
+                        try (PreparedStatement checkRole = conn.prepareStatement("SELECT 1 FROM pg_roles WHERE rolname = 'grafana_reader'")) {
+                            try (ResultSet rs = checkRole.executeQuery()) {
+                                if (!rs.next()) {
+                                    try (Statement createStmt = conn.createStatement()) {
+                                        createStmt.execute("CREATE ROLE grafana_reader WITH LOGIN PASSWORD 'grafana_reader_pass'");
+                                        log.info("Created database role 'grafana_reader'");
+                                    } catch (Exception createRoleEx) {
+                                        log.warn("Could not create database role 'grafana_reader' (insufficient permissions or existing): {}", createRoleEx.getMessage());
+                                    }
+                                }
+                            }
+                        }
+                        // ISSUE-11 FIX: Dynamically grant CONNECT on current active database
+                        String currentDb = conn.getCatalog();
+                        if (currentDb != null && !currentDb.isBlank()) {
+                            try (Statement grantStmt = conn.createStatement()) {
+                                grantStmt.execute("GRANT CONNECT ON DATABASE \"" + currentDb + "\" TO grafana_reader");
+                            } catch (Exception ex) {
+                                log.warn("Could not grant CONNECT on database '{}' to grafana_reader: {}", currentDb, ex.getMessage());
+                            }
+                        }
                     }
-                }
-                log.info("Enterprise Database Schema Migrations are up to date.");
-            } finally {
-                if (lockAcquired) {
-                    try (Statement unlockStmt = conn.createStatement()) {
-                        unlockStmt.execute("SELECT pg_advisory_unlock(" + MIGRATION_LOCK_ID + ")");
-                        log.info("Released distributed PostgreSQL advisory lock ({}).", MIGRATION_LOCK_ID);
-                    } catch (Exception unlockEx) {
-                        log.warn("Failed to release PostgreSQL advisory lock: {}", unlockEx.getMessage());
+
+                    log.info("Applying database migration: {} - {}", filename, description);
+                    boolean originalAutoCommit = conn.getAutoCommit();
+                    try {
+                        conn.setAutoCommit(false);
+                        ScriptUtils.executeSqlScript(conn, resource);
+
+                        try (PreparedStatement insertStmt = conn.prepareStatement(
+                                "INSERT INTO schema_history (version, description, script) VALUES (?, ?, ?)")) {
+                            insertStmt.setString(1, version);
+                            insertStmt.setString(2, description);
+                            insertStmt.setString(3, filename);
+                            insertStmt.executeUpdate();
+                        }
+                        conn.commit();
+                        log.info("Successfully applied database migration: {}", filename);
+                    } catch (Exception ex) {
+                        try {
+                            if (!isConnectionClosed(conn)) {
+                                conn.rollback();
+                            }
+                        } catch (Exception rollbackEx) {
+                            log.warn("Rollback after migration error failed: {}", rollbackEx.getMessage());
+                        }
+                        throw ex;
+                    } finally {
+                        try {
+                            if (!isConnectionClosed(conn)) {
+                                conn.setAutoCommit(originalAutoCommit);
+                            }
+                        } catch (Exception autoCommitEx) {
+                            log.warn("Failed to restore autoCommit after migration: {}", autoCommitEx.getMessage());
+                        }
                     }
+                } else {
+                    log.debug("Database migration already applied: {}", filename);
                 }
             }
+            log.info("Enterprise Database Schema Migrations are up to date.");
         } catch (Exception e) {
             log.error("CRITICAL: Database migration failed — application cannot start safely: {}", e.getMessage(), e);
             throw new RuntimeException("Database migration failed. Fix the migration scripts and restart.", e);
+        } finally {
+            if (lockAcquired && conn != null && !isConnectionClosed(conn)) {
+                try (Statement unlockStmt = conn.createStatement()) {
+                    unlockStmt.execute("SELECT pg_advisory_unlock(" + MIGRATION_LOCK_ID + ")");
+                    log.info("Released distributed PostgreSQL advisory lock ({}).", MIGRATION_LOCK_ID);
+                } catch (Exception unlockEx) {
+                    log.warn("Failed to release PostgreSQL advisory lock: {}", unlockEx.getMessage());
+                }
+            }
+            closeQuietly(conn);
+        }
+    }
+
+    private boolean isConnectionClosed(Connection conn) {
+        if (conn == null) {
+            return true;
+        }
+        try {
+            return conn.isClosed();
+        } catch (Exception ex) {
+            return true;
+        }
+    }
+
+    private void closeQuietly(Connection conn) {
+        if (conn != null) {
+            try {
+                conn.close();
+            } catch (Exception ignored) {
+                // Best-effort cleanup
+            }
         }
     }
 

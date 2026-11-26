@@ -138,7 +138,7 @@ graph TB
 | 07 | `tempo` | `grafana/tempo:2.5.0` | `3200` | Observability | Host default |
 | 08 | `otel-collector` | `otel/opentelemetry-collector-contrib:0.107.0` | `4317, 4318, 8888, 8889` | Pipeline | Host default |
 | 09 | `traffic-generator` | `alpine/curl:latest` | None (Internal) | Simulator | Host default |
-| 10 | `cadvisor` | `gcr.io/cadvisor/cadvisor:v0.49.1` | `8085` | Exporter | Host default |
+| 10 | `cadvisor` | `ghcr.io/google/cadvisor:v0.61.1` | `8085` | Exporter | Host default |
 | 11 | `node-exporter` | `prom/node-exporter:v1.8.1` | `9100` | Exporter | Host default |
 | 12 | `alertmanager` | `prom/alertmanager:v0.27.0` | `9093` | Alerting | Host default |
 | 13 | `webhook-logger` | `python:3.11-alpine` | `5001` | Alerting | Host default |
@@ -462,7 +462,7 @@ docker logs traffic-generator -f --tail 20
 ### 10. `cadvisor`
 
 #### 1. Overview & Image
-- **Image:** `gcr.io/cadvisor/cadvisor:v0.49.1`
+- **Image:** `ghcr.io/google/cadvisor:v0.61.1`
 - **Container Name:** `cadvisor`
 - **Port:** `8085:8080` (Mapped to host 8085 to avoid conflicts).
 

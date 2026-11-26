@@ -128,7 +128,7 @@ All deployment hardening changes are 100% cloud-agnostic with zero vendor-specif
 
 2. **Docker Compose (`docker-compose.yml`)**:
    - Sized `epricing-service` at `reservations.memory: 1536M`, `limits.memory: 2048M`, `cpus: '2.0'`, aligned `JAVA_OPTS`, and added `stop_grace_period: 35s`.
-   - Added `temporal` `healthcheck` (`temporal operator cluster health --address 127.0.0.1:7233 || exit 1`) and switched `epricing-service` and `temporal-ui` `depends_on.temporal.condition` to `service_healthy`.
+   - Added `temporal` `healthcheck` (`temporal operator cluster health --address $$(hostname):7233 || exit 1`) and switched `epricing-service` and `temporal-ui` `depends_on.temporal.condition` to `service_healthy`.
    - Switched `epricing-service` `healthcheck` to `/actuator/health/readiness` so `traffic-generator` (`condition: service_healthy`) waits until database connectivity and readiness are up.
    - Parameterized dev credentials (`${DB_USERNAME:-yugabyte}`, `${DB_PASSWORD:-yugabyte}`, `${GF_SECURITY_ADMIN_PASSWORD:-Bank@grafana123}`, `${TEMPORAL_DB_USER:-temporal}`, `${TEMPORAL_DB_PASSWORD:-temporal}`).
 
@@ -156,17 +156,17 @@ Command:
 ```powershell
 mvn -B clean verify --no-transfer-progress
 ```
-Observed Result (`Exit Code: 0`, `01:44 min` with Docker Desktop stopped / `01:13 min` with live brokers running):
+Observed Result (`Exit Code: 0`, `01:21 min` with live Docker Compose stack running):
 - `ApplicationContextBootstrapTest`: `Tests run: 9, Failures: 0, Errors: 0, Skipped: 0` (`@SpringBootTest(RANDOM_PORT)` + H2 PostgreSQL mode + `DatabaseMigrationInitializer` V1–V8 + R1 terminal-state JPA proxy tests + R1 concurrent stale-version `saveAndFlush` optimistic-lock race test + R3 live REST validation)
 - `KafkaContextBootstrapTest`: `Tests run: 1, Failures: 0, Errors: 0, Skipped: 0`
-- `DatabaseMigrationInitializerTest`: `Tests run: 2, Failures: 0, Errors: 0, Skipped: 0`
+- `DatabaseMigrationInitializerTest`: `Tests run: 3, Failures: 0, Errors: 0, Skipped: 0` (including HikariCP/YugabyteDB `0A000` advisory-lock connection eviction recovery)
 - `PricingActivitiesImplTest`: `Tests run: 18, Failures: 0, Errors: 0, Skipped: 0`
 - `PricingRequestDtoValidationTest`: `Tests run: 19, Failures: 0, Errors: 0, Skipped: 0`
 - `PricingControllerTest`: `Tests run: 9, Failures: 0, Errors: 0, Skipped: 0`
 - `TemporalPricingControllerTest`: `Tests run: 7, Failures: 0, Errors: 0, Skipped: 0`
 - `LoanPricingWorkflowTest`: `Tests run: 4, Failures: 0, Errors: 0, Skipped: 0`
 - `PricingServiceTest` (7), `PricingPersistenceAtomicityTest` (3), `PricingEventProducerTest` (11), `PricingCalculatorTest` (20), `HealthControllerTest` (5), `PagedResponseTest` (3), `LoanPricingEventTest` (3), `StructuredLoggerTest` (4), `TemporalPricingServiceTest` (1) — all `Failures: 0, Errors: 0, Skipped: 0`.
-- Live-broker integration tests (`TemporalWorkflowLiveIntegrationTest` 1, `KafkaLiveBrokerIntegrationTest` 1): execute against local Kafka (`:9092`) and Temporal (`:7233`) when Docker Desktop is running (`126/126` pre-polish / `128` total tests across `19` test classes with `0` skipped); guarded by JUnit `Assumptions.assumeTrue` so offline runs report `Tests run: 127, Failures: 0, Errors: 0, Skipped: 1` (`126` passed + `TemporalWorkflowLiveIntegrationTest` skipped + `KafkaLiveBrokerIntegrationTest` aborted at `@BeforeAll`), **`BUILD SUCCESS`**.
+- Live-broker integration tests (`TemporalWorkflowLiveIntegrationTest` 1, `KafkaLiveBrokerIntegrationTest` 1): executed and passed against live Kafka (`:9092`) and Temporal (`:7233`) (`Tests run: 129, Failures: 0, Errors: 0, Skipped: 0` across `19` test classes, **`BUILD SUCCESS`**); guarded by JUnit `Assumptions` for offline runs.
 
 ### 6.2 Docker Compose & Image Build Verification
 1. `docker compose config --quiet; Write-Output "COMPOSE_EXIT:$LASTEXITCODE"` -> `COMPOSE_EXIT:0`.

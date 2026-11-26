@@ -122,7 +122,7 @@ flowchart TB
 | **Telemetry Router** | OpenTelemetry Collector Contrib | 0.107.0 | Ingests OTLP HTTP/gRPC traces and exports to Tempo & Prometheus |
 | **Dashboards** | Grafana | 11.1.0 | Single-pane-of-glass visualization (L1 to L4 dashboards) |
 | **Alert Routing** | Alertmanager | 0.27.0 | Alert routing, grouping, silencing, and webhook dispatch |
-| **Container Metrics**| cAdvisor | v0.49.1 | Container CPU, memory working set, and throttling exporter |
+| **Container Metrics**| cAdvisor | v0.61.1 | Container CPU, memory working set, and throttling exporter |
 | **Host Metrics** | Node Exporter | v1.8.1 | Host operating system and hardware metrics exporter |
 | **Containers** | Docker & Docker Compose | 17 Containers | Complete orchestration of application, databases, and telemetry |
 
