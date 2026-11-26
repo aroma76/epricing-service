@@ -88,28 +88,24 @@
 
 In the `epricing-service` enterprise banking architecture, data moves across four distinct operational, analytical, and telemetry pathways:
 
+*See [`docs/ARCHITECTURE_DATA_FLOW.md`](./ARCHITECTURE_DATA_FLOW.md) for the interactive 12-node topology, security gates, idempotency protection, and outbox DLQ recovery guide.*
+
 ### 1. Synchronous Online Pricing & Underwriting Flow
-1. **Client Ingress & PII Sanitization (`MDCFilter`, Order 1)**:
-   - Client applications (Mobile CRM, Core Banking Portal, or Traffic Simulator) dispatch HTTP `POST /api/v1/pricing` with payload (`productType`, `loanAmount`, `creditScore`, `annualIncome`, `customerId`).
-   - `MDCFilter` extracts or generates `X-Request-ID` and sanitizes `X-Customer-ID` via `StructuredLogger.maskCustomerId()` to `CUST****1234`.
-   - Binds `{requestId, customerId="CUST****1234", clientIp, httpMethod="POST", requestUri="/api/v1/pricing"}` to SLF4J MDC.
-   - OpenTelemetry Spring MVC filter auto-instruments the root trace (`traceId = 32-hex`, `spanId = 16-hex`) and bridges them into the logging context.
-2. **Actuarial Calculation & Financial Rules (`PricingCalculator`)**:
-   - `PricingController` verifies `@Valid` Bean constraints and delegates to `PricingService.calculatePricing()`.
-   - Validates credit score bounds [300, 900] and minimum threshold (650).
-   - Computes Fixed Obligation to Income Ratio (FOIR $\le$ 50%).
-   - Calculates base benchmark interest rate + product risk margin (Home Loan: 1.0x, Auto: 1.1x, Personal: 1.5x) - credit tier discount - relationship volume discount ($\ge$ ₹50L).
-   - Evaluates monthly Equated Installment (EMI) using exact reducing balance amortization formulas with `BigDecimal` (`HALF_EVEN` rounding).
-3. **Atomic Persistence & HikariCP Pool Safety (`PricingAuditService`)**:
-   - Atomic database persistence is deliberately confined to `PricingAuditService.savePricingWithAudit()` via `@Transactional(rollbackFor = Exception.class)` rather than outer `PricingService` methods, preventing HikariCP connection starvation deadlocks.
-   - Atomically inserts `pricing_requests` with status `CALCULATED` and `pricing_audit_logs` with action `PRICING_CALCULATED` into **YugabyteDB** (YSQL port 5433).
-4. **Post-Commit Asynchronous Domain Event Streaming (`KafkaPricingEventProducer`)**:
-   - Post-commit hook (`TransactionSynchronizationManager.registerSynchronization`) triggers after the database transaction successfully commits.
-   - Injects W3C `traceparent` (`00-{traceId}-{spanId}-01`) into Kafka `ProducerRecord` headers.
-   - Publishes `LoanPricingEvent` to `loan-pricing-events` on Kafka broker (`kafka:29092`) keyed by `customerId` with `max.block.ms: 3000`. If Kafka is unreachable or partitioned, the fail-fast timeout prevents thread hanging and decouples HTTP 201 responses.
-5. **Egress**:
-   - `PricingController` returns HTTP 201 Created with JSON `PricingResponseDto` and `X-Request-ID` response header.
-   - `MDCFilter` clears thread-local MDC in a `finally` block to prevent leakage across pooled Tomcat threads.
+1. **Client Ingress, API-Key RBAC & PII Sanitization (`MDCFilter` Order 1 & `ApiKeyAuthenticationFilter`)**:
+   - Client applications dispatch HTTP `POST /api/v1/pricing` with `X-API-Key` (or `Authorization: Bearer`), optional `Idempotency-Key` (`<= 128` chars), and JSON body (`customer_id`, `product_type`, `loan_amount`, `loan_tenure_months`, `@NotNull credit_score`, `@NotNull annual_income`).
+   - `MDCFilter` binds `X-Request-ID`, resolved IP (`ClientIpResolver`), HTTP method/URI, and masked `X-Customer-ID` (`CUST****1234`) into SLF4J MDC, clearing via `MDC.clear()` in `finally`.
+   - `ApiKeyAuthenticationFilter` performs constant-time `MessageDigest.isEqual()` role checks (`ROLE_CLIENT`, `ROLE_OPERATOR`, `ROLE_ADMIN`); unauthorized calls terminate immediately at `401` / `403`.
+2. **Idempotency Guard, Actuarial Calculation & 3 Gates (`PricingService` + `PricingCalculator`)**:
+   - `PricingController` validates `@Valid` DTO rules (rejecting missing/out-of-range fields with HTTP `400` before business execution).
+   - `PricingService` checks `findByIdempotencyKey()` against `UNIQUE idx_pricing_idempotency_key`; matching retries replay cached HTTP `201` quotes with zero duplicate writes, while modified payloads with an existing key fail with `409 Conflict`.
+   - Evaluates Gate 1 (CIBIL `>= 650`), Gate 2 (Loan `<= 10× annual_income`), reducing-balance rate & EMI in `BigDecimal` (`MathContext.DECIMAL128`), and Gate 3 (FOIR `<= 50%` of monthly income).
+3. **Atomic 3-Table Persistence & Transactional Outbox (`PricingAuditService` + `OutboxService`)**:
+   - Persistence runs inside `PricingAuditService.savePricingWithAuditAndOutbox()` (`@Transactional(rollbackFor = Exception.class)`) so outer math never holds HikariCP connections open.
+   - `PostgresTimeoutBeanPostProcessor` sets bounded `lock_timeout=5000ms` and `statement_timeout=15000ms` on PostgreSQL/YugabyteDB connections.
+   - Atomically inserts `pricing_requests` (with UTC `rate_valid_until`), `pricing_audit_logs` (`PRICING_CALCULATED`), and `outbox_events` (`status=PENDING`) in **YugabyteDB** (`:5433`, migrations `V1..V9`).
+4. **Immediate HTTP 201 & Asynchronous Outbox Relay (`OutboxRelayService` -> Kafka)**:
+   - `PricingController` returns HTTP `201 Created` immediately after YSQL commits (sub-5ms tail latency, zero Kafka I/O on the synchronous HTTP thread).
+   - `OutboxRelayService` (`@Scheduled` 1s poll) claims 30s atomic leases in `REQUIRES_NEW` transactions, publishes `LoanPricingEvent` to `loan-pricing-events` (`acks=all`, `enable.idempotence=true`, `traceparent` header), retries failures with bounded `2^attempt` backoff (up to `300s`), quarantines exhausted messages to `DEAD_LETTER` after `10` attempts, and exposes `/api/v1/admin/outbox/{summary,flush,dead-letter/replay}` for operators/admins.
 
 ---
 

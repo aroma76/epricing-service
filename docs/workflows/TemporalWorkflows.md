@@ -40,15 +40,15 @@ sequenceDiagram
     participant DB as YugabyteDB
     participant Kafka as Apache Kafka (loan-pricing-events)
 
-    Customer->>API: POST /api/v1/workflow/pricing/start
-    API->>Engine: start(LoanPricingWorkflow)
-    API-->>Customer: 202 Accepted (workflowId)
+    Customer->>API: POST /api/v1/workflow/pricing/start (X-API-Key, Idempotency-Key)
+    API->>Engine: start(LoanPricingWorkflow) [REJECT_DUPLICATE if idempotent]
+    API-->>Customer: 202 Accepted (workflowId: pricing-<sha256>-<suffix>)
 
     Engine->>Worker: Execute Workflow Method
     Worker->>Activities: calculateAndPersistPricing(request)
-    Activities->>DB: INSERT pricing_requests (CALCULATED) & AuditLog
-    Activities->>Kafka: publishPricingEvent(LoanPricingEvent: CALCULATED)
+    Activities->>DB: Single TX: INSERT pricing_requests ("temporal:"+wfId), audit & outbox_events (PENDING)
     Activities-->>Worker: quoteResult
+    Note over DB,Kafka: OutboxRelayService publishes CALCULATED event to Kafka asynchronously
 
     Worker->>Engine: Workflow.await(7 days or customer signal)
     Note over Worker,Engine: Zero threads consumed! Worker sleeps durably in Temporal DB.
@@ -57,61 +57,40 @@ sequenceDiagram
         Customer->>API: POST /api/v1/workflow/pricing/{id}/approve
         API->>Engine: Signal: approveQuote()
         Engine->>Worker: Resume Workflow with approval
-        Worker->>Activities: recordQuoteApproval(quoteId, customerId)
-        Activities->>DB: UPDATE pricing_requests (APPROVED) & INSERT pricing_audit_logs (RATE_APPROVED)
-        Activities->>Kafka: publishStatusEvent(LoanPricingEvent: APPROVED)
+        Worker->>Activities: recordQuoteApproval(quoteId, customerId) [@Version optimistic lock]
+        Activities->>DB: UPDATE APPROVED + audit (RATE_APPROVED) + outbox_events (PENDING)
     else Scenario B: Customer Rejects Quote
-        Customer->>API: POST /api/v1/workflow/pricing/{id}/reject
-        API->>Engine: Signal: rejectQuote(reason)
+        Customer->>API: POST /api/v1/workflow/pricing/{id}/reject (optional {} body)
         Worker->>Activities: recordQuoteRejection(quoteId, customerId, reason)
-        Activities->>DB: UPDATE pricing_requests (REJECTED) & INSERT pricing_audit_logs (RATE_REJECTED)
-        Activities->>Kafka: publishStatusEvent(LoanPricingEvent: REJECTED)
+        Activities->>DB: UPDATE REJECTED + audit (RATE_REJECTED) + outbox_events (PENDING)
     else Scenario C: 7 Days Elapse (Timer Expires)
         Engine->>Worker: Wake up on timeout
         Worker->>Activities: recordQuoteExpiration(quoteId, customerId)
-        Activities->>DB: UPDATE pricing_requests (EXPIRED) & INSERT pricing_audit_logs (RATE_EXPIRED)
-        Activities->>Kafka: publishStatusEvent(LoanPricingEvent: EXPIRED)
+        Activities->>DB: UPDATE EXPIRED + audit (RATE_EXPIRED) + outbox_events (PENDING)
     end
+    Note over DB,Kafka: OutboxRelayService delivers terminal APPROVED / REJECTED / EXPIRED event to Kafka
 ```
 
 ---
 
-## 3. Kafka Domain Event Integration on State Transitions
+## 3. Transactional Outbox & Kafka Domain Event Integration on State Transitions
 
-In addition to persisting state changes in YugabyteDB, `PricingActivitiesImpl` emits domain events to the Apache Kafka topic `loan-pricing-events`:
+State transitions inside `PricingActivitiesImpl` enqueue `LoanPricingEvent` records into YugabyteDB `outbox_events` (`OutboxService.enqueue`) inside the same `@Transactional` activity boundary (with a post-commit fallback via `TransactionSynchronizationManager.afterCommit()` only when outbox mode is explicitly disabled):
 
-- **CALCULATED**: Emitted immediately upon initial quote calculation by `PricingService`.
-- **APPROVED**: Emitted when the customer accepts the rate lock via the approval signal.
-- **REJECTED**: Emitted when the customer declines the offer with a rejection reason.
-- **EXPIRED**: Emitted when the 7-day rate-lock timer expires without customer interaction.
+- **CALCULATED**: Enqueued atomically during `calculateAndPersistPricing()` using deterministic deduplication key `"temporal:" + workflowId` so activity retries never create duplicate quotes.
+- **APPROVED / REJECTED / EXPIRED**: Enqueued atomically inside optimistic-locked (`@Version`) terminal transition methods (`recordQuoteApproval`, `recordQuoteRejection`, `recordQuoteExpiration`) — with `TERMINAL_STATUSES` idempotency guards preventing duplicate state updates on late signals.
 
 ```java
-private void publishStatusEvent(PricingRequest request, String status) {
-    if (pricingEventProducer == null || !pricingEventProducer.isKafkaEnabled()) {
-        return;
-    }
-    try {
-        LoanPricingEvent event = new LoanPricingEvent();
-        event.setRequestId(request.getId());
-        event.setCustomerId(request.getCustomerId());
-        event.setProductType(request.getProductType());
-        event.setLoanAmount(request.getLoanAmount());
-        event.setInterestRate(request.getInterestRate());
-        event.setEmiAmount(request.getEmiAmount());
-        event.setLoanTenureMonths(request.getLoanTenureMonths());
-        event.setTotalPayableAmount(request.getTotalPayableAmount());
-        event.setTotalInterestPayable(request.getTotalInterestPayable());
-        event.setRiskCategory(request.getRiskCategory());
-        event.setStatus(status);
-        event.setTimestamp(LocalDateTime.now());
-        // Propagate trace context if available
-        pricingEventProducer.publishPricingEvent(event);
-    } catch (Exception e) {
-        log.warn("Failed to publish status event for requestId={} status={}: {}",
-                request.getId(), status, e.getMessage());
+private void emitStatusEvent(PricingRequest saved, String status) {
+    if (outboxService != null && outboxService.isEnabled()) {
+        outboxService.enqueue("PRICING_REQUEST", saved.getId(), buildStatusEvent(saved, status));
+    } else if (pricingEventProducer != null) {
+        publishStatusEvent(saved, status);
     }
 }
 ```
+
+*For the full end-to-end visual flow and outbox DLQ recovery sequence, see [`docs/ARCHITECTURE_DATA_FLOW.md`](../ARCHITECTURE_DATA_FLOW.md).*
 
 ---
 
@@ -181,7 +160,7 @@ All Temporal workflow endpoints are under `/api/v1/workflow/pricing`:
 | `GET` | `/api/v1/workflow/pricing/{workflowId}` | Queries complete workflow state and full `PricingWorkflowResult` DTO. |
 | `GET` | `/api/v1/workflow/pricing/{workflowId}/status` | Fast status query returning simple JSON `{ "workflowId": "...", "status": "..." }`. |
 | `POST` | `/api/v1/workflow/pricing/{workflowId}/approve` | Dispatches approval signal to the running workflow. Returns updated workflow state. |
-| `POST` | `/api/v1/workflow/pricing/{workflowId}/reject` | Dispatches rejection signal with optional reason query param. Returns updated workflow state. |
+| `POST` | `/api/v1/workflow/pricing/{workflowId}/reject` | Dispatches rejection signal with optional `{ "reason": "..." }` JSON body (empty/`{}` defaults safely to `"Customer rejected offer"`). |
 
 ---
 
