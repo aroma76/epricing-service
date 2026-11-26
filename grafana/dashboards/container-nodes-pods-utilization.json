@@ -41,7 +41,7 @@
   "timezone": "Asia/Kolkata",
   "title": "ePricing Container & Node Utilization",
   "uid": "epricing-containers",
-  "version": 6,
+  "version": 7,
   "panels": [
     {
       "id": 1,
@@ -108,7 +108,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".*epricing-service.*\"}[1m])) * 100 or (process_cpu_usage{job=\"epricing-service\"} * 100)",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".*epricing-service.*\"}[1m])) * 100 or (sum(process_cpu_usage{job=\"epricing-service\"}) * 100)",
           "instant": true,
           "legendFormat": "epricing CPU %",
           "refId": "A"
@@ -491,7 +491,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".*epricing-service.*\"}[1m])) * 100 or (process_cpu_usage{job=\"epricing-service\"} * 100)",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".*epricing-service.*\"}[1m])) * 100 or (sum(process_cpu_usage{job=\"epricing-service\"}) * 100)",
           "legendFormat": "epricing-service",
           "refId": "A"
         },
